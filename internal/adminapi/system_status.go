@@ -998,6 +998,47 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		mobilePolicyControlStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.MobilePolicyControlComponent()]}
 	}
+	wimaxServiceFlowStatus := map[string]any{
+		"status":  "unknown",
+		"message": "WiMAX subscriber and service-flow support has not been evaluated.",
+	}
+	if wimaxReport, err := enforcement.PreviewWiMAXServiceFlows(cfg); err == nil {
+		wimaxSummary, _ := db.GetWiMAXServiceFlowSummary()
+		wimaxServiceFlowStatus = map[string]any{
+			"schema_version":                      wimaxReport.SchemaVersion,
+			"feature_id":                          wimaxReport.FeatureID,
+			"status":                              wimaxReport.Status,
+			"message":                             wimaxReport.Message,
+			"ready_for_external_validation":       wimaxReport.ReadyForExternalValidation,
+			"software_completion_percent":         wimaxReport.SoftwareCompletionPercent,
+			"enabled":                             wimaxReport.Summary.Enabled,
+			"mode":                                wimaxReport.Summary.Mode,
+			"subscriber_profile_count":            wimaxReport.Summary.SubscriberProfileCount,
+			"enabled_subscriber_profile_count":    wimaxReport.Summary.EnabledSubscriberProfileCount,
+			"service_flow_count":                  wimaxReport.Summary.ServiceFlowCount,
+			"enabled_service_flow_count":          wimaxReport.Summary.EnabledServiceFlowCount,
+			"asn_profile_count":                   wimaxReport.Summary.ASNProfileCount,
+			"enabled_asn_profile_count":           wimaxReport.Summary.EnabledASNProfileCount,
+			"mobility_policy_count":               wimaxReport.Summary.MobilityPolicyCount,
+			"enabled_mobility_policy_count":       wimaxReport.Summary.EnabledMobilityPolicyCount,
+			"radius_attribute_count":              wimaxReport.Summary.RadiusAttributeCount,
+			"compliance_check_count":              wimaxReport.Summary.ComplianceCheckCount,
+			"passed_check_count":                  wimaxReport.Summary.PassedCheckCount,
+			"warning_count":                       wimaxReport.Summary.WarningCount,
+			"blocker_count":                       wimaxReport.Summary.BlockerCount,
+			"grouped_avp_status":                  wimaxReport.Summary.GroupedAVPStatus,
+			"mobile_charging_status":              wimaxReport.Summary.MobileChargingStatus,
+			"dynamic_auth_enabled":                wimaxReport.Summary.DynamicAuthEnabled,
+			"dynamic_auth_outbound_enabled":       wimaxReport.Summary.DynamicAuthOutboundEnabled,
+			"plan_fingerprint":                    wimaxReport.PlanFingerprint,
+			"release_certification_checklist":     wimaxReport.ReleaseCertificationChecklist,
+			"release_certification_external_only": true,
+			"evidence_summary":                    wimaxSummary,
+			"runtime_status":                      runtimeMap[enforcement.WiMAXServiceFlowComponent()],
+		}
+	} else {
+		wimaxServiceFlowStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.WiMAXServiceFlowComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1711,6 +1752,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_session_state":              mobileSessionStatus,
 		"mobile_charging_correlation":       mobileChargingStatus,
 		"mobile_policy_control":             mobilePolicyControlStatus,
+		"wimax_service_flows":               wimaxServiceFlowStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1841,6 +1883,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_session_state":              mobileSessionStatus,
 		"mobile_charging_correlation":       mobileChargingStatus,
 		"mobile_policy_control":             mobilePolicyControlStatus,
+		"wimax_service_flows":               wimaxServiceFlowStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

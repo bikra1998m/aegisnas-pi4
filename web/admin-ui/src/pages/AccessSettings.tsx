@@ -3591,6 +3591,10 @@ export default function AccessSettings() {
   const [mobilePolicyControlAction, setMobilePolicyControlAction] =
     useState("");
   const mobilePolicyControlBusy = mobilePolicyControlAction !== "";
+  const [wimaxServiceFlows, setWiMAXServiceFlows] =
+    useState<JsonMap | null>(null);
+  const [wimaxServiceFlowAction, setWiMAXServiceFlowAction] = useState("");
+  const wimaxServiceFlowBusy = wimaxServiceFlowAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3774,6 +3778,11 @@ export default function AccessSettings() {
   const loadMobilePolicyControl = async () => {
     const { data } = await api.get("/system/mobile-policy-control");
     setMobilePolicyControl(data.report || null);
+  };
+
+  const loadWiMAXServiceFlows = async () => {
+    const { data } = await api.get("/system/wimax-service-flows");
+    setWiMAXServiceFlows(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -4026,6 +4035,7 @@ export default function AccessSettings() {
         mobileSessionRes,
         mobileChargingRes,
         mobilePolicyControlRes,
+        wimaxServiceFlowRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4051,6 +4061,7 @@ export default function AccessSettings() {
         api.get("/system/mobile-sessions"),
         api.get("/system/mobile-charging"),
         api.get("/system/mobile-policy-control"),
+        api.get("/system/wimax-service-flows"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4088,6 +4099,7 @@ export default function AccessSettings() {
       setMobileSessions(mobileSessionRes.data.report || null);
       setMobileCharging(mobileChargingRes.data.report || null);
       setMobilePolicyControl(mobilePolicyControlRes.data.report || null);
+      setWiMAXServiceFlows(wimaxServiceFlowRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5541,6 +5553,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewWiMAXServiceFlows = async () => {
+    setWiMAXServiceFlowAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/wimax-service-flows/preview", {});
+      setWiMAXServiceFlows(data.report || null);
+      setMessage(
+        `WiMAX service-flow preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview WiMAX service flows.",
+      );
+    } finally {
+      setWiMAXServiceFlowAction("");
+    }
+  };
+
+  const applyWiMAXServiceFlows = async () => {
+    setWiMAXServiceFlowAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/wimax-service-flows/apply", {});
+      setWiMAXServiceFlows(data.report || null);
+      setMessage(
+        `WiMAX service flows ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadWiMAXServiceFlows();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply WiMAX service flows.",
+      );
+    } finally {
+      setWiMAXServiceFlowAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6452,6 +6509,27 @@ export default function AccessSettings() {
     ? mobilePolicyControl?.compliance
     : [];
   const mobilePolicyControlTone = statusTone(mobilePolicyControl?.status);
+  const wimaxServiceFlowSummary = wimaxServiceFlows?.summary || {};
+  const wimaxSubscriberProfiles = Array.isArray(
+    wimaxServiceFlows?.subscriber_profiles,
+  )
+    ? wimaxServiceFlows?.subscriber_profiles
+    : [];
+  const wimaxServiceFlowItems = Array.isArray(wimaxServiceFlows?.service_flows)
+    ? wimaxServiceFlows?.service_flows
+    : [];
+  const wimaxASNProfiles = Array.isArray(wimaxServiceFlows?.asn_profiles)
+    ? wimaxServiceFlows?.asn_profiles
+    : [];
+  const wimaxMobilityPolicies = Array.isArray(
+    wimaxServiceFlows?.mobility_policies,
+  )
+    ? wimaxServiceFlows?.mobility_policies
+    : [];
+  const wimaxCompliance = Array.isArray(wimaxServiceFlows?.compliance)
+    ? wimaxServiceFlows?.compliance
+    : [];
+  const wimaxServiceFlowTone = statusTone(wimaxServiceFlows?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -7020,6 +7098,24 @@ export default function AccessSettings() {
               : "Apply Mobile Policy"}
           </button>
           <button
+            onClick={previewWiMAXServiceFlows}
+            disabled={wimaxServiceFlowBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {wimaxServiceFlowAction === "preview"
+              ? "Checking WiMAX Flows..."
+              : "Preview WiMAX Flows"}
+          </button>
+          <button
+            onClick={applyWiMAXServiceFlows}
+            disabled={wimaxServiceFlowBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {wimaxServiceFlowAction === "apply"
+              ? "Applying WiMAX Flows..."
+              : "Apply WiMAX Flows"}
+          </button>
+          <button
             onClick={applyRadiusConfig}
             disabled={applyingRadius}
             className="rounded-md border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 disabled:opacity-60"
@@ -7530,6 +7626,303 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              WiMAX Service Flows
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {wimaxServiceFlows?.release_certification_checklist ||
+                "Validate ASN gateway, base station, CPE, RF lab, WiMAX VSA captures, charging, mobility, and FreeRADIUS evidence before carrier release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${wimaxServiceFlowTone}`}
+          >
+            {wimaxServiceFlows?.status || "unknown"}
+          </div>
+        </div>
+        {wimaxServiceFlows ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{wimaxServiceFlows.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Subscribers",
+                  `${wimaxServiceFlowSummary.enabled_subscriber_profile_count || 0}/${wimaxServiceFlowSummary.subscriber_profile_count || 0}`,
+                ],
+                [
+                  "Service Flows",
+                  `${wimaxServiceFlowSummary.enabled_service_flow_count || 0}/${wimaxServiceFlowSummary.service_flow_count || 0}`,
+                ],
+                [
+                  "ASN Profiles",
+                  `${wimaxServiceFlowSummary.enabled_asn_profile_count || 0}/${wimaxServiceFlowSummary.asn_profile_count || 0}`,
+                ],
+                [
+                  "Mobility",
+                  `${wimaxServiceFlowSummary.enabled_mobility_policy_count || 0}/${wimaxServiceFlowSummary.mobility_policy_count || 0}`,
+                ],
+                ["Attrs", wimaxServiceFlowSummary.radius_attribute_count || 0],
+                [
+                  "Compliance",
+                  `${wimaxServiceFlowSummary.passed_check_count || 0}/${wimaxServiceFlowSummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Mode{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.mode || "monitor"}
+              </span>{" "}
+              / grouped AVPs{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.grouped_avp_status || "unknown"}
+              </span>{" "}
+              / charging{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.mobile_charging_status || "unknown"}
+              </span>{" "}
+              / dynamic auth{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.dynamic_auth_enabled ||
+                wimaxServiceFlowSummary.dynamic_auth_outbound_enabled
+                  ? "available"
+                  : "inactive"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Subscriber Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wimaxSubscriberProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No WiMAX subscriber profile is configured.
+                    </div>
+                  ) : (
+                    wimaxSubscriberProfiles
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.nai_realm || "wimax-subscriber"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Subscriber Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.nai_realm, item.asn_profile, item.default_service_flow]
+                              .filter(Boolean)
+                              .join(" / ") || "Subscriber metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.vendor_packs || []).slice(0, 4).join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Service Flows
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wimaxServiceFlowItems.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No WiMAX service flow is configured.
+                    </div>
+                  ) : (
+                    wimaxServiceFlowItems
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.service_flow_id || "wimax-flow"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Service Flow"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.service_flow_id ? `SF ${item.service_flow_id}` : "",
+                              item.scheduling_type,
+                              item.service_class,
+                              item.qos_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Service-flow metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[
+                              item.max_sustained_rate_kbps
+                                ? `${item.max_sustained_rate_kbps}k max`
+                                : "",
+                              item.min_reserved_rate_kbps
+                                ? `${item.min_reserved_rate_kbps}k reserved`
+                                : "",
+                              item.max_latency_ms
+                                ? `${item.max_latency_ms}ms latency`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  ASN Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {wimaxASNProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No WiMAX ASN profile is configured.
+                    </div>
+                  ) : (
+                    wimaxASNProfiles
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.asn_id || "wimax-asn"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "ASN Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.asn_id, item.realm, item.mobility_domain]
+                              .filter(Boolean)
+                              .join(" / ") || "ASN metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[item.home_agent_endpoint, item.accounting_endpoint]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Mobility Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {[...wimaxMobilityPolicies, ...wimaxCompliance]
+                    .slice(0, 9)
+                    .map((item: JsonMap, index: number) => (
+                      <div
+                        key={`${item.id || item.name || "wimax-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {item.name || item.id || "WiMAX Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              item.status,
+                            )}`}
+                          >
+                            {item.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {item.message ||
+                            [
+                              item.source_asn,
+                              item.target_asn,
+                              item.handover_mode,
+                              item.coa_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") ||
+                            "No WiMAX message"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            {((wimaxServiceFlows.blockers?.length || 0) > 0 ||
+              (wimaxServiceFlows.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(wimaxServiceFlows.blockers || []),
+                  ...(wimaxServiceFlows.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Defaults{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.default_subscriber_profile ||
+                  "wimax-retail"}
+              </span>{" "}
+              /{" "}
+              <span className="font-mono">
+                {wimaxServiceFlowSummary.default_service_flow || "internet-be"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {wimaxServiceFlows.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            WiMAX service-flow report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

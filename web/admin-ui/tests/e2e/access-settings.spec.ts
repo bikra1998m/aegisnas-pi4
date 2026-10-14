@@ -400,6 +400,47 @@ test.describe("Access Settings edge-network flow", () => {
     await expect(page.getByText(/Mobile policy control applied/)).toBeVisible();
   });
 
+  test("previews and applies WiMAX service flows", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
+    });
+    const wimaxHeading = page.getByRole("heading", {
+      name: "WiMAX Service Flows",
+    });
+    await expect(wimaxHeading).toBeVisible({ timeout: 60_000 });
+    const wimaxSection = wimaxHeading.locator("xpath=ancestor::section[1]");
+    await expect(wimaxSection).toBeVisible();
+    await expect(
+      wimaxSection.getByRole("heading", { name: "Subscriber Profiles" }),
+    ).toBeVisible();
+    await expect(
+      wimaxSection.getByRole("heading", { name: "Service Flows", exact: true }),
+    ).toBeVisible();
+    await expect(
+      wimaxSection.getByRole("heading", { name: "ASN Profiles" }),
+    ).toBeVisible();
+    await expect(
+      wimaxSection.getByText("wimax-retail", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      wimaxSection.getByText("internet-be", { exact: true }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview WiMAX Flows" }).click();
+    await expect(
+      page.getByText(/WiMAX service-flow preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply WiMAX Flows" }).click();
+    await expect(page.getByText(/WiMAX service flows applied/)).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

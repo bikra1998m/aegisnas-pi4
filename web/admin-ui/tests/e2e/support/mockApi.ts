@@ -5530,6 +5530,208 @@ function createMobilePolicyControl(status = "ready") {
   };
 }
 
+function createWiMAXServiceFlows(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0096",
+      status,
+      message:
+        "WiMAX subscriber profiles, service-flow authorization, ASN mobility, charging correlation, and RADIUS VSA evidence are ready.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0096-release-certification-checklist.md",
+      release_scope:
+        "Live WiMAX ASN gateways, base stations, CPE, RF lab, vendor hardware, FreeRADIUS production Linux, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0096d9840a36940f8f5b7e95c3f9cd4f052305e25a96355602da5c7269b1ad",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_grouped_avps: true,
+        require_charging: true,
+        require_dynamic_auth: true,
+        service_flow_authorization: true,
+        mobility_tracking: true,
+        accounting_correlation: true,
+        redact_subscriber_ids: true,
+        hash_subscriber_ids: true,
+        service_flow_retention_days: 180,
+        event_retention_limit: 10000,
+        max_subscribers: 100000,
+        default_subscriber_profile: "wimax-retail",
+        default_service_flow: "internet-be",
+        default_asn_profile: "asn-primary",
+        subscriber_profile_count: 2,
+        enabled_subscriber_profile_count: 2,
+        service_flow_count: 3,
+        enabled_service_flow_count: 3,
+        asn_profile_count: 2,
+        enabled_asn_profile_count: 2,
+        mobility_policy_count: 2,
+        enabled_mobility_policy_count: 2,
+        radius_attribute_count: 16,
+        processing_step_count: 6,
+        compliance_check_count: 11,
+        passed_check_count: 11,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        grouped_avp_status: "ready",
+        mobile_charging_status: "ready",
+        dynamic_auth_enabled: true,
+        dynamic_auth_outbound_enabled: true,
+      },
+      subscriber_profiles: [
+        {
+          name: "wimax-retail",
+          enabled: true,
+          nai_realm: "wimax.example.net",
+          device_group: "fixed-wireless",
+          asn_profile: "asn-primary",
+          default_service_flow: "internet-be",
+          accounting_class: "retail-data",
+          policy_profile: "home-default",
+          vendor_packs: ["wimax", "alvarion", "wichorus"],
+          status: "ready",
+        },
+        {
+          name: "wimax-voice",
+          enabled: true,
+          nai_realm: "voice.wimax.example.net",
+          device_group: "voice-cpe",
+          asn_profile: "asn-primary",
+          default_service_flow: "voice-ugs",
+          accounting_class: "voice-qos",
+          policy_profile: "voice-priority",
+          vendor_packs: ["wimax", "navini"],
+          status: "ready",
+        },
+      ],
+      service_flows: [
+        {
+          name: "internet-be",
+          enabled: true,
+          direction: "bidirectional",
+          service_class: "best-effort",
+          scheduling_type: "be",
+          service_flow_id: 1001,
+          qos_profile: "internet-default",
+          max_sustained_rate_kbps: 50000,
+          status: "ready",
+        },
+        {
+          name: "voice-ugs",
+          enabled: true,
+          direction: "bidirectional",
+          service_class: "voice",
+          scheduling_type: "ugs",
+          service_flow_id: 2001,
+          qos_profile: "voice-low-latency",
+          max_sustained_rate_kbps: 128,
+          min_reserved_rate_kbps: 128,
+          max_latency_ms: 50,
+          status: "ready",
+        },
+      ],
+      asn_profiles: [
+        {
+          name: "asn-primary",
+          enabled: true,
+          asn_id: "asn-001",
+          realm: "wimax.example.net",
+          mobility_domain: "metro-primary",
+          home_agent_endpoint: "ha-primary",
+          accounting_endpoint: "acct-primary",
+          status: "ready",
+        },
+        {
+          name: "asn-roaming",
+          enabled: true,
+          asn_id: "asn-roam",
+          realm: "roaming.example.net",
+          mobility_domain: "partner-roaming",
+          home_agent_endpoint: "ha-roaming",
+          accounting_endpoint: "acct-roaming",
+          status: "ready",
+        },
+      ],
+      mobility_policies: [
+        {
+          name: "asn-handover",
+          enabled: true,
+          source_asn: "asn-primary",
+          target_asn: "asn-roaming",
+          handover_mode: "optimized",
+          coa_profile: "wimax-handover-update",
+          status: "ready",
+        },
+        {
+          name: "roaming-reauth",
+          enabled: true,
+          source_asn: "asn-roaming",
+          target_asn: "asn-primary",
+          handover_mode: "hard",
+          coa_profile: "wimax-roaming-reauth",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "grouped-avp-dependency",
+          name: "NAS-0092 grouped telecom AVP dependency",
+          status: "passed",
+          message: "Grouped telecom AVP framework is ready for WiMAX VSA evidence.",
+        },
+        {
+          id: "charging-dependency",
+          name: "NAS-0094 charging correlation dependency",
+          status: "passed",
+          message: "Charging correlation is ready for WiMAX accounting evidence.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Live ASN gateways, RF/base-station/CPE hardware, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      radius_attributes: [
+        "WiMAX-MN-NAI",
+        "WiMAX-Service-Flow-ID",
+        "WiMAX-QoS-Descriptor",
+        "WiMAX-Packet-Flow-Descriptor",
+        "WiMAX-Session-Id",
+        "Filter-Id",
+        "Class",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        ready_profile_count: 9,
+        planned_profile_count: 0,
+      },
+      recent_events: [],
+      effective_state: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -11602,6 +11804,54 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             ...payload.report.qos_classes,
             ...payload.report.roaming_policies,
             ...payload.report.feedback_rules,
+          ],
+        },
+      });
+      return;
+    }
+    if (path === "/system/wimax-service-flows" && method === "GET") {
+      await route.fulfill({ json: createWiMAXServiceFlows() });
+      return;
+    }
+    if (path === "/system/wimax-service-flows/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createWiMAXServiceFlows(),
+          event_id: "wimax-flow-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/wimax-service-flows/apply" && method === "POST") {
+      const payload = createWiMAXServiceFlows();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0096 recorded WiMAX subscriber, service-flow, ASN, and mobility evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "wimax-flow-event-apply",
+          result: {
+            status: "applied",
+            event_id: "wimax-flow-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/wimax-service-flows/history" && method === "GET") {
+      const payload = createWiMAXServiceFlows();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0096",
+          summary: payload.evidence.summary,
+          events: [],
+          effective_state: [
+            ...payload.report.subscriber_profiles,
+            ...payload.report.service_flows,
+            ...payload.report.asn_profiles,
+            ...payload.report.mobility_policies,
           ],
         },
       });

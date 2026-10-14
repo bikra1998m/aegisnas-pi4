@@ -1693,6 +1693,26 @@ Operators should keep three states separate:
    product, firmware, packet captures, HA, scale, soak, security, and customer
    acceptance are recorded in `nas-0095-release-certification-checklist.md`
 
+### WiMAX Subscriber And Service Flows
+
+NAS-0096 provides the external-AAA product boundary for WiMAX subscriber
+profiles, service-flow authorization, ASN mobility, charging correlation, and
+WiMAX RADIUS VSA evidence. The software compiles subscriber profiles, service
+flows, ASN profiles, mobility policies, dependency checks, API/UI/readiness
+evidence, and database-backed history.
+
+Operators should keep three states separate:
+
+1. dictionary support means WiMAX, Alvarion, WiChorus, and Navini attribute
+   names are known
+2. software readiness means WiMAX service-flow support can preview, apply,
+   store subscriber/service-flow/ASN/mobility history, expose
+   API/UI/readiness evidence, and protect subscriber identifiers with redaction
+   and hashes
+3. certification means exact ASN gateway, base-station, CPE, RF lab, product,
+   firmware, packet captures, HA, scale, soak, security, and customer
+   acceptance are recorded in `nas-0096-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

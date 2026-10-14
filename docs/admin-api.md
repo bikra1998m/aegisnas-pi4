@@ -2034,6 +2034,31 @@ and `mobile_policy_control_profiles`. Production readiness reports this as
 `api/mobile-policy-control-history.json`. See
 [mobile-policy-control.md](mobile-policy-control.md).
 
+NAS-0096 adds WiMAX subscriber and service-flow endpoints:
+
+```text
+GET  /api/v1/system/wimax-service-flows
+POST /api/v1/system/wimax-service-flows/preview
+POST /api/v1/system/wimax-service-flows/apply
+GET  /api/v1/system/wimax-service-flows/history
+```
+
+`GET /api/v1/system/wimax-service-flows` returns subscriber profiles, service
+flows, ASN profiles, mobility policies, RADIUS WiMAX attributes, dependency
+checks, plan fingerprint, software completion state, release certification
+scope, and recent evidence. Preview records an event without mutating effective
+WiMAX rows. Apply records an auditable checkpoint, upserts effective
+subscriber, service-flow, ASN, and mobility rows, and updates runtime status.
+A blocked apply returns HTTP 409 with the report. Read-only roles may read,
+preview, and list history. `ops_admin` and `super_admin` may apply.
+
+The endpoints depend on `mobile.wimax`, `mobile.grouped_avps`,
+`mobile.charging`, `radius.dynamic_auth`, and schema v100 tables
+`wimax_service_flow_events` and `wimax_service_flow_profiles`. Production
+readiness reports this as `wimax_service_flows`; support bundles include
+`api/wimax-service-flows.json` and `api/wimax-service-flows-history.json`. See
+[wimax-service-flows.md](wimax-service-flows.md).
+
 Roles and policy rules may assign an enabled library entry with `acl_policy_name`. Validation rejects missing or disabled references, and deletion is blocked while a role or policy rule still uses the ACL. Portal policy evaluation and CoA persist the selected name on the active session. Local FreeRADIUS users receive the role's standard and configured vendor ACL attributes when the generated `users` file is applied.
 
 After committing a role, user, ACL binding, or EAP framework policy through `/api/v1/apply`, run `POST /api/v1/system/radius-apply` (the **Apply RADIUS Config** action in Access Settings). This regenerates the local-user entries in `mods-config/files/authorize`, the legacy `users` path, and `mods-enabled/eap`, validates the complete FreeRADIUS configuration, and restarts FreeRADIUS. Database-backed portal decisions and CoA updates do not require this regeneration. Local bcrypt credentials support PAP and EAP-TTLS/PAP; CHAP and PEAP-MSCHAPv2 require a compatible cleartext or NT password verifier, while EAP-TLS uses certificates. NAS-0022 blocks enforce-mode generation when policy enables cataloged methods that this release cannot generate.

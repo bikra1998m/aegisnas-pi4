@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 99
+	return 100
 }
 
 func Migrate() error {
@@ -5402,3 +5402,57 @@ CREATE INDEX IF NOT EXISTS idx_mobile_policy_profiles_seen ON mobile_policy_cont
 `
 
 const schemaV99 = mobilePolicyControlSQL
+
+const wimaxServiceFlowSQL = `
+CREATE TABLE IF NOT EXISTS wimax_service_flow_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	subscriber_profile_count INTEGER DEFAULT 0,
+	service_flow_count INTEGER DEFAULT 0,
+	asn_profile_count INTEGER DEFAULT 0,
+	mobility_policy_count INTEGER DEFAULT 0,
+	radius_attribute_count INTEGER DEFAULT 0,
+	compliance_check_count INTEGER DEFAULT 0,
+	passed_check_count INTEGER DEFAULT 0,
+	warning_count INTEGER DEFAULT 0,
+	blocker_count INTEGER DEFAULT 0,
+	external_requirement_count INTEGER DEFAULT 0,
+	summary_json TEXT NOT NULL,
+	report_json TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_events_created ON wimax_service_flow_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_events_status ON wimax_service_flow_events(status);
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_events_fingerprint ON wimax_service_flow_events(plan_fingerprint);
+
+CREATE TABLE IF NOT EXISTS wimax_service_flow_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_key TEXT NOT NULL,
+	profile_type TEXT NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL,
+	service_flow_id INTEGER DEFAULT 0,
+	service_class TEXT,
+	asn_profile TEXT,
+	mobility_mode TEXT,
+	attributes_json TEXT NOT NULL,
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(profile_type, profile_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_profiles_type ON wimax_service_flow_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_profiles_status ON wimax_service_flow_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_profiles_seen ON wimax_service_flow_profiles(last_seen_at);
+`
+
+const schemaV100 = wimaxServiceFlowSQL

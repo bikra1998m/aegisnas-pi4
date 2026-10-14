@@ -2603,6 +2603,139 @@ mobile:
         coa_profile: mobile-roaming-policy
         cooldown_seconds: 120
         radius_attributes: ["3GPP-RAT-Type", "3GPP-Selection-Mode", "Class"]
+  wimax:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_grouped_avps: true
+    require_charging: true
+    require_dynamic_auth: true
+    service_flow_authorization: true
+    mobility_tracking: true
+    accounting_correlation: true
+    redact_subscriber_ids: true
+    hash_subscriber_ids: true
+    service_flow_retention_days: 180
+    event_retention_limit: 10000
+    max_subscribers: 100000
+    default_subscriber_profile: wimax-retail
+    default_service_flow: internet-be
+    default_asn_profile: asn-primary
+    radius_attributes:
+      - WiMAX-MN-NAI
+      - WiMAX-Service-Flow-ID
+      - WiMAX-QoS-Descriptor
+      - WiMAX-Packet-Flow-Descriptor
+      - WiMAX-Session-Id
+      - WiMAX-Accounting-Capabilities
+      - Filter-Id
+      - Class
+      - Session-Timeout
+      - Acct-Interim-Interval
+    external_gateway_references:
+      - WiMAX ASN gateway
+      - AAA mobility anchor
+      - Alvarion ASN-GW
+      - WiChorus ASN-GW
+      - Navini BTS lab
+    subscriber_profiles:
+      - name: wimax-retail
+        enabled: true
+        nai_realm: wimax.example.net
+        device_group: fixed-wireless
+        home_agent: ha-primary
+        asn_profile: asn-primary
+        default_service_flow: internet-be
+        accounting_class: retail-data
+        policy_profile: home-default
+        vendor_packs: ["wimax", "alvarion", "wichorus"]
+        radius_attributes: ["WiMAX-MN-NAI", "WiMAX-Session-Id", "Filter-Id", "Class"]
+      - name: wimax-voice
+        enabled: true
+        nai_realm: voice.wimax.example.net
+        device_group: voice-cpe
+        home_agent: ha-primary
+        asn_profile: asn-primary
+        default_service_flow: voice-ugs
+        accounting_class: voice-qos
+        policy_profile: voice-priority
+        vendor_packs: ["wimax", "navini"]
+        radius_attributes: ["WiMAX-MN-NAI", "WiMAX-QoS-Descriptor", "Acct-Interim-Interval"]
+    service_flows:
+      - name: internet-be
+        enabled: true
+        direction: bidirectional
+        service_class: best-effort
+        scheduling_type: be
+        service_flow_id: 1001
+        qos_profile: internet-default
+        traffic_priority: 0
+        max_sustained_rate_kbps: 50000
+        min_reserved_rate_kbps: 0
+        packet_classifier: permit ip any assigned
+        radius_attributes: ["WiMAX-Service-Flow-ID", "WiMAX-QoS-Descriptor", "WiMAX-Packet-Flow-Descriptor"]
+      - name: voice-ugs
+        enabled: true
+        direction: bidirectional
+        service_class: voice
+        scheduling_type: ugs
+        service_flow_id: 2001
+        qos_profile: voice-low-latency
+        traffic_priority: 6
+        max_sustained_rate_kbps: 128
+        min_reserved_rate_kbps: 128
+        max_latency_ms: 50
+        tolerated_jitter_ms: 10
+        packet_classifier: permit udp assigned any eq voice
+        radius_attributes: ["WiMAX-Service-Flow-ID", "WiMAX-QoS-Descriptor", "WiMAX-Packet-Flow-Descriptor"]
+      - name: iot-nrtps
+        enabled: true
+        direction: bidirectional
+        service_class: iot-metering
+        scheduling_type: nrtps
+        service_flow_id: 3001
+        qos_profile: iot-low-rate
+        traffic_priority: 2
+        max_sustained_rate_kbps: 1024
+        min_reserved_rate_kbps: 64
+        max_latency_ms: 500
+        packet_classifier: permit ip assigned any
+        radius_attributes: ["WiMAX-Service-Flow-ID", "WiMAX-QoS-Descriptor", "Class"]
+    asn_profiles:
+      - name: asn-primary
+        enabled: true
+        asn_id: asn-001
+        realm: wimax.example.net
+        mobility_domain: metro-primary
+        home_agent_endpoint: ha-primary
+        accounting_endpoint: acct-primary
+        radius_attributes: ["WiMAX-Session-Id", "WiMAX-Accounting-Capabilities"]
+      - name: asn-roaming
+        enabled: true
+        asn_id: asn-roam
+        realm: roaming.example.net
+        mobility_domain: partner-roaming
+        home_agent_endpoint: ha-roaming
+        accounting_endpoint: acct-roaming
+        radius_attributes: ["WiMAX-Session-Id", "Class", "Acct-Interim-Interval"]
+    mobility_policies:
+      - name: asn-handover
+        enabled: true
+        source_asn: asn-primary
+        target_asn: asn-roaming
+        handover_mode: optimized
+        reauth_required: true
+        coa_profile: wimax-handover-update
+        radius_attributes: ["WiMAX-Session-Id", "Class", "Acct-Interim-Interval"]
+      - name: roaming-reauth
+        enabled: true
+        source_asn: asn-roaming
+        target_asn: asn-primary
+        handover_mode: hard
+        reauth_required: true
+        coa_profile: wimax-roaming-reauth
+        radius_attributes: ["WiMAX-MN-NAI", "WiMAX-Session-Id", "Session-Timeout"]
 
 wireless:
   enabled: false

@@ -387,6 +387,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/mobile-charging-history.json", requestPath: "/api/v1/system/mobile-charging/history", label: "Mobile charging correlation history", handler: HandleListMobileChargingHistory},
 		{archivePath: "api/mobile-policy-control.json", requestPath: "/api/v1/system/mobile-policy-control", label: "Mobile PCRF PCF policy QoS roaming control", handler: HandleGetMobilePolicyControl},
 		{archivePath: "api/mobile-policy-control-history.json", requestPath: "/api/v1/system/mobile-policy-control/history", label: "Mobile policy control history", handler: HandleListMobilePolicyControlHistory},
+		{archivePath: "api/wimax-service-flows.json", requestPath: "/api/v1/system/wimax-service-flows", label: "WiMAX subscriber and service-flow support", handler: HandleGetWiMAXServiceFlows},
+		{archivePath: "api/wimax-service-flows-history.json", requestPath: "/api/v1/system/wimax-service-flows/history", label: "WiMAX service-flow history", handler: HandleListWiMAXServiceFlowHistory},
 		{archivePath: "api/subscriber-route-export.json", requestPath: "/api/v1/system/subscriber-route-export", label: "Dynamic BGP/OSPF subscriber route export", handler: HandleGetSubscriberRouteExport},
 		{archivePath: "api/subscriber-route-export-history.json", requestPath: "/api/v1/system/subscriber-route-export/history", label: "Subscriber route export apply and rollback history", handler: HandleListSubscriberRouteExportHistory},
 		{archivePath: "api/enforcement-transactions.json", requestPath: "/api/v1/system/enforcement-transactions", label: "Atomic enforcement transaction state", handler: HandleGetEnforcementTransactions},

@@ -11,6 +11,7 @@ type MobileConfig struct {
 	Sessions      MobileSessionConfig       `mapstructure:"sessions"`
 	Charging      MobileChargingConfig      `mapstructure:"charging"`
 	PolicyControl MobilePolicyControlConfig `mapstructure:"policy_control"`
+	WiMAX         MobileWiMAXConfig         `mapstructure:"wimax"`
 }
 
 type MobileGroupedAVPConfig struct {

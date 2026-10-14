@@ -1409,6 +1409,38 @@ Starent/Ericsson/WiMAX device captures, FreeRADIUS production Linux, HA,
 scale, soak, security, production deployment, and customer acceptance evidence
 stay in `nas-0095-release-certification-checklist.md`.
 
+For WiMAX subscriber and service-flow support, preview NAS-0096 before enabling
+enforce mode or changing subscriber profiles, service flows, ASN profiles,
+mobility policies, charging correlation, or dynamic authorization behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wimax-service-flows/preview \
+  | jq '.report.status, .report.summary, .report.service_flows'
+```
+
+Apply only after reviewing grouped-AVP state, charging-correlation state,
+dynamic authorization, privacy controls, compliance checks, and the plan
+fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/wimax-service-flows/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/wimax-service-flows/history` and support bundle files
+`api/wimax-service-flows.json` and
+`api/wimax-service-flows-history.json` during WiMAX subscriber, service-flow,
+ASN mobility, charging, and CoA investigations. Real ASN gateway, base-station,
+CPE/RF lab, vendor device captures, FreeRADIUS production Linux, HA, scale,
+soak, security, production deployment, and customer acceptance evidence stay in
+`nas-0096-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

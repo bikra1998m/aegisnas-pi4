@@ -1510,6 +1510,23 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}, map[string]any{
 		"200": responseJSON("NAS-0095 mobile policy control event history and effective policy, QoS, roaming, and feedback rows."),
 	}))
+	addOperation(paths, "/api/v1/system/wimax-service-flows", "get", securedOperation("Read WiMAX subscriber and service-flow support", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("NAS-0096 WiMAX subscriber profiles, service flows, ASN profiles, mobility policies, compliance checks, and evidence summary."),
+	}))
+	addOperation(paths, "/api/v1/system/wimax-service-flows/preview", "post", securedOperationWithBody("Preview WiMAX subscriber and service-flow support", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records a preview event without mutating effective WiMAX service-flow rows."), map[string]any{
+		"200":     responseJSON("Previewed NAS-0096 WiMAX subscriber and service-flow support and recorded evidence event."),
+		"default": responseText("Preview error."),
+	}))
+	addOperation(paths, "/api/v1/system/wimax-service-flows/apply", "post", securedOperationWithBody("Apply WiMAX subscriber and service-flow support", "RADIUS", []string{"ops_admin", "super_admin"}, genericJSONObjectRequest("Optional request metadata; records WiMAX subscriber profile, service-flow, ASN, mobility, and runtime status evidence. Live ASN gateway, base-station, CPE, RF lab, and vendor hardware validation remain release certification activities."), map[string]any{
+		"200":     responseJSON("Applied NAS-0096 WiMAX service-flow checkpoint and recorded evidence event."),
+		"409":     responseJSON("Blocked or failed apply with report details."),
+		"default": responseText("Apply error."),
+	}))
+	addOperation(paths, "/api/v1/system/wimax-service-flows/history", "get", securedOperationWithParameters("List WiMAX subscriber and service-flow history", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
+		queryStringParameter("limit", "Optional event limit. Defaults to 100 and caps at 500.", false),
+	}, map[string]any{
+		"200": responseJSON("NAS-0096 WiMAX service-flow event history and effective subscriber, service-flow, ASN, and mobility rows."),
+	}))
 	addOperation(paths, "/api/v1/system/vendor-compatibility", "get", securedOperation("Read vendor compatibility catalog", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("AegisNAS vendor dictionary catalog, semantic registry, dictionary coverage matrix, compatibility summary, and deployed NAS profile coverage."),
 	}))

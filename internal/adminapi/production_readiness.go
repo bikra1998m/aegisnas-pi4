@@ -180,6 +180,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMobileSessionCheck(&report, cfg)
 	addProductionMobileChargingCheck(&report, cfg)
 	addProductionMobilePolicyControlCheck(&report, cfg)
+	addProductionWiMAXServiceFlowCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -2955,6 +2956,81 @@ func addProductionMobilePolicyControlCheck(report *productionReadinessReport, cf
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/mobile-policy-control/preview before enabling policy-control enforcement, apply only after reviewing policy profiles, QoS classes, roaming policies, charging feedback, dynamic authorization, privacy controls, and release-certification boundary. Keep live PCRF/PCF/PCEF proof, roaming partner evidence, Starent/Ericsson/WiMAX captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0095 release certification checklist.",
 		Dependencies:   []string{"mobile.policy_control", "mobile.sessions", "mobile.charging", "policy.typed_engine_enabled", "policy.runtime_shaping_enabled", "radius.dynamic_auth", "mobile_policy_control_events", "mobile_policy_control_profiles", "/api/v1/system/mobile-policy-control", "/api/v1/system/mobile-policy-control/preview", "/api/v1/system/mobile-policy-control/apply", "3GPP-IMSI", "3GPP-Negotiated-DSCP", "3GPP-GPRS-Negotiated-QoS-profile", "WiMAX-QoS-Descriptor", "RFC 2865", "RFC 2866", "RFC 5176", "3GPP TS 23.203", "3GPP TS 29.212"},
+	})
+}
+
+func addProductionWiMAXServiceFlowCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0096 WiMAX subscriber and service-flow support software is ready."
+	reportData, err := enforcement.PreviewWiMAXServiceFlows(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "WiMAX service-flow preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0096 schema %d status=%s, mode=%s, subscribers=%d/%d, service_flows=%d/%d, asn_profiles=%d/%d, mobility=%d/%d, attrs=%d, compliance=%d/%d, grouped_avps=%s, charging=%s, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.EnabledSubscriberProfileCount,
+			reportData.Summary.SubscriberProfileCount,
+			reportData.Summary.EnabledServiceFlowCount,
+			reportData.Summary.ServiceFlowCount,
+			reportData.Summary.EnabledASNProfileCount,
+			reportData.Summary.ASNProfileCount,
+			reportData.Summary.EnabledMobilityPolicyCount,
+			reportData.Summary.MobilityPolicyCount,
+			reportData.Summary.RadiusAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.Summary.GroupedAVPStatus,
+			reportData.Summary.MobileChargingStatus,
+			reportData.SoftwareCompletionPercent)
+		if reportData.Status == "disabled" {
+			summary += " WiMAX service-flow support is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but WiMAX service-flow event history cannot be verified."
+	} else if evidence, err := db.GetWiMAXServiceFlowSummary(); err != nil {
+		status = "blocked"
+		summary += " WiMAX service-flow evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d skipped, %d blocked, %d failed, ready_profiles=%d, planned_profiles=%d, last_subscribers=%d, last_service_flows=%d, last_asn_profiles=%d, last_mobility_policies=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.SkippedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyProfileCount,
+			evidence.PlannedProfileCount,
+			evidence.LastSubscriberProfileCount,
+			evidence.LastServiceFlowCount,
+			evidence.LastASNProfileCount,
+			evidence.LastMobilityPolicyCount,
+			evidence.LastRadiusAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "wimax_service_flows",
+		Category:       "radius",
+		Label:          "NAS-0096 WiMAX Subscriber and Service Flows",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/wimax-service-flows/preview before enabling WiMAX enforcement, apply only after reviewing subscriber profiles, service flows, ASN profiles, mobility policies, charging correlation, dynamic authorization, privacy controls, and release-certification boundary. Keep live ASN gateway, base-station, CPE/RF lab, Alvarion/WiChorus/Navini captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0096 release certification checklist.",
+		Dependencies:   []string{"mobile.wimax", "mobile.grouped_avps", "mobile.charging", "radius.dynamic_auth", "wimax_service_flow_events", "wimax_service_flow_profiles", "/api/v1/system/wimax-service-flows", "/api/v1/system/wimax-service-flows/preview", "/api/v1/system/wimax-service-flows/apply", "WiMAX-MN-NAI", "WiMAX-Service-Flow-ID", "WiMAX-QoS-Descriptor", "WiMAX-Packet-Flow-Descriptor", "WiMAX-Session-Id", "RFC 2865", "RFC 2866", "RFC 5176", "IEEE 802.16"},
 	})
 }
 

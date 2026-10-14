@@ -6112,6 +6112,9 @@ func (c *Config) Validate() error {
 	if err := validateMobilePolicyControlConfig(c.Mobile.PolicyControl, c.Mobile.Sessions, c.Mobile.Charging, c.Radius, c.Policy, c.Broadband.QoSServiceFlows, profile); err != nil {
 		return err
 	}
+	if err := validateMobileWiMAXConfig(c.Mobile.WiMAX, c.Mobile.GroupedAVPs, c.Mobile.Charging, c.Radius, profile); err != nil {
+		return err
+	}
 	if err := validateRadSecConfig(c); err != nil {
 		return err
 	}
