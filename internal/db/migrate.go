@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 100
+	return 101
 }
 
 func Migrate() error {
@@ -5456,3 +5456,57 @@ CREATE INDEX IF NOT EXISTS idx_wimax_service_flow_profiles_seen ON wimax_service
 `
 
 const schemaV100 = wimaxServiceFlowSQL
+
+const docsisPolicySQL = `
+CREATE TABLE IF NOT EXISTS docsis_policy_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	event_id TEXT UNIQUE NOT NULL,
+	operation TEXT NOT NULL,
+	status TEXT NOT NULL,
+	plan_fingerprint TEXT NOT NULL,
+	mode TEXT,
+	modem_profile_count INTEGER DEFAULT 0,
+	service_flow_count INTEGER DEFAULT 0,
+	cmts_profile_count INTEGER DEFAULT 0,
+	charging_policy_count INTEGER DEFAULT 0,
+	radius_attribute_count INTEGER DEFAULT 0,
+	compliance_check_count INTEGER DEFAULT 0,
+	passed_check_count INTEGER DEFAULT 0,
+	warning_count INTEGER DEFAULT 0,
+	blocker_count INTEGER DEFAULT 0,
+	external_requirement_count INTEGER DEFAULT 0,
+	summary_json TEXT NOT NULL,
+	report_json TEXT,
+	actor TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_events_created ON docsis_policy_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_events_status ON docsis_policy_events(status);
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_events_fingerprint ON docsis_policy_events(plan_fingerprint);
+
+CREATE TABLE IF NOT EXISTS docsis_policy_profiles (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	profile_key TEXT NOT NULL,
+	profile_type TEXT NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL,
+	service_flow_id INTEGER DEFAULT 0,
+	service_class TEXT,
+	cmts_profile TEXT,
+	charging_policy TEXT,
+	attributes_json TEXT NOT NULL,
+	source_event_id TEXT,
+	plan_fingerprint TEXT NOT NULL,
+	last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(profile_type, profile_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_profiles_type ON docsis_policy_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_profiles_status ON docsis_policy_profiles(status);
+CREATE INDEX IF NOT EXISTS idx_docsis_policy_profiles_seen ON docsis_policy_profiles(last_seen_at);
+`
+
+const schemaV101 = docsisPolicySQL

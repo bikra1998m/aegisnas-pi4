@@ -441,6 +441,50 @@ test.describe("Access Settings edge-network flow", () => {
     await expect(page.getByText(/WiMAX service flows applied/)).toBeVisible();
   });
 
+  test("previews and applies DOCSIS policy and charging", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await seedAuthenticatedSession(page);
+    await installMockApi(page);
+
+    await page.goto("/access-settings", {
+      timeout: 90_000,
+      waitUntil: "domcontentloaded",
+    });
+    const docsisHeading = page.getByRole("heading", {
+      name: "DOCSIS Policy and Charging",
+    });
+    await expect(docsisHeading).toBeVisible({ timeout: 60_000 });
+    const docsisSection = docsisHeading.locator("xpath=ancestor::section[1]");
+    await expect(docsisSection).toBeVisible();
+    await expect(
+      docsisSection.getByRole("heading", { name: "Cable Modem Profiles" }),
+    ).toBeVisible();
+    await expect(
+      docsisSection.getByRole("heading", {
+        name: "Service Flows",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      docsisSection.getByRole("heading", { name: "CMTS Profiles" }),
+    ).toBeVisible();
+    await expect(
+      docsisSection.getByText("docsis-retail", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      docsisSection.getByText("hsd-best-effort", { exact: true }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Preview DOCSIS Policy" }).click();
+    await expect(
+      page.getByText(/DOCSIS policy preview recorded/),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Apply DOCSIS Policy" }).click();
+    await expect(page.getByText(/DOCSIS policy applied/)).toBeVisible();
+  });
+
   test("previews and applies controller estate lifecycle", async ({ page }) => {
     await seedAuthenticatedSession(page);
     await installMockApi(page);

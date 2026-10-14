@@ -12,6 +12,7 @@ type MobileConfig struct {
 	Charging      MobileChargingConfig      `mapstructure:"charging"`
 	PolicyControl MobilePolicyControlConfig `mapstructure:"policy_control"`
 	WiMAX         MobileWiMAXConfig         `mapstructure:"wimax"`
+	DOCSIS        MobileDOCSISConfig        `mapstructure:"docsis"`
 }
 
 type MobileGroupedAVPConfig struct {

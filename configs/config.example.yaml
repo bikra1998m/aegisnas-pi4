@@ -2736,6 +2736,144 @@ mobile:
         reauth_required: true
         coa_profile: wimax-roaming-reauth
         radius_attributes: ["WiMAX-MN-NAI", "WiMAX-Session-Id", "Session-Timeout"]
+  docsis:
+    enabled: false
+    mode: monitor
+    fail_closed: true
+    require_database: true
+    require_grouped_avps: true
+    require_charging: true
+    require_qos_service_flows: true
+    require_dynamic_auth: true
+    cable_modem_provisioning: true
+    service_flow_authorization: true
+    ipdr_accounting: true
+    policy_charging_correlation: true
+    redact_device_ids: true
+    hash_device_ids: true
+    service_flow_retention_days: 180
+    event_retention_limit: 10000
+    max_cable_modems: 250000
+    default_modem_profile: docsis-retail
+    default_service_flow: hsd-best-effort
+    default_cmts_profile: cmts-primary
+    radius_attributes:
+      - CableLabs-Subscriber-ID
+      - CableLabs-SF-ID
+      - CableLabs-QoS-Descriptor
+      - CableLabs-Direction-indicator
+      - CableLabs-Volume-Usage-Limit
+      - CableLabs-Time-Usage-Limit
+      - CableLabs-Policy-Decision-Status
+      - CableLabs-Policy-Update-Reason
+      - Filter-Id
+      - Class
+      - Acct-Interim-Interval
+    external_cmts_references:
+      - CableLabs CMTS lab
+      - DOCSIS provisioning system
+      - IPDR mediation system
+      - CMTS dynamic authorization endpoint
+    modem_profiles:
+      - name: docsis-retail
+        enabled: true
+        docsis_version: "3.1"
+        device_group: retail-cable-modem
+        cmts_profile: cmts-primary
+        default_service_flow: hsd-best-effort
+        provisioning_class: retail-hsd
+        service_tier: retail-300m
+        accounting_class: retail-usage
+        policy_profile: home-default
+        vendor_packs: ["cablelabs", "docsis"]
+        radius_attributes: ["CableLabs-Subscriber-ID", "CableLabs-SF-ID", "CableLabs-QoS-Descriptor", "Filter-Id", "Class"]
+      - name: docsis-business
+        enabled: true
+        docsis_version: "3.1"
+        device_group: business-cable-modem
+        cmts_profile: cmts-primary
+        default_service_flow: business-priority
+        provisioning_class: business-hsd
+        service_tier: business-static
+        accounting_class: business-usage
+        policy_profile: business-sla
+        vendor_packs: ["cablelabs", "docsis"]
+        radius_attributes: ["CableLabs-Subscriber-ID", "CableLabs-Volume-Usage-Limit", "Acct-Interim-Interval"]
+    service_flows:
+      - name: hsd-best-effort
+        enabled: true
+        direction: bidirectional
+        service_class: high-speed-data
+        scheduling_type: best-effort
+        service_flow_id: 11001
+        qos_profile: retail-default
+        traffic_priority: 0
+        max_sustained_rate_kbps: 300000
+        min_reserved_rate_kbps: 0
+        max_burst_bytes: 1048576
+        packet_classifier: permit ip cable-modem any
+        radius_attributes: ["CableLabs-SF-ID", "CableLabs-QoS-Descriptor", "CableLabs-Direction-indicator"]
+      - name: business-priority
+        enabled: true
+        direction: bidirectional
+        service_class: business-data
+        scheduling_type: rtps
+        service_flow_id: 12001
+        qos_profile: business-sla
+        traffic_priority: 5
+        max_sustained_rate_kbps: 1000000
+        min_reserved_rate_kbps: 50000
+        max_burst_bytes: 2097152
+        packet_classifier: permit ip business-modem any
+        radius_attributes: ["CableLabs-SF-ID", "CableLabs-QoS-Descriptor", "CableLabs-Policy-Decision-Status"]
+      - name: packetcable-voice
+        enabled: true
+        direction: bidirectional
+        service_class: voice
+        scheduling_type: ugs
+        service_flow_id: 13001
+        qos_profile: voice-low-latency
+        traffic_priority: 6
+        max_sustained_rate_kbps: 128
+        min_reserved_rate_kbps: 128
+        packet_classifier: permit udp mta any eq voice
+        radius_attributes: ["CableLabs-SF-ID", "CableLabs-QoS-Descriptor", "CableLabs-MTA-Endpoint-Name"]
+    cmts_profiles:
+      - name: cmts-primary
+        enabled: true
+        cmts_id: cmts-001
+        vendor: CableLabs-compatible
+        management_domain: metro-primary
+        dhcp_relay: relay-primary
+        accounting_endpoint: ipdr-primary
+        coa_profile: docsis-policy-update
+        radius_attributes: ["NAS-Identifier", "CableLabs-Policy-Decision-Status", "Acct-Interim-Interval"]
+      - name: cmts-backup
+        enabled: true
+        cmts_id: cmts-002
+        vendor: CableLabs-compatible
+        management_domain: metro-secondary
+        dhcp_relay: relay-secondary
+        accounting_endpoint: ipdr-secondary
+        coa_profile: docsis-policy-update
+        radius_attributes: ["NAS-Identifier", "CableLabs-Policy-Update-Reason", "Class"]
+    charging_policies:
+      - name: retail-usage
+        enabled: true
+        billing_model: usage-plus-flat
+        rating_group: 7100
+        quota_policy: retail-monthly-cap
+        ipdr_export: ipdr-retail
+        coa_profile: docsis-quota-update
+        radius_attributes: ["CableLabs-Volume-Usage-Limit", "CableLabs-Time-Usage-Limit", "CableLabs-Gate-Usage-Info"]
+      - name: business-sla
+        enabled: true
+        billing_model: sla-committed
+        rating_group: 7200
+        quota_policy: business-sla
+        ipdr_export: ipdr-business
+        coa_profile: docsis-sla-update
+        radius_attributes: ["CableLabs-Policy-Decision-Status", "CableLabs-Policy-Update-Reason", "Class"]
 
 wireless:
   enabled: false

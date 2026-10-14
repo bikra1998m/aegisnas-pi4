@@ -1441,6 +1441,39 @@ CPE/RF lab, vendor device captures, FreeRADIUS production Linux, HA, scale,
 soak, security, production deployment, and customer acceptance evidence stay in
 `nas-0096-release-certification-checklist.md`.
 
+For CableLabs DOCSIS policy and charging support, preview NAS-0097 before
+enabling enforce mode or changing cable modem profiles, DOCSIS service flows,
+CMTS profiles, IPDR charging correlation, QoS service-flow dependencies, or
+dynamic authorization behavior:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/docsis-policy/preview \
+  | jq '.report.status, .report.summary, .report.service_flows'
+```
+
+Apply only after reviewing grouped-AVP state, mobile charging state, broadband
+QoS service-flow state, dynamic authorization, privacy controls, compliance
+checks, and the plan fingerprint:
+
+```bash
+curl -fsS -X POST -H "Authorization: Bearer $AEGIS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://127.0.0.1:8083/api/v1/system/docsis-policy/apply \
+  | jq '.result.status, .event_id'
+```
+
+Use `/api/v1/system/docsis-policy/history` and support bundle files
+`api/docsis-policy.json` and `api/docsis-policy-history.json` during DOCSIS
+subscriber, service-flow, CMTS, IPDR charging, and CoA investigations. Real
+CMTS, cable modem, provisioning, IPDR mediation, vendor device captures,
+FreeRADIUS production Linux, HA, scale, soak, security, production deployment,
+and customer acceptance evidence stay in
+`nas-0097-release-certification-checklist.md`.
+
 Compile tagged voice/data VLAN, QinQ, pool, fallback, and auth-fail intent
 before changing role policy:
 

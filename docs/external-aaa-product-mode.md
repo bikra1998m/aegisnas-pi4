@@ -1713,6 +1713,25 @@ Operators should keep three states separate:
    firmware, packet captures, HA, scale, soak, security, and customer
    acceptance are recorded in `nas-0096-release-certification-checklist.md`
 
+### CableLabs DOCSIS Policy And Charging
+
+NAS-0097 provides the external-AAA product boundary for cable modem profiles,
+DOCSIS service-flow authorization, CMTS policy scope, IPDR charging
+correlation, and CableLabs RADIUS VSA evidence. The software compiles modem
+profiles, service flows, CMTS profiles, charging policies, dependency checks,
+API/UI/readiness evidence, and database-backed history.
+
+Operators should keep three states separate:
+
+1. dictionary support means CableLabs attribute names are known
+2. software readiness means DOCSIS policy and charging can preview, apply,
+   store modem/service-flow/CMTS/charging history, expose API/UI/readiness
+   evidence, and protect subscriber identifiers with redaction and hashes
+3. certification means exact CMTS, cable modem, provisioning platform, IPDR
+   mediator, product, firmware, packet captures, HA, scale, soak, security,
+   and customer acceptance are recorded in
+   `nas-0097-release-certification-checklist.md`
+
 ## Ubuntu Appliance Notes
 
 For Ubuntu deployment, combine this guide with:

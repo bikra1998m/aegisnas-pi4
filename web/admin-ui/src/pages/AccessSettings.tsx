@@ -3595,6 +3595,9 @@ export default function AccessSettings() {
     useState<JsonMap | null>(null);
   const [wimaxServiceFlowAction, setWiMAXServiceFlowAction] = useState("");
   const wimaxServiceFlowBusy = wimaxServiceFlowAction !== "";
+  const [docsisPolicy, setDOCSISPolicy] = useState<JsonMap | null>(null);
+  const [docsisPolicyAction, setDOCSISPolicyAction] = useState("");
+  const docsisPolicyBusy = docsisPolicyAction !== "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const evaluateTimerRef = useRef<number | null>(null);
   const [recoveryTick, setRecoveryTick] = useState(Date.now());
@@ -3783,6 +3786,11 @@ export default function AccessSettings() {
   const loadWiMAXServiceFlows = async () => {
     const { data } = await api.get("/system/wimax-service-flows");
     setWiMAXServiceFlows(data.report || null);
+  };
+
+  const loadDOCSISPolicy = async () => {
+    const { data } = await api.get("/system/docsis-policy");
+    setDOCSISPolicy(data.report || null);
   };
 
   const loadNetworkPreview = async () => {
@@ -4036,6 +4044,7 @@ export default function AccessSettings() {
         mobileChargingRes,
         mobilePolicyControlRes,
         wimaxServiceFlowRes,
+        docsisPolicyRes,
       ] = await Promise.all([
         api.get("/system/settings"),
         api.get("/system/hostapd-preview"),
@@ -4062,6 +4071,7 @@ export default function AccessSettings() {
         api.get("/system/mobile-charging"),
         api.get("/system/mobile-policy-control"),
         api.get("/system/wimax-service-flows"),
+        api.get("/system/docsis-policy"),
       ]);
       await loadReferenceData();
       setSettings({ ...clone(defaultSettings), ...settingsRes.data });
@@ -4100,6 +4110,7 @@ export default function AccessSettings() {
       setMobileCharging(mobileChargingRes.data.report || null);
       setMobilePolicyControl(mobilePolicyControlRes.data.report || null);
       setWiMAXServiceFlows(wimaxServiceFlowRes.data.report || null);
+      setDOCSISPolicy(docsisPolicyRes.data.report || null);
       await loadLeaseReport();
       await loadNetworkPreview();
       await loadNetworkObservability();
@@ -5598,6 +5609,51 @@ export default function AccessSettings() {
     }
   };
 
+  const previewDOCSISPolicy = async () => {
+    setDOCSISPolicyAction("preview");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/docsis-policy/preview", {});
+      setDOCSISPolicy(data.report || null);
+      setMessage(
+        `DOCSIS policy preview recorded${data.event_id ? ` as ${data.event_id}` : ""}.`,
+      );
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not preview DOCSIS policy and charging.",
+      );
+    } finally {
+      setDOCSISPolicyAction("");
+    }
+  };
+
+  const applyDOCSISPolicy = async () => {
+    setDOCSISPolicyAction("apply");
+    setError("");
+    setMessage("");
+    try {
+      const { data } = await api.post("/system/docsis-policy/apply", {});
+      setDOCSISPolicy(data.report || null);
+      setMessage(
+        `DOCSIS policy ${data.result?.status || "applied"}${data.event_id ? ` with event ${data.event_id}` : ""}.`,
+      );
+      if (!data.report) {
+        await loadDOCSISPolicy();
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data ||
+          err.message ||
+          "Could not apply DOCSIS policy and charging.",
+      );
+    } finally {
+      setDOCSISPolicyAction("");
+    }
+  };
+
   const reconcileSQLAccounting = async () => {
     setReconcilingSQLAccounting(true);
     setError("");
@@ -6530,6 +6586,23 @@ export default function AccessSettings() {
     ? wimaxServiceFlows?.compliance
     : [];
   const wimaxServiceFlowTone = statusTone(wimaxServiceFlows?.status);
+  const docsisPolicySummary = docsisPolicy?.summary || {};
+  const docsisModemProfiles = Array.isArray(docsisPolicy?.modem_profiles)
+    ? docsisPolicy?.modem_profiles
+    : [];
+  const docsisServiceFlows = Array.isArray(docsisPolicy?.service_flows)
+    ? docsisPolicy?.service_flows
+    : [];
+  const docsisCMTSProfiles = Array.isArray(docsisPolicy?.cmts_profiles)
+    ? docsisPolicy?.cmts_profiles
+    : [];
+  const docsisChargingPolicies = Array.isArray(docsisPolicy?.charging_policies)
+    ? docsisPolicy?.charging_policies
+    : [];
+  const docsisCompliance = Array.isArray(docsisPolicy?.compliance)
+    ? docsisPolicy?.compliance
+    : [];
+  const docsisPolicyTone = statusTone(docsisPolicy?.status);
   const ppskProfileOptions: Option[] = [
     { value: "", label: "Use default PPSK policy" },
     ...ppskProfiles.map((profile: JsonMap) => ({
@@ -7116,6 +7189,24 @@ export default function AccessSettings() {
               : "Apply WiMAX Flows"}
           </button>
           <button
+            onClick={previewDOCSISPolicy}
+            disabled={docsisPolicyBusy}
+            className="rounded-md border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-900 disabled:opacity-60"
+          >
+            {docsisPolicyAction === "preview"
+              ? "Checking DOCSIS Policy..."
+              : "Preview DOCSIS Policy"}
+          </button>
+          <button
+            onClick={applyDOCSISPolicy}
+            disabled={docsisPolicyBusy}
+            className="rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-900 disabled:opacity-60"
+          >
+            {docsisPolicyAction === "apply"
+              ? "Applying DOCSIS Policy..."
+              : "Apply DOCSIS Policy"}
+          </button>
+          <button
             onClick={applyRadiusConfig}
             disabled={applyingRadius}
             className="rounded-md border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 disabled:opacity-60"
@@ -7626,6 +7717,305 @@ export default function AccessSettings() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              DOCSIS Policy and Charging
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {docsisPolicy?.release_certification_checklist ||
+                "Validate CMTS, cable modem, DOCSIS provisioning, CableLabs VSA captures, IPDR, charging, and FreeRADIUS evidence before cable release."}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium ${docsisPolicyTone}`}
+          >
+            {docsisPolicy?.status || "unknown"}
+          </div>
+        </div>
+        {docsisPolicy ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{docsisPolicy.message}</p>
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                [
+                  "Modems",
+                  `${docsisPolicySummary.enabled_modem_profile_count || 0}/${docsisPolicySummary.modem_profile_count || 0}`,
+                ],
+                [
+                  "Service Flows",
+                  `${docsisPolicySummary.enabled_service_flow_count || 0}/${docsisPolicySummary.service_flow_count || 0}`,
+                ],
+                [
+                  "CMTS",
+                  `${docsisPolicySummary.enabled_cmts_profile_count || 0}/${docsisPolicySummary.cmts_profile_count || 0}`,
+                ],
+                [
+                  "Charging",
+                  `${docsisPolicySummary.enabled_charging_policy_count || 0}/${docsisPolicySummary.charging_policy_count || 0}`,
+                ],
+                ["Attrs", docsisPolicySummary.radius_attribute_count || 0],
+                [
+                  "Compliance",
+                  `${docsisPolicySummary.passed_check_count || 0}/${docsisPolicySummary.compliance_check_count || 0}`,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-md border border-gray-200 p-3"
+                >
+                  <div className="text-xs font-medium uppercase text-gray-500">
+                    {label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold text-gray-900">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              Mode{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.mode || "monitor"}
+              </span>{" "}
+              / grouped AVPs{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.grouped_avp_status || "unknown"}
+              </span>{" "}
+              / charging{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.mobile_charging_status || "unknown"}
+              </span>{" "}
+              / BNG QoS{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.qos_service_flow_enabled
+                  ? "available"
+                  : "inactive"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Cable Modem Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {docsisModemProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DOCSIS modem profile is configured.
+                    </div>
+                  ) : (
+                    docsisModemProfiles
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.device_group || "docsis-modem"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Modem Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.docsis_version,
+                              item.cmts_profile,
+                              item.default_service_flow,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Modem metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {(item.vendor_packs || []).slice(0, 4).join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Service Flows
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {docsisServiceFlows.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DOCSIS service flow is configured.
+                    </div>
+                  ) : (
+                    docsisServiceFlows
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.service_flow_id || "docsis-flow"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "Service Flow"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[
+                              item.service_flow_id ? `SF ${item.service_flow_id}` : "",
+                              item.scheduling_type,
+                              item.service_class,
+                              item.qos_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") || "Service-flow metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[
+                              item.max_sustained_rate_kbps
+                                ? `${item.max_sustained_rate_kbps}k max`
+                                : "",
+                              item.min_reserved_rate_kbps
+                                ? `${item.min_reserved_rate_kbps}k reserved`
+                                : "",
+                              item.max_burst_bytes
+                                ? `${item.max_burst_bytes} burst`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  CMTS Profiles
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {docsisCMTSProfiles.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                      No DOCSIS CMTS profile is configured.
+                    </div>
+                  ) : (
+                    docsisCMTSProfiles
+                      .slice(0, 6)
+                      .map((item: JsonMap, index: number) => (
+                        <div
+                          key={`${item.name || item.cmts_id || "docsis-cmts"}-${index}`}
+                          className="rounded-md border border-gray-200 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-gray-900">
+                              {item.name || "CMTS Profile"}
+                            </div>
+                            <span
+                              className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                                item.status,
+                              )}`}
+                            >
+                              {item.status || "planned"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">
+                            {[item.cmts_id, item.vendor, item.management_domain]
+                              .filter(Boolean)
+                              .join(" / ") || "CMTS metadata only"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            {[item.dhcp_relay, item.accounting_endpoint]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">
+                  Charging Checks
+                </h4>
+                <div className="mt-2 space-y-2">
+                  {[...docsisChargingPolicies, ...docsisCompliance]
+                    .slice(0, 9)
+                    .map((item: JsonMap, index: number) => (
+                      <div
+                        key={`${item.id || item.name || "docsis-check"}-${index}`}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900">
+                            {item.name || item.id || "DOCSIS Check"}
+                          </div>
+                          <span
+                            className={`rounded-md border px-2 py-1 text-xs font-medium ${statusTone(
+                              item.status,
+                            )}`}
+                          >
+                            {item.status || "unknown"}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          {item.message ||
+                            [
+                              item.billing_model,
+                              item.quota_policy,
+                              item.ipdr_export,
+                              item.coa_profile,
+                            ]
+                              .filter(Boolean)
+                              .join(" / ") ||
+                            "No DOCSIS message"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            {((docsisPolicy.blockers?.length || 0) > 0 ||
+              (docsisPolicy.warnings?.length || 0) > 0) && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {[
+                  ...(docsisPolicy.blockers || []),
+                  ...(docsisPolicy.warnings || []),
+                ].join(" ")}
+              </div>
+            )}
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-700">
+              Defaults{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.default_modem_profile || "docsis-retail"}
+              </span>{" "}
+              /{" "}
+              <span className="font-mono">
+                {docsisPolicySummary.default_service_flow || "hsd-best-effort"}
+              </span>{" "}
+              / plan{" "}
+              <span className="break-all font-mono">
+                {docsisPolicy.plan_fingerprint || "not built"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            DOCSIS policy and charging report has not loaded yet.
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg bg-white p-6 shadow">

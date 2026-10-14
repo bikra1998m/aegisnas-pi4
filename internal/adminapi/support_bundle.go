@@ -389,6 +389,8 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/mobile-policy-control-history.json", requestPath: "/api/v1/system/mobile-policy-control/history", label: "Mobile policy control history", handler: HandleListMobilePolicyControlHistory},
 		{archivePath: "api/wimax-service-flows.json", requestPath: "/api/v1/system/wimax-service-flows", label: "WiMAX subscriber and service-flow support", handler: HandleGetWiMAXServiceFlows},
 		{archivePath: "api/wimax-service-flows-history.json", requestPath: "/api/v1/system/wimax-service-flows/history", label: "WiMAX service-flow history", handler: HandleListWiMAXServiceFlowHistory},
+		{archivePath: "api/docsis-policy.json", requestPath: "/api/v1/system/docsis-policy", label: "CableLabs DOCSIS policy and charging", handler: HandleGetDOCSISPolicy},
+		{archivePath: "api/docsis-policy-history.json", requestPath: "/api/v1/system/docsis-policy/history", label: "DOCSIS policy and charging history", handler: HandleListDOCSISPolicyHistory},
 		{archivePath: "api/subscriber-route-export.json", requestPath: "/api/v1/system/subscriber-route-export", label: "Dynamic BGP/OSPF subscriber route export", handler: HandleGetSubscriberRouteExport},
 		{archivePath: "api/subscriber-route-export-history.json", requestPath: "/api/v1/system/subscriber-route-export/history", label: "Subscriber route export apply and rollback history", handler: HandleListSubscriberRouteExportHistory},
 		{archivePath: "api/enforcement-transactions.json", requestPath: "/api/v1/system/enforcement-transactions", label: "Atomic enforcement transaction state", handler: HandleGetEnforcementTransactions},

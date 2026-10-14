@@ -5732,6 +5732,213 @@ function createWiMAXServiceFlows(status = "ready") {
   };
 }
 
+function createDOCSISPolicy(status = "ready") {
+  return {
+    generated_at: "2026-05-05T12:00:00Z",
+    report: {
+      schema_version: 1,
+      feature_id: "NAS-0097",
+      status,
+      message:
+        "Cable modem profiles, DOCSIS service-flow authorization, CMTS scope, policy charging correlation, and RADIUS/IPDR evidence are ready.",
+      generated_at: "2026-05-05T12:00:00Z",
+      software_completion_percent: 100,
+      ready_for_external_validation: true,
+      release_certification_checklist:
+        "docs/nas-0097-release-certification-checklist.md",
+      release_scope:
+        "Live CMTS, cable modem, DOCSIS provisioning, IPDR mediation, FreeRADIUS production Linux, HA, scale, soak, security, and customer proof are release certification activities.",
+      plan_fingerprint:
+        "sha256:0097d9840a36940f8f5b7e95c3f9cd4f052305e25a96355602da5c7269b1ad",
+      summary: {
+        enabled: true,
+        mode: "enforce",
+        fail_closed: true,
+        require_database: true,
+        require_grouped_avps: true,
+        require_charging: true,
+        require_qos_service_flows: true,
+        require_dynamic_auth: true,
+        cable_modem_provisioning: true,
+        service_flow_authorization: true,
+        ipdr_accounting: true,
+        policy_charging_correlation: true,
+        redact_device_ids: true,
+        hash_device_ids: true,
+        service_flow_retention_days: 180,
+        event_retention_limit: 10000,
+        max_cable_modems: 250000,
+        default_modem_profile: "docsis-retail",
+        default_service_flow: "hsd-best-effort",
+        default_cmts_profile: "cmts-primary",
+        modem_profile_count: 2,
+        enabled_modem_profile_count: 2,
+        service_flow_count: 3,
+        enabled_service_flow_count: 3,
+        cmts_profile_count: 2,
+        enabled_cmts_profile_count: 2,
+        charging_policy_count: 2,
+        enabled_charging_policy_count: 2,
+        radius_attribute_count: 18,
+        processing_step_count: 6,
+        compliance_check_count: 12,
+        passed_check_count: 12,
+        warning_count: 0,
+        blocker_count: 0,
+        external_requirement_count: 1,
+        grouped_avp_status: "ready",
+        mobile_charging_status: "ready",
+        qos_service_flow_enabled: true,
+        dynamic_auth_enabled: true,
+        dynamic_auth_outbound_enabled: true,
+      },
+      modem_profiles: [
+        {
+          name: "docsis-retail",
+          enabled: true,
+          docsis_version: "3.1",
+          device_group: "retail-cable-modem",
+          cmts_profile: "cmts-primary",
+          default_service_flow: "hsd-best-effort",
+          service_tier: "retail-300m",
+          accounting_class: "retail-usage",
+          vendor_packs: ["cablelabs", "docsis"],
+          status: "ready",
+        },
+        {
+          name: "docsis-business",
+          enabled: true,
+          docsis_version: "3.1",
+          device_group: "business-cable-modem",
+          cmts_profile: "cmts-primary",
+          default_service_flow: "business-priority",
+          service_tier: "business-static",
+          accounting_class: "business-usage",
+          vendor_packs: ["cablelabs", "docsis"],
+          status: "ready",
+        },
+      ],
+      service_flows: [
+        {
+          name: "hsd-best-effort",
+          enabled: true,
+          direction: "bidirectional",
+          service_class: "high-speed-data",
+          scheduling_type: "best-effort",
+          service_flow_id: 11001,
+          qos_profile: "retail-default",
+          max_sustained_rate_kbps: 300000,
+          max_burst_bytes: 1048576,
+          status: "ready",
+        },
+        {
+          name: "business-priority",
+          enabled: true,
+          direction: "bidirectional",
+          service_class: "business-data",
+          scheduling_type: "rtps",
+          service_flow_id: 12001,
+          qos_profile: "business-sla",
+          max_sustained_rate_kbps: 1000000,
+          min_reserved_rate_kbps: 50000,
+          status: "ready",
+        },
+      ],
+      cmts_profiles: [
+        {
+          name: "cmts-primary",
+          enabled: true,
+          cmts_id: "cmts-001",
+          vendor: "CableLabs-compatible",
+          management_domain: "metro-primary",
+          dhcp_relay: "relay-primary",
+          accounting_endpoint: "ipdr-primary",
+          status: "ready",
+        },
+        {
+          name: "cmts-backup",
+          enabled: true,
+          cmts_id: "cmts-002",
+          vendor: "CableLabs-compatible",
+          management_domain: "metro-secondary",
+          dhcp_relay: "relay-secondary",
+          accounting_endpoint: "ipdr-secondary",
+          status: "ready",
+        },
+      ],
+      charging_policies: [
+        {
+          name: "retail-usage",
+          enabled: true,
+          billing_model: "usage-plus-flat",
+          rating_group: 7100,
+          quota_policy: "retail-monthly-cap",
+          ipdr_export: "ipdr-retail",
+          coa_profile: "docsis-quota-update",
+          status: "ready",
+        },
+        {
+          name: "business-sla",
+          enabled: true,
+          billing_model: "sla-committed",
+          rating_group: 7200,
+          quota_policy: "business-sla",
+          ipdr_export: "ipdr-business",
+          coa_profile: "docsis-sla-update",
+          status: "ready",
+        },
+      ],
+      compliance: [
+        {
+          id: "grouped-avp-dependency",
+          name: "NAS-0092 grouped telecom AVP dependency",
+          status: "passed",
+          message:
+            "Grouped telecom AVP framework is ready for CableLabs VSA evidence.",
+        },
+        {
+          id: "charging-dependency",
+          name: "NAS-0094 charging correlation dependency",
+          status: "passed",
+          message: "Charging correlation is ready for DOCSIS IPDR evidence.",
+        },
+        {
+          id: "external-certification",
+          name: "Release certification boundary",
+          status: "passed",
+          message:
+            "Live CMTS, cable modem, IPDR, FreeRADIUS, HA, scale, soak, security, and customer proof are release certification activities.",
+        },
+      ],
+      radius_attributes: [
+        "CableLabs-Subscriber-ID",
+        "CableLabs-SF-ID",
+        "CableLabs-QoS-Descriptor",
+        "CableLabs-Policy-Decision-Status",
+        "Filter-Id",
+        "Class",
+      ],
+      blockers: [],
+      warnings: [],
+    },
+    evidence: {
+      summary: {
+        total_events: 1,
+        preview_events: 1,
+        apply_events: 0,
+        previewed_count: 1,
+        applied_count: 0,
+        blocked_count: 0,
+        failed_count: 0,
+        ready_profile_count: 9,
+        planned_profile_count: 0,
+      },
+      recent_events: [],
+      effective_state: [],
+    },
+  };
+}
+
 function createSystemStatus() {
   const productionReadiness = createProductionReadiness();
   return {
@@ -11852,6 +12059,54 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
             ...payload.report.service_flows,
             ...payload.report.asn_profiles,
             ...payload.report.mobility_policies,
+          ],
+        },
+      });
+      return;
+    }
+    if (path === "/system/docsis-policy" && method === "GET") {
+      await route.fulfill({ json: createDOCSISPolicy() });
+      return;
+    }
+    if (path === "/system/docsis-policy/preview" && method === "POST") {
+      await route.fulfill({
+        json: {
+          ...createDOCSISPolicy(),
+          event_id: "docsis-policy-event-preview",
+        },
+      });
+      return;
+    }
+    if (path === "/system/docsis-policy/apply" && method === "POST") {
+      const payload = createDOCSISPolicy();
+      payload.report.status = "applied";
+      payload.report.message =
+        "NAS-0097 recorded DOCSIS cable modem, service-flow, CMTS, and charging evidence.";
+      await route.fulfill({
+        json: {
+          generated_at: "2026-05-05T12:00:00Z",
+          event_id: "docsis-policy-event-apply",
+          result: {
+            status: "applied",
+            event_id: "docsis-policy-event-apply",
+          },
+          report: payload.report,
+        },
+      });
+      return;
+    }
+    if (path === "/system/docsis-policy/history" && method === "GET") {
+      const payload = createDOCSISPolicy();
+      await route.fulfill({
+        json: {
+          feature_id: "NAS-0097",
+          summary: payload.evidence.summary,
+          events: [],
+          effective_state: [
+            ...payload.report.modem_profiles,
+            ...payload.report.service_flows,
+            ...payload.report.cmts_profiles,
+            ...payload.report.charging_policies,
           ],
         },
       });

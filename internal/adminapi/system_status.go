@@ -1039,6 +1039,48 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		wimaxServiceFlowStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.WiMAXServiceFlowComponent()]}
 	}
+	docsisPolicyStatus := map[string]any{
+		"status":  "unknown",
+		"message": "CableLabs DOCSIS policy and charging support has not been evaluated.",
+	}
+	if docsisReport, err := enforcement.PreviewDOCSISPolicy(cfg); err == nil {
+		docsisSummary, _ := db.GetDOCSISPolicySummary()
+		docsisPolicyStatus = map[string]any{
+			"schema_version":                      docsisReport.SchemaVersion,
+			"feature_id":                          docsisReport.FeatureID,
+			"status":                              docsisReport.Status,
+			"message":                             docsisReport.Message,
+			"ready_for_external_validation":       docsisReport.ReadyForExternalValidation,
+			"software_completion_percent":         docsisReport.SoftwareCompletionPercent,
+			"enabled":                             docsisReport.Summary.Enabled,
+			"mode":                                docsisReport.Summary.Mode,
+			"modem_profile_count":                 docsisReport.Summary.ModemProfileCount,
+			"enabled_modem_profile_count":         docsisReport.Summary.EnabledModemProfileCount,
+			"service_flow_count":                  docsisReport.Summary.ServiceFlowCount,
+			"enabled_service_flow_count":          docsisReport.Summary.EnabledServiceFlowCount,
+			"cmts_profile_count":                  docsisReport.Summary.CMTSProfileCount,
+			"enabled_cmts_profile_count":          docsisReport.Summary.EnabledCMTSProfileCount,
+			"charging_policy_count":               docsisReport.Summary.ChargingPolicyCount,
+			"enabled_charging_policy_count":       docsisReport.Summary.EnabledChargingPolicyCount,
+			"radius_attribute_count":              docsisReport.Summary.RadiusAttributeCount,
+			"compliance_check_count":              docsisReport.Summary.ComplianceCheckCount,
+			"passed_check_count":                  docsisReport.Summary.PassedCheckCount,
+			"warning_count":                       docsisReport.Summary.WarningCount,
+			"blocker_count":                       docsisReport.Summary.BlockerCount,
+			"grouped_avp_status":                  docsisReport.Summary.GroupedAVPStatus,
+			"mobile_charging_status":              docsisReport.Summary.MobileChargingStatus,
+			"qos_service_flow_enabled":            docsisReport.Summary.QoSServiceFlowEnabled,
+			"dynamic_auth_enabled":                docsisReport.Summary.DynamicAuthEnabled,
+			"dynamic_auth_outbound_enabled":       docsisReport.Summary.DynamicAuthOutboundEnabled,
+			"plan_fingerprint":                    docsisReport.PlanFingerprint,
+			"release_certification_checklist":     docsisReport.ReleaseCertificationChecklist,
+			"release_certification_external_only": true,
+			"evidence_summary":                    docsisSummary,
+			"runtime_status":                      runtimeMap[enforcement.DOCSISPolicyComponent()],
+		}
+	} else {
+		docsisPolicyStatus = map[string]any{"status": "blocked", "message": err.Error(), "runtime_status": runtimeMap[enforcement.DOCSISPolicyComponent()]}
+	}
 	subscriberRouteExportStatus := map[string]any{
 		"status":  "unknown",
 		"message": "Dynamic subscriber route export status has not been evaluated.",
@@ -1753,6 +1795,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_charging_correlation":       mobileChargingStatus,
 		"mobile_policy_control":             mobilePolicyControlStatus,
 		"wimax_service_flows":               wimaxServiceFlowStatus,
+		"docsis_policy_charging":            docsisPolicyStatus,
 		"vendor_mapping_certification":      vendorMappingCertificationStatus,
 		"cisco_family_pack":                 ciscoFamilyPackStatus,
 		"aruba_family_pack":                 arubaFamilyPackStatus,
@@ -1884,6 +1927,7 @@ func HandleGetSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"mobile_charging_correlation":       mobileChargingStatus,
 		"mobile_policy_control":             mobilePolicyControlStatus,
 		"wimax_service_flows":               wimaxServiceFlowStatus,
+		"docsis_policy_charging":            docsisPolicyStatus,
 		"local_firewall":                    runtimeFirewallStatus,
 		"atomic_transactions":               atomicEnforcementStatus,
 	}

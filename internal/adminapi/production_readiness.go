@@ -181,6 +181,7 @@ func buildProductionReadinessReport(cfg *config.Config) productionReadinessRepor
 	addProductionMobileChargingCheck(&report, cfg)
 	addProductionMobilePolicyControlCheck(&report, cfg)
 	addProductionWiMAXServiceFlowCheck(&report, cfg)
+	addProductionDOCSISPolicyCheck(&report, cfg)
 	addProductionSubscriberRouteExportCheck(&report, cfg)
 	addProductionAtomicEnforcementCheck(&report, cfg)
 	addProductionVLANPolicyCheck(&report, cfg)
@@ -3031,6 +3032,82 @@ func addProductionWiMAXServiceFlowCheck(report *productionReadinessReport, cfg *
 		Summary:        summary,
 		Recommendation: "Use /api/v1/system/wimax-service-flows/preview before enabling WiMAX enforcement, apply only after reviewing subscriber profiles, service flows, ASN profiles, mobility policies, charging correlation, dynamic authorization, privacy controls, and release-certification boundary. Keep live ASN gateway, base-station, CPE/RF lab, Alvarion/WiChorus/Navini captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0096 release certification checklist.",
 		Dependencies:   []string{"mobile.wimax", "mobile.grouped_avps", "mobile.charging", "radius.dynamic_auth", "wimax_service_flow_events", "wimax_service_flow_profiles", "/api/v1/system/wimax-service-flows", "/api/v1/system/wimax-service-flows/preview", "/api/v1/system/wimax-service-flows/apply", "WiMAX-MN-NAI", "WiMAX-Service-Flow-ID", "WiMAX-QoS-Descriptor", "WiMAX-Packet-Flow-Descriptor", "WiMAX-Session-Id", "RFC 2865", "RFC 2866", "RFC 5176", "IEEE 802.16"},
+	})
+}
+
+func addProductionDOCSISPolicyCheck(report *productionReadinessReport, cfg *config.Config) {
+	status := "passed"
+	summary := "NAS-0097 CableLabs DOCSIS policy and charging support software is ready."
+	reportData, err := enforcement.PreviewDOCSISPolicy(cfg)
+	if err != nil {
+		status = "blocked"
+		summary = "DOCSIS policy preview failed: " + err.Error()
+	} else {
+		switch reportData.Status {
+		case "blocked":
+			status = "blocked"
+		case "degraded":
+			status = "degraded"
+		case "disabled":
+			status = "passed"
+		}
+		summary = fmt.Sprintf("NAS-0097 schema %d status=%s, mode=%s, modem_profiles=%d/%d, service_flows=%d/%d, cmts_profiles=%d/%d, charging_policies=%d/%d, attrs=%d, compliance=%d/%d, grouped_avps=%s, charging=%s, qos_service_flows=%t, software completion=%.0f%%.",
+			reportData.SchemaVersion,
+			reportData.Status,
+			reportData.Summary.Mode,
+			reportData.Summary.EnabledModemProfileCount,
+			reportData.Summary.ModemProfileCount,
+			reportData.Summary.EnabledServiceFlowCount,
+			reportData.Summary.ServiceFlowCount,
+			reportData.Summary.EnabledCMTSProfileCount,
+			reportData.Summary.CMTSProfileCount,
+			reportData.Summary.EnabledChargingPolicyCount,
+			reportData.Summary.ChargingPolicyCount,
+			reportData.Summary.RadiusAttributeCount,
+			reportData.Summary.PassedCheckCount,
+			reportData.Summary.ComplianceCheckCount,
+			reportData.Summary.GroupedAVPStatus,
+			reportData.Summary.MobileChargingStatus,
+			reportData.Summary.QoSServiceFlowEnabled,
+			reportData.SoftwareCompletionPercent)
+		if reportData.Status == "disabled" {
+			summary += " DOCSIS policy and charging support is inactive in this configuration; software evidence remains complete."
+		}
+	}
+	if db.DB == nil {
+		status = "degraded"
+		summary += " Database is not initialized; preview still works, but DOCSIS policy event history cannot be verified."
+	} else if evidence, err := db.GetDOCSISPolicySummary(); err != nil {
+		status = "blocked"
+		summary += " DOCSIS policy evidence failed: " + err.Error()
+	} else {
+		if evidence.FailedCount > 0 || evidence.BlockedCount > 0 {
+			status = "degraded"
+		}
+		summary += fmt.Sprintf(" Evidence has %d event(s), %d previewed, %d applied, %d skipped, %d blocked, %d failed, ready_profiles=%d, planned_profiles=%d, last_modems=%d, last_service_flows=%d, last_cmts_profiles=%d, last_charging_policies=%d, last_attrs=%d, last fingerprint=%s.",
+			evidence.TotalEvents,
+			evidence.PreviewEvents,
+			evidence.AppliedCount,
+			evidence.SkippedCount,
+			evidence.BlockedCount,
+			evidence.FailedCount,
+			evidence.ReadyProfileCount,
+			evidence.PlannedProfileCount,
+			evidence.LastModemProfileCount,
+			evidence.LastServiceFlowCount,
+			evidence.LastCMTSProfileCount,
+			evidence.LastChargingPolicyCount,
+			evidence.LastRadiusAttributeCount,
+			firstNonEmptyAdminString(evidence.LastFingerprint, "none"))
+	}
+	addProductionCheck(report, productionReadinessCheck{
+		Key:            "docsis_policy_charging",
+		Category:       "radius",
+		Label:          "NAS-0097 CableLabs DOCSIS Policy and Charging",
+		Status:         status,
+		Summary:        summary,
+		Recommendation: "Use /api/v1/system/docsis-policy/preview before enabling DOCSIS enforcement, apply only after reviewing cable modem profiles, DOCSIS service flows, CMTS profiles, IPDR charging policies, QoS service-flow dependency, dynamic authorization, privacy controls, and release-certification boundary. Keep live CMTS, cable modem, DOCSIS provisioning, IPDR mediation, CableLabs captures, FreeRADIUS production Linux proof, HA, scale, soak, security, and customer proof in the NAS-0097 release certification checklist.",
+		Dependencies:   []string{"mobile.docsis", "mobile.grouped_avps", "mobile.charging", "broadband.qos_service_flows", "radius.dynamic_auth", "docsis_policy_events", "docsis_policy_profiles", "/api/v1/system/docsis-policy", "/api/v1/system/docsis-policy/preview", "/api/v1/system/docsis-policy/apply", "CableLabs-Subscriber-ID", "CableLabs-SF-ID", "CableLabs-QoS-Descriptor", "CableLabs-Policy-Decision-Status", "RFC 2865", "RFC 2866", "RFC 5176", "DOCSIS"},
 	})
 }
 
