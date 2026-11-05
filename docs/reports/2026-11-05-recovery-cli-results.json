@@ -144,7 +144,11 @@
     },
     "time": "2026-11-05T09:20:32.656985+00:00"
   },
-  "hosted_current_commit": "NOT TESTED at preparation; see subsequent hosted publication report",
+  "hosted_current_commit": {
+    "status": "PASS",
+    "commit": "d4f87439fcdf74c584cbcdc0f0bfa03309214948",
+    "details": "2026-11-05-recovery-cli-github-results.json"
+  },
   "previous_os_gate": {
     "source": "2026-11-05-roadmap-github-security-final.md",
     "status": "BLOCKED",
@@ -154,5 +158,60 @@
     "blocking_ids": 1019,
     "installed_packages": 23,
     "reachability": "NOT TESTED"
+  },
+  "larger_ubuntu_fixture": {
+    "status": "PASS",
+    "scope": "One 50,000-row random-blob SQLite fixture; isolated Ubuntu VM only, not a production capacity benchmark",
+    "checks": [
+      {
+        "check": "backup",
+        "status": "PASS"
+      },
+      {
+        "check": "backup-source-preserved",
+        "status": "PASS"
+      },
+      {
+        "check": "changed-fixture-row-count",
+        "status": "PASS"
+      },
+      {
+        "check": "restore",
+        "status": "PASS"
+      },
+      {
+        "check": "all-rows-content-and-integrity-restored",
+        "status": "PASS"
+      },
+      {
+        "check": "private-files",
+        "status": "PASS"
+      },
+      {
+        "check": "two-safety-copies",
+        "status": "PASS"
+      }
+    ],
+    "commands": [
+      {
+        "name": "backup",
+        "seconds": 16.081527390999327,
+        "exit_code": 0
+      },
+      {
+        "name": "restore",
+        "seconds": 7.000813258000562,
+        "exit_code": 0
+      }
+    ],
+    "rows": 50000,
+    "payload_bytes": 51200000,
+    "database_bytes": 68440064,
+    "archive_bytes": 51976338,
+    "seconds": 25.36513969200132,
+    "counts": {
+      "PASS": 7,
+      "FAIL": 0
+    }
   }
 }

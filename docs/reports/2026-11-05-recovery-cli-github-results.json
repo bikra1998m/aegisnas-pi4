@@ -1,0 +1,216 @@
+{
+  "time": "2026-11-05T09:42:09.012715+00:00",
+  "tested_commit": "d4f87439fcdf74c584cbcdc0f0bfa03309214948",
+  "branch": "codex/roadmap-checkpoint-20261105",
+  "workflows": [
+    {
+      "name": "Release candidate security",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/42002461541",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "evidence",
+          "conclusion": "success"
+        },
+        {
+          "name": "attest",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "name": "CI",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/42002461866",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "build",
+          "conclusion": "success"
+        },
+        {
+          "name": "frontend",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "PostgreSQL runtime compatibility",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/42002461523",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "radius-accounting",
+          "conclusion": "success"
+        },
+        {
+          "name": "runtime (18)",
+          "conclusion": "success"
+        },
+        {
+          "name": "runtime (14)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "ubuntu_go": {
+    "counts": {
+      "pass": 1492,
+      "skip": 4
+    },
+    "skipped_tests": [
+      "TestPostgreSQLLiveMigrationsAndRollback",
+      "TestPostgreSQLAccountingLiveFixture",
+      "TestPostgreSQLModuleLiveFixture",
+      "TestLiveIANAAssignment"
+    ],
+    "packages": {
+      "pass": 40,
+      "skip": 12
+    }
+  },
+  "ubuntu_python": {
+    "passed": 108,
+    "skipped": 0
+  },
+  "browser": {
+    "startTime": "2026-11-05T09:27:48.209Z",
+    "duration": 84029.561,
+    "expected": 37,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "postgresql": {
+    "14": {
+      "counts": {
+        "pass": 156
+      },
+      "skipped_tests": [],
+      "packages": {
+        "pass": 1
+      }
+    },
+    "18": {
+      "counts": {
+        "pass": 156
+      },
+      "skipped_tests": [],
+      "packages": {
+        "pass": 1
+      }
+    }
+  },
+  "radius_accounting": {
+    "passed": 117,
+    "failed": 0
+  },
+  "hosted_recovery": {
+    "recovery-cli": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 24,
+        "FAIL": 0,
+        "SKIPPED": 0
+      }
+    },
+    "legacy-backup-cli": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 37,
+        "FAIL": 0,
+        "SKIPPED": 0
+      }
+    }
+  },
+  "dependency_gate": {
+    "blockers": [],
+    "feature_id": "NAS-0116",
+    "findings": [],
+    "schema_version": 1,
+    "signature_verified": false,
+    "status": "passed"
+  },
+  "dependency_inventory": {
+    "go_components": 65,
+    "npm_components": 184
+  },
+  "source": {
+    "commit": "d4f87439fcdf74c584cbcdc0f0bfa03309214948",
+    "dirty": false,
+    "inputs": {
+      "go.mod": "1b8dad4ee5ec7bea56315b2617639020756d0c30eba3d2d13485376bb4f7fa8e",
+      "go.sum": "f74e747c85e85c5c460750afd797347444ba7695d8952ce5069295709471ca21",
+      "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+      "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+      "web/admin-ui/package-lock.json": "dc6df278e221575ae5c860c3b3acccd392cd973204ff65df36a09b8a542f547b",
+      "web/admin-ui/package.json": "b51096166fd9ba36db02522d8b589244688d3d1a6ff6e024dadc6da3a49e5632"
+    },
+    "tree_sha256": "95d89d51eb9ff05dd5a44095711687775eb125ea85a15941669f10deae569185"
+  },
+  "os_scan_reference": "2026-11-05-roadmap-github-security-final.md; not repeated, VM packages unchanged",
+  "trusted_signing": "SKIPPED: manual-main restriction; merge/signing authorization question unanswered",
+  "scale_fixture": {
+    "status": "PASS",
+    "scope": "One 50,000-row random-blob SQLite fixture; isolated Ubuntu VM only, not a production capacity benchmark",
+    "checks": [
+      {
+        "check": "backup",
+        "status": "PASS"
+      },
+      {
+        "check": "backup-source-preserved",
+        "status": "PASS"
+      },
+      {
+        "check": "changed-fixture-row-count",
+        "status": "PASS"
+      },
+      {
+        "check": "restore",
+        "status": "PASS"
+      },
+      {
+        "check": "all-rows-content-and-integrity-restored",
+        "status": "PASS"
+      },
+      {
+        "check": "private-files",
+        "status": "PASS"
+      },
+      {
+        "check": "two-safety-copies",
+        "status": "PASS"
+      }
+    ],
+    "commands": [
+      {
+        "name": "backup",
+        "seconds": 16.081527390999327,
+        "exit_code": 0
+      },
+      {
+        "name": "restore",
+        "seconds": 7.000813258000562,
+        "exit_code": 0
+      }
+    ],
+    "rows": 50000,
+    "payload_bytes": 51200000,
+    "database_bytes": 68440064,
+    "archive_bytes": 51976338,
+    "seconds": 25.36513969200132,
+    "counts": {
+      "PASS": 7,
+      "FAIL": 0
+    }
+  },
+  "overall_release": "BLOCKED",
+  "nas0116": "Partial",
+  "roadmap": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "prior_reports_preserved": 159
+}

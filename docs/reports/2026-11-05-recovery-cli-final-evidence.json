@@ -1,0 +1,1240 @@
+{
+  "scope": "Current hosted evidence, VM larger fixture and publication records; fixture databases/configs/archives/keys excluded",
+  "records": [
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-metadata.json",
+      "bytes": 2773,
+      "sha256": "797d05a0391afbe6ab041f3dc1d475b30cd58931a83a87e953b3408be8a43815"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-14.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-14.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-14.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-18.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-18.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-postgres-runtime-18.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-radius-postgresql-accounting.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-radius-postgresql-accounting.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifact-radius-postgresql-accounting.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/postgres-runtime-14/results.jsonl",
+      "bytes": 163240,
+      "sha256": "b1da1f67d7b5a2152521b1ca4ec9449019dfcfc59315e66115d34062643bea68"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/postgres-runtime-18/results.jsonl",
+      "bytes": 163212,
+      "sha256": "4b5ae4c302c4b158dafd7cdada807ecbfa12a0235971ef42969d4c7235317b3f"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/accounting-off-reconcile.log",
+      "bytes": 361,
+      "sha256": "d7c1ed621ba1e940e0ceac4d1de28bf0d8d0de19830713979ef85b743bbf31bb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/accounting-off.log",
+      "bytes": 482,
+      "sha256": "d25222fcf7240a1ff6fd8ec9da940f25e589b19ed89ff5a335afddb535792e36"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/accounting-on-reconcile.log",
+      "bytes": 361,
+      "sha256": "57d09f26510fd4cbbfb1b4fdfcec42c6dd11ecf73f334ec9846d3147ca885ffe"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/accounting-on.log",
+      "bytes": 479,
+      "sha256": "0fe94a02c396e4bc89e6e404546d1fed247ca7319e29aa49979ffdf452b1e4f6"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/class-namespace-read.log",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/class-namespace-reconcile.log",
+      "bytes": 361,
+      "sha256": "7fc098a209d11611d78e967e1d844c28f505fbc76ad718158a7b9bf91a9edcf2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/class-session-first-nas.log",
+      "bytes": 595,
+      "sha256": "77da80882dfb14bb5cfac6743b29522a671b4dd02994eb44cb57615a10514a82"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/class-session-second-nas.log",
+      "bytes": 595,
+      "sha256": "26f39a06fdeda691b3e8a67a35600035370f522d2ada6f11620f1e12dc8b2440"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/database-outage-reject.log",
+      "bytes": 343,
+      "sha256": "a4bf3a54286379ad0777058ce32b2e1ce9a11750c057f721133549e52548db9c"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/database-reconnected.log",
+      "bytes": 332,
+      "sha256": "cfe959891a41e66435600d7e26d2d0184ffde2b548283d108f3349c5c9113112"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/duplicate-interim.log",
+      "bytes": 516,
+      "sha256": "14d7efad96185d12e39382da44a870face945e76b83a18c2e4bba7c9e2ccb5db"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/duplicate-reconcile.log",
+      "bytes": 361,
+      "sha256": "eecbd06cd1442c3aecfb16021bba5c81dfcd1a15be0f2f4718a9679e593b6ef9"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/duplicate-stop.log",
+      "bytes": 546,
+      "sha256": "2e654bfa768c98836b49c270a0a24070de6c63470433a64e75c8465238e4e496"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/escaped-username.log",
+      "bytes": 536,
+      "sha256": "3d0a1a343267d3859c81cddc905685374f79a3c601b5fdbf56c750af393a651b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/escaping-after-off.log",
+      "bytes": 2044,
+      "sha256": "5e8cc886c980d6390cb39db398362615961ed2b2e838a900f084de1dac501880"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/escaping-snapshot.log",
+      "bytes": 1798,
+      "sha256": "83435d075bbf709bc5668c3ef7cb1348bd484bda2d70af84f6bf33fb3579fcd3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/fixture-role.log",
+      "bytes": 16,
+      "sha256": "311e3b961e20b7bd42c4ea9130cf1abf6d604d467ec8bd942bc863b33f8489c6"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/future-after-on.log",
+      "bytes": 2024,
+      "sha256": "22f69c6aa9d1956bd842cbe55b50f5085f1ee99699c066f204ae9f9dbd8291b8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/future-session-read.log",
+      "bytes": 1991,
+      "sha256": "fa91f46be693a52ba988bf2daeaef1d2df50a5bf8f9365d1e6db972cb58737b7"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/future-session.log",
+      "bytes": 509,
+      "sha256": "ce6de38b4d0eecda75ce38bcf3469c6033087736aa7b4e48f1fd846fa1765232"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/initdb.log",
+      "bytes": 875,
+      "sha256": "160609ea8be3437564cc79a342606d8b3a401c76a79973afbc2f20361a9ab186"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/interim-packet.log",
+      "bytes": 516,
+      "sha256": "23de229f24e5a070dcc4270fad7fbf102f2be2ff95b0e886efc1bbba6868dcc3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/interim-reconcile.log",
+      "bytes": 361,
+      "sha256": "3bd664ca6aacf5a3694d0790e42c92637b8de73fdb9bf4dc82b1fa49a19b6baa"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/interim-session-read.log",
+      "bytes": 787,
+      "sha256": "4bc34d42848232e66caea8846200996a99af17dbda361e994889d7b58c387317"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/interim-without-start.log",
+      "bytes": 520,
+      "sha256": "66b8f5f95984c7e2aa840a684f8da4c6671ed1bacdae7bae5caffa0134c622dc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ipv6-assignment.log",
+      "bytes": 622,
+      "sha256": "b9cebf8a4b7149a177681b5119c2630adde3c08e78465a0356d4cdad948eae5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ipv6-read.log",
+      "bytes": 2028,
+      "sha256": "c58f25dd08215a5707f85a8597e84936b3041867825482eb48b729d3aed2a88e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ipv6-reconcile.log",
+      "bytes": 361,
+      "sha256": "a120bf760a1d6bbb1d80a993cb1793dd05151cd86c0917c67df6477f4d366236"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/late-interim-after-stop.log",
+      "bytes": 518,
+      "sha256": "30d9efd4e32cbffe641b183fd9b84c920396ee5fc8ae6570f2be09fb51770a53"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/late-start-after-stop.log",
+      "bytes": 504,
+      "sha256": "a6f15433e7feb6a3cf35d72a19b8b2bb6e9cdacba60d376d6bdb559ab564c4c6"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ledger-after-duplicate.log",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ledger-after-terminal-duplicates.log",
+      "bytes": 2,
+      "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ledger-before-duplicate.log",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/ledger-before-terminal-duplicates.log",
+      "bytes": 2,
+      "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/missing-all-reconcile.log",
+      "bytes": 361,
+      "sha256": "ccefd50ece226362bc7a4be6eca2206232ad72f7d9a38345ba0294806e52e438"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/missing-all-session.log",
+      "bytes": 806,
+      "sha256": "394ef1b07d58fbd479543fa614bcc13979e6e8ffeb856c3f35338dde089c4d85"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/missing-session-dropped.log",
+      "bytes": 430,
+      "sha256": "f44ef499744034c1a96c4dac2e3ebaab8cb2e466a1c03faa9ba8117ffb6af562"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/missing-status-dropped.log",
+      "bytes": 442,
+      "sha256": "e5a3b64c4c2610c2ebb593c63b14d8a7dd958a14c08624cf62932a167a2a2856"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/namespace-read.log",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/namespace-reconcile.log",
+      "bytes": 360,
+      "sha256": "e4b4bebe9daa6ff6c2b945a21fd6cd989210351dcf1e40d4c1e23bd02e0045b1"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/nas-off-read.log",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/older-stop-after-interim.log",
+      "bytes": 505,
+      "sha256": "e09a4f13becd4da7222442eed00a506457172c9e5fec96285da2bf77776167c0"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/older-stop-reconcile.log",
+      "bytes": 360,
+      "sha256": "09d17692ec03a3acfc60fed17d32a14790542e95bb218e26648824167af1c619"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/older-stop-snapshot.log",
+      "bytes": 2029,
+      "sha256": "aabc14b7001af772a3ff3b38c536854bad7f53c4f853f9ef8585508d912b65ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/outage-not-acknowledged.log",
+      "bytes": 466,
+      "sha256": "5a6e8262df72097066bef945ae0bd2912a0cf97611d27231b9a55ceed103e9f2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/outage-retry-persisted.log",
+      "bytes": 509,
+      "sha256": "5ebf62fb45d7dfa0514a795e55f705bad785757b07a181a303cdffbf6d6d1a92"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/outage-retry-read.log",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/outage-retry-reconciled.log",
+      "bytes": 361,
+      "sha256": "1a8b7612ff812062b6a93da71e3ff696a48a1bd87b1ecc491bce28323a9e7d7d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postauth-accept-read.log",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postauth-password-read.log",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postauth-reject-packet.log",
+      "bytes": 387,
+      "sha256": "7f03062d080c1a19e97ad803a7779330761cd97c313a48aa129fa9ab76c58984"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postauth-reject-read.log",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres-outage.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres-recovery.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres-reload-auth.log",
+      "bytes": 16,
+      "sha256": "c18211c156be97e3dbe9f09b7913b878f268dba8641bfe42e6656f1ba40bee5d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres-start.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres-stop.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/postgres.log",
+      "bytes": 2435,
+      "sha256": "02ca055d0a716ffc342324b64c364fac5cc44df640917822186a53acfa3f2066"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/radius-valid.log",
+      "bytes": 398235,
+      "sha256": "9bd6b2d9a7d4d5239bd466f2a3705605d3c8782713e14dec25b894a26202d6f2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/radius-wrong-host.log",
+      "bytes": 25558,
+      "sha256": "160265a4202a1f0876d2b4fe9e40e41038d7081a60808f32c98244f2684232ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/radius-wrong-root.log",
+      "bytes": 25667,
+      "sha256": "802d928b0fb473173f2d878ccfa6183f68031f9d79e0ca93c69664338977f812"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/reordered-interim.log",
+      "bytes": 515,
+      "sha256": "942cdea01cfddeb6c0d93df1ee92b595852da7dabc94768f27caaff0f2fc8078"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/reordered-snapshot.log",
+      "bytes": 2009,
+      "sha256": "a351cc5383aecc8c67a1e08dfc67b42edff9fc53c42372bc262af5ed1c28d141"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/result.json",
+      "bytes": 14888,
+      "sha256": "1df6f834da8af2dd5bc3ac8e89abf938d303b5ef5b7bfbfdb517e4c51154af8a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/role-privilege-read.log",
+      "bytes": 5,
+      "sha256": "a17fcf0a2f50e2d495e4f90ce263410edc183add6c62699a2facbccf60410f74"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/same-session-first-nas.log",
+      "bytes": 509,
+      "sha256": "2e457f4f79f94f0571df81c04c2e4643c9a6774a1d223ca6f8d3654c3be54c5a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/same-session-second-nas.log",
+      "bytes": 509,
+      "sha256": "81a332615bf45021ba8dbe756939bc427d7d32e2520967ff85c48e9dd0de62a4"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/server-certificate.log",
+      "bytes": 1855,
+      "sha256": "3fe0fb8570bd103c49302ac491c2fb28d959b7cfb584a62e83cf7ee8830502c1"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/start-packet.log",
+      "bytes": 536,
+      "sha256": "702bdfdcaf554d990baac71566b8e6f75c0982c833b814fc69a0fc13589bd63b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/start-reconcile.log",
+      "bytes": 361,
+      "sha256": "c1a787b91912c9c54b8c42cbf4d141dbe3354ba2fe0e0418ccd256e1cffbc913"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/start-session-read.log",
+      "bytes": 775,
+      "sha256": "4b9b78673556ccc87aac44ff678f89604f243b2d7064b8cce8b66121b5a2ff0a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/start-snapshot.log",
+      "bytes": 1987,
+      "sha256": "6008af231affd07952a34bcd0e7e52daec14519cc7dc7249c6856f120c4af54e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/stop-packet.log",
+      "bytes": 544,
+      "sha256": "51c8405b8b3979272da0ba77cdfb0cde0a073fab0ee3e31c2a9941aaff7c953b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/stop-reconcile.log",
+      "bytes": 361,
+      "sha256": "52e219845bc7688d5d0f0c4e2204950839386050ee9d1a134d8495864896d47d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/stop-session-read.log",
+      "bytes": 821,
+      "sha256": "63cccce84501bcb61dfbd8f429be6921f1befb967d1c008425d63933f317f853"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/stop-without-start.log",
+      "bytes": 507,
+      "sha256": "fa4b5adc8872297a7f3bb4afb33e4da4b10cef06ab8a0ef64e6da465a50121a4"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/terminal-duplicates-reconcile.log",
+      "bytes": 361,
+      "sha256": "d3b654882e2f2c11dfe01cc98abeef9937714f6152feddb5ecace0861f958d5a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/terminal-snapshot.log",
+      "bytes": 2043,
+      "sha256": "c6d6a9b8f884fc3519778b72c394f0a0055ef40d5d5105f554975681d3bf3485"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/timestamp-fallback-read.log",
+      "bytes": 11,
+      "sha256": "557d73be5a04e7d2fd209fc4b2285ac0f1471f1a33fbcc4f69d62c01b58dc1f9"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/timestamp-fallback.log",
+      "bytes": 488,
+      "sha256": "163d08b1b2872e956a5e8181c4667261622fb917657078e9d48697b21ee06b87"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/unsigned-maximum.log",
+      "bytes": 537,
+      "sha256": "57c39b6316c37d6fac2f9585a82b500dab50e9bd7e6c01ed741d9986a1ba5494"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/unsigned-reconcile.log",
+      "bytes": 361,
+      "sha256": "c1543c7343fa4d1a6835988532b8c0ae40ead3be64005ee249389e979e06c756"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/unsigned-session.log",
+      "bytes": 837,
+      "sha256": "9ee00f3fcda6c8dcd8aaeabb71df11cb3a7acde791e45f986e0c4d05054204e2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/unsigned-snapshot.log",
+      "bytes": 2092,
+      "sha256": "e5f42ee7af5b12bb164a197297f17e12ea5fdb7f453acfa3c8a90ef3bfe09763"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/unsupported-status-dropped.log",
+      "bytes": 429,
+      "sha256": "14b18bf7929330a0e3d9feeb1b89c03cbebafbb8d1e9516f8915d36086a72346"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/untrusted-certificate.log",
+      "bytes": 1618,
+      "sha256": "dfa5c7471537f4616cf1b581dc48f0b2e9dc134f641db8169c2279ded25e680a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/valid-generate.log",
+      "bytes": 105,
+      "sha256": "3e2b8baa1d8844c491cc8a0fc1ffd9aeb3537577ea99c9cc59daa54333653a44"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/valid-tls-packet.log",
+      "bytes": 330,
+      "sha256": "76f5f851203b964759a07e4416e5e871f73f078b5663ef87d897ebb08f5d402a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/wrong-host-generate.log",
+      "bytes": 105,
+      "sha256": "f71eed0e38e7e11225e98bde1fd5804fcc1e0bae63688a0ec48072f5b1608bc8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/artifacts/radius-postgresql-accounting/wrong-root-generate.log",
+      "bytes": 105,
+      "sha256": "f71eed0e38e7e11225e98bde1fd5804fcc1e0bae63688a0ec48072f5b1608bc8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/logs.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/logs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461523/logs.stdout",
+      "bytes": 749067,
+      "sha256": "48f26e02fa9fc6cc52537622d3ea47a5b77c88918d39217948cdd808245483c6"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifact-metadata.json",
+      "bytes": 1865,
+      "sha256": "56fb5834c99727d17d258cf059a7c0b1845850254782d43661fc237485bb621f"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifact-supply-chain-evidence.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifact-supply-chain-evidence.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifact-supply-chain-evidence.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/backup-default-selected-config.stderr",
+      "bytes": 100,
+      "sha256": "12d3dd8810884747cc9cc494f87a7ea918d01d8b9acb2cd2fe5e83f879813320"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/backup-default-selected-config.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-backup-overwrite.stderr",
+      "bytes": 433,
+      "sha256": "06626c7c661a8fbe29781d3a261cc562cc9d2e14ba0aa2d7449e5009e1cff261"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-backup-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-database-path-change.stderr",
+      "bytes": 353,
+      "sha256": "c004183777e8e8a777a2f311d65fd5cc576a4ae6e9c03be9595a296837f41f42"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-database-path-change.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-incomplete-manifest.stderr",
+      "bytes": 369,
+      "sha256": "03a086d12086621244aea960b64e26f8b346f5ff65768c0f4877764d7c199f51"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-incomplete-manifest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-invalid-database.stderr",
+      "bytes": 349,
+      "sha256": "f1217c8865047f56bbb9d63b79d67237e09e22e4fe1adf0da1ce6cf01ae03061"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-invalid-database.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-live-wal-restore.stderr",
+      "bytes": 429,
+      "sha256": "e102952a9a45b038bb719137796de878d1db606b1083840ab40e0fa538622b5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-live-wal-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-postgres-backup.stderr",
+      "bytes": 403,
+      "sha256": "9c6f3681cae3c7a077dfd96a3a596af18068360c5cb0ae2ca5ce375a96d8ccc5"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-postgres-backup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-postgres-restore.stderr",
+      "bytes": 405,
+      "sha256": "04ba5cd537d6b7ddbb44277545d2a230c4241dba2943e0e79532af44b72ba58d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-postgres-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-user-declined-restore.stderr",
+      "bytes": 331,
+      "sha256": "207f69570e445187379e2f5c60d2771872e66de8da9ab21b62881cc3bac38dad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/reject-user-declined-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/restore-offline-fixture.stderr",
+      "bytes": 218,
+      "sha256": "913e876ad6ab7dee88614abbcbdbd276032e070e97f1222bbfbb2048a1b1f443"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/restore-offline-fixture.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/result.json",
+      "bytes": 4335,
+      "sha256": "35338ea00ed6ea29f74a12bc0645453e49051ea841b95eb40814db3a86cb2d27"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/legacy-backup-cli/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/create-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/create-snapshot.stdout",
+      "bytes": 360,
+      "sha256": "a1a6af73b99befe52937f4e07ddc09ee64d22c8ab297490776b5aecd683abcf7"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/extract-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/extract-snapshot.stdout",
+      "bytes": 1579,
+      "sha256": "ffdd95d24146b0a080c978c4d1025c0086d5348db10e151d112ff5cab275147a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/migrate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/migrate.stdout",
+      "bytes": 43,
+      "sha256": "23b6bab5d8350d4781adbd62591db9767c0e1a10401e0c67d8333014fd8204bb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-extraction-overwrite.stderr",
+      "bytes": 910,
+      "sha256": "e34dbac21449c7707e46f33c8472972a37a4f4177794b6a5d5fd1b1a4aac6585"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-extraction-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-overwrite.stderr",
+      "bytes": 560,
+      "sha256": "5397d27a54bb6a282de85b0aa2c29b6993c8afb5f796456d08853473995138ab"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-tampered.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-tampered.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-context.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-context.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-digest.stderr",
+      "bytes": 754,
+      "sha256": "86cba86fc3b2975c4ec617b2a0c738f4600463a259cd658fce2c8215a86e5826"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-digest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-key.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/reject-wrong-key.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/result.json",
+      "bytes": 3406,
+      "sha256": "2be4735bbb23e90db28eb34f67c179ebfdf2e5dec548ee6debfacc54f3af99ec"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/recovery-cli/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/evidence.json",
+      "bytes": 3548,
+      "sha256": "e3760a530c3bf826eb5bb4f26708980fdc42002c592f373f8e16fc8696676f5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/gate.json",
+      "bytes": 143,
+      "sha256": "85049e8f6a45fd6eef4540c819f6e6320025a9bae347ef89d71857dc71249459"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-mod-verify.json",
+      "bytes": 21,
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-mod-verify.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-sbom.json",
+      "bytes": 57433,
+      "sha256": "6c1673eb586e52d8b62666171567a25ba28e3391eb8fdb2b5d6bb4195566f117"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-sbom.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-vulnerabilities-arm64.json",
+      "bytes": 731901,
+      "sha256": "31ecfaa42aeeb20cc63eed21b9daec7f34a43f1577594f8c943cef4f1d361051"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-vulnerabilities-arm64.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-vulnerabilities.json",
+      "bytes": 731901,
+      "sha256": "5b17bff3eb36d34d5511597e6d0958a9d72c5fade04bf874b47887c88e4810d4"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/go-vulnerabilities.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/npm-sbom.json",
+      "bytes": 196364,
+      "sha256": "1ad51f91b71f5dd5f8083c1f5084d5b6eb4f67694324bbda7cd473331624e718"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/npm-sbom.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/npm-vulnerabilities.json",
+      "bytes": 364,
+      "sha256": "aafe24e4e7e1056107a69edf1ebfe4945e27d6b395d74b490594a94ad0c5140a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/artifacts/supply-chain-evidence/security/npm-vulnerabilities.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/logs.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/logs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461541/logs.stdout",
+      "bytes": 169164,
+      "sha256": "25cb0686ae4433eee453b4f532fb7bc68992843587b698f95e8428f6319ac351"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-browser-regression.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-browser-regression.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-browser-regression.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-metadata.json",
+      "bytes": 1855,
+      "sha256": "db9140b4995b1a48ca0f2c22be679fdcc65f4d051ae0b871496b4404da45135c"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-regression-linux.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-regression-linux.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifact-regression-linux.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/browser-regression/results.json",
+      "bytes": 51268,
+      "sha256": "63cccd80216307bd70b085f863644130ef984d272d70afa7ca9c6460ad39f0db"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/backup-default-selected-config.stderr",
+      "bytes": 100,
+      "sha256": "12d3dd8810884747cc9cc494f87a7ea918d01d8b9acb2cd2fe5e83f879813320"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/backup-default-selected-config.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-backup-overwrite.stderr",
+      "bytes": 433,
+      "sha256": "06626c7c661a8fbe29781d3a261cc562cc9d2e14ba0aa2d7449e5009e1cff261"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-backup-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-database-path-change.stderr",
+      "bytes": 353,
+      "sha256": "c004183777e8e8a777a2f311d65fd5cc576a4ae6e9c03be9595a296837f41f42"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-database-path-change.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-incomplete-manifest.stderr",
+      "bytes": 369,
+      "sha256": "03a086d12086621244aea960b64e26f8b346f5ff65768c0f4877764d7c199f51"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-incomplete-manifest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-invalid-database.stderr",
+      "bytes": 349,
+      "sha256": "f1217c8865047f56bbb9d63b79d67237e09e22e4fe1adf0da1ce6cf01ae03061"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-invalid-database.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-live-wal-restore.stderr",
+      "bytes": 429,
+      "sha256": "e102952a9a45b038bb719137796de878d1db606b1083840ab40e0fa538622b5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-live-wal-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-postgres-backup.stderr",
+      "bytes": 403,
+      "sha256": "9c6f3681cae3c7a077dfd96a3a596af18068360c5cb0ae2ca5ce375a96d8ccc5"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-postgres-backup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-postgres-restore.stderr",
+      "bytes": 405,
+      "sha256": "04ba5cd537d6b7ddbb44277545d2a230c4241dba2943e0e79532af44b72ba58d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-postgres-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-user-declined-restore.stderr",
+      "bytes": 331,
+      "sha256": "207f69570e445187379e2f5c60d2771872e66de8da9ab21b62881cc3bac38dad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/reject-user-declined-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/restore-offline-fixture.stderr",
+      "bytes": 218,
+      "sha256": "913e876ad6ab7dee88614abbcbdbd276032e070e97f1222bbfbb2048a1b1f443"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/restore-offline-fixture.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/result.json",
+      "bytes": 4334,
+      "sha256": "1fef8002ed42c75947aebe0d576a014075a09dd307455ab007b7443f8cba34a8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/legacy-backup-cli/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/create-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/create-snapshot.stdout",
+      "bytes": 360,
+      "sha256": "70c5df7c28f98cef26e8e123772f44ffc99dd63fd7e28062fef05865041a7755"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/extract-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/extract-snapshot.stdout",
+      "bytes": 1579,
+      "sha256": "b25a11b30831d9b1f2abb830c74c3293d2b86951603514ef6351a726e1eff719"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/migrate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/migrate.stdout",
+      "bytes": 43,
+      "sha256": "23b6bab5d8350d4781adbd62591db9767c0e1a10401e0c67d8333014fd8204bb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-extraction-overwrite.stderr",
+      "bytes": 910,
+      "sha256": "e34dbac21449c7707e46f33c8472972a37a4f4177794b6a5d5fd1b1a4aac6585"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-extraction-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-overwrite.stderr",
+      "bytes": 560,
+      "sha256": "5397d27a54bb6a282de85b0aa2c29b6993c8afb5f796456d08853473995138ab"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-tampered.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-tampered.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-context.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-context.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-digest.stderr",
+      "bytes": 754,
+      "sha256": "86cba86fc3b2975c4ec617b2a0c738f4600463a259cd658fce2c8215a86e5826"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-digest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-key.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/reject-wrong-key.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/result.json",
+      "bytes": 3411,
+      "sha256": "8e249f00f1e414ddb2842e5677806bf0446c08fc755394a313a7a9a52066d769"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/recovery-cli/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/regression/go.jsonl",
+      "bytes": 1354508,
+      "sha256": "f23c1855d3f8c5d3380ae8b1e0cb61686b0ca2a41a10bc983c810f0ba26defb3"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/artifacts/regression-linux/regression/python.log",
+      "bytes": 17012,
+      "sha256": "56f007d95cd6dbe6624b5705478720d266fa572ecbe7dd6ebc5f724016473697"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/logs.result.json",
+      "bytes": 18,
+      "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/logs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github/42002461866/logs.stdout",
+      "bytes": 1916881,
+      "sha256": "c77fc824325dc4b9fbe02ec5bc44039addc58bbcf7d25eafe2bd1fc73e39d81a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/after.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/after.stdout",
+      "bytes": 2087,
+      "sha256": "d97a8d7208fb6a6ffb1ac0b9e28341546024e04ba430eb09aa4a098b19bcbafe"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/backup.stderr",
+      "bytes": 83,
+      "sha256": "47ce647d40f071ecaf9d683c155e89c5b623fd0623e94fb7b0435e75bce00772"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/backup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/before.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/before.stdout",
+      "bytes": 2087,
+      "sha256": "f634969fb109b7a1eef06f5374a733a3115113ccec49cd6c59221c5e47ff3fad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/continuity.json",
+      "bytes": 45,
+      "sha256": "654fa02d9133156da71737d91a073eef9ff16d4e538198efeacfa5dbd0c2820e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/restore.stderr",
+      "bytes": 218,
+      "sha256": "913e876ad6ab7dee88614abbcbdbd276032e070e97f1222bbfbb2048a1b1f443"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/result.json",
+      "bytes": 1069,
+      "sha256": "6bfab632cd3d38bb4d7296fb0eb52cadf10f1db374ed96fc42e8de08e8777968"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/scale.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-scale/scale.stdout",
+      "bytes": 1069,
+      "sha256": "6bfab632cd3d38bb4d7296fb0eb52cadf10f1db374ed96fc42e8de08e8777968"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/scale_fixture.py",
+      "bytes": 2684,
+      "sha256": "645db3eae2c4a724d4cd2b068f6ae65aba8d6a22f4b6f70e2ca638ea93ffb4ad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/run_scale.py",
+      "bytes": 1677,
+      "sha256": "5bf7b0715276fe36ad636717b926f447c928a9220bf6006a43af6d156b80e107"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/publication.json",
+      "bytes": 1275,
+      "sha256": "15e50c9ccfc41c4c828091ac913d2426a8c952c5e79f5242550cfbc2456b40fb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/github-checks-latest.json",
+      "bytes": 36399,
+      "sha256": "bd56e96dd57fb0a859d0522da21d5d0acd414285ac897702aaf1f3f09c4f9dea"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/source-commit-review.json",
+      "bytes": 667,
+      "sha256": "75b5582943535d6b59d422d81702c71a325b909a61c3aa5713e4c94934976636"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/commit-stat.stdout",
+      "bytes": 1201,
+      "sha256": "20cad67c53964dfde220946aa07ca3e3eaec702930a10d3f3bdc193f1e5cb0b8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/whitespace.stdout",
+      "bytes": 121219,
+      "sha256": "5da495ab46653fa6478cafe0c0b99501a839541a3caaf326e760d6fcaab8310a"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/whitespace-crlf.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -2,6 +2,11 @@
 
 **Release: BLOCKED. NAS-0116: Partial. Roadmap: 90 Complete / 21 Partial / 24 Missing.**
 
+Final update: source `d4f87439fcdf74c584cbcdc0f0bfa03309214948` passed all three hosted workflows.
+See the [final publication and validation report](2026-11-05-recovery-cli-github-final.md)
+for executed full-suite counts, PostgreSQL/browser/security evidence and the larger
+VM fixture. Preparation observations below retain their original scope.
+
 This continuation repairs verified defects in the legacy SQLite backup/restore
 commands. It does not complete all enterprise milestones or authorize a production
 release. The Ubuntu deployment is preserved; tests use new private fixture paths.
