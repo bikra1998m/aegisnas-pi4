@@ -444,7 +444,7 @@ func ListEnforcementTransactionSteps(transactionID string) ([]EnforcementTransac
 	var steps []EnforcementTransactionStepRecord
 	for rows.Next() {
 		var step EnforcementTransactionStepRecord
-		var rollbackSupported int
+		var rollbackSupported bool
 		var details string
 		if err := rows.Scan(
 			&step.ID,
@@ -469,7 +469,7 @@ func ListEnforcementTransactionSteps(transactionID string) ([]EnforcementTransac
 		); err != nil {
 			return nil, fmt.Errorf("scan enforcement transaction step: %w", err)
 		}
-		step.RollbackSupported = rollbackSupported == 1
+		step.RollbackSupported = rollbackSupported
 		step.DetailsJSON = rawJSON(details, "{}")
 		steps = append(steps, step)
 	}
@@ -626,7 +626,7 @@ func insertEnforcementTransactionStep(tx *sql.Tx, input EnforcementTransactionSt
 		nullString(strings.TrimSpace(input.PreviousSnapshotID)),
 		nullString(strings.TrimSpace(input.SnapshotID)),
 		nullString(strings.TrimSpace(input.RestoredSnapshotID)),
-		boolToSQLite(input.RollbackSupported),
+		input.RollbackSupported,
 		nullString(strings.TrimSpace(input.DriftStatus)),
 		nullString(strings.TrimSpace(input.Message)),
 		nullString(strings.TrimSpace(input.Error)),

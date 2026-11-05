@@ -169,7 +169,7 @@ func CompleteVendorIdentityMigration(handle *sql.DB, migration VendorIdentityMig
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = 0, retired_at = ? WHERE active = 1 AND pen <> ?`, now.UTC(), assignment.PEN); err != nil {
+	if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = FALSE, retired_at = ? WHERE active = TRUE AND pen <> ?`, now.UTC(), assignment.PEN); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`INSERT INTO vendor_identity_assignments (
@@ -180,7 +180,7 @@ func CompleteVendorIdentityMigration(handle *sql.DB, migration VendorIdentityMig
 		organization = excluded.organization, registry_url = excluded.registry_url,
 		registry_last_updated = excluded.registry_last_updated,
 		registry_sha256 = excluded.registry_sha256, record_sha256 = excluded.record_sha256,
-		evidence_json = excluded.evidence_json, active = 1, verified_at = excluded.verified_at,
+		evidence_json = excluded.evidence_json, active = TRUE, verified_at = excluded.verified_at,
 		activated_at = excluded.activated_at, retired_at = NULL`, assignment.PEN,
 		assignment.VendorName, assignment.Organization, assignment.RegistryURL,
 		assignment.RegistryLastUpdated, assignment.RegistrySHA256, assignment.RecordSHA256,
@@ -208,11 +208,11 @@ func RollbackVendorIdentityMigration(handle *sql.DB, id string, fromPEN, toPEN u
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = 0, retired_at = ? WHERE pen = ?`, now.UTC(), toPEN); err != nil {
+	if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = FALSE, retired_at = ? WHERE pen = ?`, now.UTC(), toPEN); err != nil {
 		return err
 	}
 	if fromPEN != 55555 {
-		if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = 1, activated_at = ?, retired_at = NULL WHERE pen = ?`, now.UTC(), fromPEN); err != nil {
+		if _, err := tx.Exec(`UPDATE vendor_identity_assignments SET active = TRUE, activated_at = ?, retired_at = NULL WHERE pen = ?`, now.UTC(), fromPEN); err != nil {
 			return err
 		}
 	}
@@ -235,7 +235,7 @@ func ActiveVendorIdentityAssignment(handle *sql.DB) (*VendorIdentityAssignment, 
 	row := handle.QueryRow(`SELECT pen, vendor_name, organization, registry_url,
 		registry_last_updated, registry_sha256, record_sha256, evidence_json, active,
 		verified_at, activated_at, retired_at, created_at
-		FROM vendor_identity_assignments WHERE active = 1 LIMIT 1`)
+		FROM vendor_identity_assignments WHERE active = TRUE LIMIT 1`)
 	var assignment VendorIdentityAssignment
 	var activatedAt, retiredAt sql.NullTime
 	if err := row.Scan(&assignment.PEN, &assignment.VendorName, &assignment.Organization,

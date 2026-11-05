@@ -290,6 +290,9 @@ func ProjectAccountingChargingRecord(ctx context.Context, event AccountingEventR
 	if record.Revision <= 0 {
 		record.Revision = 1
 	}
+	record.StartTime = chargingStorageTime(record.StartTime)
+	record.LastEventTime = chargingStorageTime(record.LastEventTime)
+	record.StopTime = chargingStorageTime(record.StopTime)
 	changed := existing.CDRID == "" || accountingChargingProjectionChanged(existing, record)
 	if changed && existing.CDRID != "" {
 		record.Revision = existing.Revision + 1
@@ -422,7 +425,7 @@ func ExportAccountingChargingRecords(ctx context.Context, format string, limit i
 	firstCDR, lastCDR := records[0].CDRID, records[len(records)-1].CDRID
 	currency := firstNonEmptyString(records[0].Currency, "USD")
 	manifestSHA := accountingChargingManifestSHA(exportID, format, len(records), totalAmount, currency, payloadSHA, previousSHA, firstCDR, lastCDR)
-	createdAt := formatAccountingTime(now)
+	createdAt := chargingStorageTime(formatAccountingTime(now))
 	tx, err := DB.BeginTx(ctx, nil)
 	if err != nil {
 		return AccountingChargingExportResult{}, err
@@ -591,7 +594,7 @@ func GetAccountingChargingSummary() (AccountingChargingSummary, error) {
 		COALESCE(SUM(CASE WHEN export_status = 'exported' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN last_error LIKE 'integrity:%' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(rated_amount_micros), 0),
-		COALESCE(MAX(last_event_time), ''),
+		COALESCE(CAST(MAX(last_event_time) AS TEXT), ''),
 		COALESCE((SELECT last_error FROM radius_accounting_charging_records WHERE last_error IS NOT NULL AND last_error <> '' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_charging_records`).Scan(&summary.CDRRows, &summary.OpenRecords,
 		&summary.ClosedRecords, &summary.ExpiredRecords, &summary.RatedRecords,
@@ -604,7 +607,7 @@ func GetAccountingChargingSummary() (AccountingChargingSummary, error) {
 		}
 		return AccountingChargingSummary{}, fmt.Errorf("summarize charging records: %w", err)
 	}
-	_ = DB.QueryRow(`SELECT COUNT(*), COALESCE(MAX(created_at), ''), COALESCE((SELECT manifest_sha256 FROM radius_accounting_charging_exports ORDER BY created_at DESC, id DESC LIMIT 1), '')
+	_ = DB.QueryRow(`SELECT COUNT(*), COALESCE(CAST(MAX(created_at) AS TEXT), ''), COALESCE((SELECT manifest_sha256 FROM radius_accounting_charging_exports ORDER BY created_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_charging_exports`).Scan(&summary.ExportBatchRows, &summary.LastExportAt, &summary.LastExportSHA256)
 	input, output := accountingChargingTotalOctetTexts()
 	summary.TotalInputOctets64 = input
@@ -1211,4 +1214,17 @@ func saturatingAddInt64(a, b int64) int64 {
 		return math.MinInt64
 	}
 	return a + b
+}
+
+// Normalize before persistence and hashing: PostgreSQL stores microseconds,
+// while existing SQLite records retain their original nanosecond precision.
+// The hash format remains unchanged for existing records.
+func chargingStorageTime(value string) string {
+	if DialectForHandle(DB) != DialectPostgreSQL {
+		return value
+	}
+	if parsed := parseAccountingTime(value); !parsed.IsZero() {
+		return formatAccountingTime(parsed.Truncate(time.Microsecond))
+	}
+	return value
 }

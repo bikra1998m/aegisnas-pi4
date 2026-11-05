@@ -18,7 +18,7 @@ func TestEAPMethodEventsRecordFilterAndSummarize(t *testing.T) {
 		Close()
 		_ = os.Remove(dbPath)
 	})
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	require.NoError(t, Migrate())
 
 	require.NoError(t, RecordEAPMethodEvent(EAPMethodEvent{
@@ -72,7 +72,7 @@ func TestEAPMethodEventRetention(t *testing.T) {
 		Close()
 		_ = os.Remove(dbPath)
 	})
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	require.NoError(t, Migrate())
 
 	for i := 0; i < 5; i++ {

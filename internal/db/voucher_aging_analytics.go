@@ -83,7 +83,7 @@ func GetVoucherAgingAnalytics(query VoucherAgingQuery) (VoucherAgingSummary, err
 		bucketMinutes = 1
 	}
 
-	rows, err := DB.Query(`SELECT COALESCE(role, ''), usage_limit, used_count, COALESCE(expires_at, ''), COALESCE(created_at, '') FROM vouchers ORDER BY datetime(created_at) ASC, code ASC`)
+	rows, err := DB.Query(`SELECT COALESCE(role, ''), usage_limit, used_count, COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), '') FROM vouchers ORDER BY datetime(created_at) ASC, code ASC`)
 	if err != nil {
 		return VoucherAgingSummary{}, err
 	}

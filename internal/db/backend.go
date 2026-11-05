@@ -116,6 +116,11 @@ func BuildConnectionPlan(ctx context.Context, cfg config.DatabaseConfig, resolve
 		plan.Driver = "sqlite"
 		plan.DataSourceName = strings.TrimSpace(cfg.Path)
 	case DialectPostgreSQL:
+		switch plan.SSLMode {
+		case "disable", "allow", "prefer", "require", "verify-ca", "verify-full":
+		default:
+			return ConnectionPlan{}, fmt.Errorf("invalid PostgreSQL TLS mode")
+		}
 		dsn := strings.TrimSpace(cfg.DSN)
 		if ref := strings.TrimSpace(cfg.DSNRef); ref != "" {
 			if resolveSecret == nil {
@@ -133,7 +138,17 @@ func BuildConnectionPlan(ctx context.Context, cfg config.DatabaseConfig, resolve
 		if dsn == "" {
 			return ConnectionPlan{}, fmt.Errorf("PostgreSQL DSN is required")
 		}
+		if cfg.ProductionRequireTLS && !cfg.AllowUnsafePostgreSQLSSLMode && !postgresSSLModeIsTLS(plan.SSLMode) {
+			return ConnectionPlan{}, fmt.Errorf("PostgreSQL TLS is required by database policy")
+		}
 		dsn = ensurePostgreSQLSSLMode(dsn, plan.SSLMode)
+		dsn = setPostgreSQLParameter(dsn, "TimeZone", "UTC")
+		if cfg.StatementTimeoutMilliseconds > 0 {
+			dsn = setPostgreSQLParameter(dsn, "statement_timeout", fmt.Sprint(cfg.StatementTimeoutMilliseconds))
+		}
+		if cfg.ConnectTimeoutSeconds > 0 {
+			dsn = setPostgreSQLParameter(dsn, "connect_timeout", fmt.Sprint(cfg.ConnectTimeoutSeconds))
+		}
 		plan.Driver = postgresDriverName
 		plan.DataSourceName = dsn
 		plan.DataSourceFingerprint = fingerprintDSN(dsn)
@@ -281,23 +296,25 @@ func postgresSSLModeIsTLS(mode string) bool {
 	}
 }
 
+// Configuration is authoritative, including when the secret DSN contains a
+// conflicting sslmode. URL and keyword DSNs share the same effective policy.
 func ensurePostgreSQLSSLMode(dsn, sslMode string) string {
-	sslMode = normalizedSSLMode(sslMode)
-	if strings.Contains(strings.ToLower(dsn), "sslmode=") {
-		return dsn
-	}
+	return setPostgreSQLParameter(dsn, "sslmode", normalizedSSLMode(sslMode))
+}
+
+func setPostgreSQLParameter(dsn, key, value string) string {
 	parsed, err := url.Parse(dsn)
-	if err == nil && parsed.Scheme != "" && parsed.Host != "" {
+	if err == nil && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") {
 		q := parsed.Query()
-		q.Set("sslmode", sslMode)
-		parsed.RawQuery = q.Encode()
+		q.Set(key, value)
+		// libpq and pgx interpret URI query spaces as percent escapes. A '+'
+		// emitted by form encoding is otherwise a literal filename/option byte.
+		parsed.RawQuery = strings.ReplaceAll(q.Encode(), "+", "%20")
 		return parsed.String()
 	}
-	separator := " "
-	if strings.HasSuffix(strings.TrimSpace(dsn), " ") {
-		separator = ""
-	}
-	return dsn + separator + "sslmode=" + sslMode
+	// pgx applies the last keyword value; these parameters contain only
+	// internally selected names and validated SSL modes or decimal integers.
+	return dsn + " " + key + "=" + value
 }
 
 func fingerprintDSN(dsn string) string {

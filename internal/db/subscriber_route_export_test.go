@@ -9,7 +9,7 @@ import (
 )
 
 func TestSubscriberRouteExportSnapshotEventSummary(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	defer Close()
 	require.NoError(t, Migrate())
@@ -78,7 +78,7 @@ func TestSubscriberRouteExportSnapshotEventSummary(t *testing.T) {
 }
 
 func TestSubscriberRouteExportValidation(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	defer Close()
 	require.NoError(t, Migrate())

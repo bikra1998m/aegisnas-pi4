@@ -375,7 +375,11 @@ func ListNASClientEnrollments(status string, limit int) ([]NASClientEnrollment, 
 		query += ` WHERE status = ?`
 		args = append(args, status)
 	}
-	query += ` ORDER BY datetime(updated_at) DESC, id DESC LIMIT ?`
+	if DialectForHandle(DB) == DialectPostgreSQL {
+		query += ` ORDER BY updated_at DESC, id DESC LIMIT ?`
+	} else {
+		query += ` ORDER BY datetime(updated_at) DESC, id DESC LIMIT ?`
+	}
 	args = append(args, limit)
 	rows, err := DB.Query(query, args...)
 	if err != nil {
@@ -486,9 +490,13 @@ func ListNASClientEvents(limit int) ([]NASClientEvent, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
+	order := "datetime(created_at)"
+	if DialectForHandle(DB) == DialectPostgreSQL {
+		order = "created_at"
+	}
 	rows, err := DB.Query(`SELECT id, COALESCE(enrollment_id, ''), COALESCE(radius_client_id, 0),
-		event_type, status, COALESCE(summary, ''), COALESCE(actor, ''), COALESCE(details_json, '{}'), COALESCE(created_at, '')
-		FROM nas_client_events ORDER BY datetime(created_at) DESC, id DESC LIMIT ?`, limit)
+		event_type, status, COALESCE(summary, ''), COALESCE(actor, ''), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
+		FROM nas_client_events ORDER BY `+order+` DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -549,16 +557,18 @@ func GetNASClientSummary() (NASClientSummary, error) {
 	if err := rows.Close(); err != nil {
 		return summary, err
 	}
-	if err := DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE enabled = 1`).Scan(&summary.EnabledClients); err != nil {
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE enabled = TRUE`).Scan(&summary.EnabledClients); err != nil {
 		return summary, err
 	}
 	if err := DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE COALESCE(dynamic_source, 'static') <> 'static'`).Scan(&summary.DynamicClients); err != nil {
 		return summary, err
 	}
-	if err := DB.QueryRow(`SELECT COUNT(*) FROM nas_client_capability_templates WHERE enabled = 1`).Scan(&summary.CapabilityTemplates); err != nil {
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM nas_client_capability_templates WHERE enabled = TRUE`).Scan(&summary.CapabilityTemplates); err != nil {
 		return summary, err
 	}
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(created_at), '') FROM nas_client_events`).Scan(&summary.LastEventAt)
+	if err := DB.QueryRow(`SELECT COALESCE(CAST(MAX(created_at) AS TEXT), '') FROM nas_client_events`).Scan(&summary.LastEventAt); err != nil {
+		return summary, err
+	}
 	if summary.PendingCount > 0 {
 		summary.Status = "pending"
 		summary.Message = fmt.Sprintf("%d dynamic NAS enrollment(s) require approval.", summary.PendingCount)
@@ -593,7 +603,7 @@ func RecordNASClientHeartbeat(sourceIP, reason string, now time.Time) error {
 		now = time.Now().UTC()
 	}
 	_, err := DB.Exec(`UPDATE radius_clients SET last_seen_at = ?
-		WHERE enabled = 1 AND COALESCE(dynamic_source, 'static') <> 'static' AND ipaddr = ?`,
+		WHERE enabled = TRUE AND COALESCE(dynamic_source, 'static') <> 'static' AND ipaddr = ?`,
 		now.Format(time.RFC3339), sourceIP)
 	if err != nil {
 		return err
@@ -625,7 +635,7 @@ func transitionNASClientEnrollment(enrollmentID, status, eventType, actor, reaso
 		return NASClientEnrollment{}, err
 	}
 	if disableClient && enrollment.RadiusClientID > 0 {
-		if _, err := tx.Exec(`UPDATE radius_clients SET enabled = 0, lifecycle_status = ?, last_seen_at = COALESCE(last_seen_at, ?) WHERE id = ?`,
+		if _, err := tx.Exec(`UPDATE radius_clients SET enabled = FALSE, lifecycle_status = ?, last_seen_at = COALESCE(last_seen_at, ?) WHERE id = ?`,
 			status, now, enrollment.RadiusClientID); err != nil {
 			return NASClientEnrollment{}, err
 		}
@@ -828,7 +838,7 @@ func upsertApprovedRadiusClientTx(tx *sql.Tx, enrollmentID string, req NASClient
 		if strings.TrimSpace(secret) == "" && strings.TrimSpace(secretRef) == "" && req.Transport == "udp" {
 			_, err = tx.Exec(`UPDATE radius_clients SET
 				shortname = ?, ipaddr = ?, nas_type = ?, transport = ?, radsec_certificate_cn = ?,
-				radsec_certificate_issuer = ?, radsec_radius_v11 = ?, description = ?, enabled = 1,
+				radsec_certificate_issuer = ?, radsec_radius_v11 = ?, description = ?, enabled = TRUE,
 				dynamic_source = 'enrollment', enrollment_id = ?, capabilities_json = ?, vendor = ?, model = ?,
 				firmware_version = ?, serial_number = ?, lifecycle_status = 'approved', last_seen_at = ?,
 				approved_at = ?, approved_by = ?, owner_tenant = ?, template_name = ?
@@ -842,7 +852,7 @@ func upsertApprovedRadiusClientTx(tx *sql.Tx, enrollmentID string, req NASClient
 			_, err = tx.Exec(`UPDATE radius_clients SET
 				shortname = ?, ipaddr = ?, secret = ?, secret_ref = ?, nas_type = ?, transport = ?,
 				radsec_certificate_cn = ?, radsec_certificate_issuer = ?, radsec_radius_v11 = ?,
-				description = ?, enabled = 1, dynamic_source = 'enrollment', enrollment_id = ?,
+				description = ?, enabled = TRUE, dynamic_source = 'enrollment', enrollment_id = ?,
 				capabilities_json = ?, vendor = ?, model = ?, firmware_version = ?, serial_number = ?,
 				lifecycle_status = 'approved', last_seen_at = ?, approved_at = ?, approved_by = ?,
 				owner_tenant = ?, template_name = ?
@@ -860,7 +870,7 @@ func upsertApprovedRadiusClientTx(tx *sql.Tx, enrollmentID string, req NASClient
 		radsec_certificate_issuer, radsec_radius_v11, description, enabled, dynamic_source,
 		enrollment_id, capabilities_json, vendor, model, firmware_version, serial_number,
 		lifecycle_status, last_seen_at, approved_at, approved_by, owner_tenant, template_name
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'enrollment', ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)`,
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'enrollment', ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)`,
 		req.ShortName, req.SourceIP, secret, nullString(secretRef), req.NASType, req.Transport,
 		nullString(req.RadSecCertificateCN), nullString(req.RadSecCertificateIssuer), nullString(req.RadSecRadiusV11),
 		"Dynamic NAS client enrollment "+enrollmentID, enrollmentID, capabilitiesJSON, nullString(req.Vendor),
@@ -924,11 +934,11 @@ func nasClientEnrollmentSelectSQL() string {
 	return `SELECT id, enrollment_id, source_ip, shortname, nas_type, transport, COALESCE(secret_ref, ''),
 		COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
 		COALESCE(vendor, ''), COALESCE(model, ''), COALESCE(firmware_version, ''), COALESCE(serial_number, ''),
-		COALESCE(capabilities_json, '{}'), status, COALESCE(discovery_source, ''), COALESCE(requested_at, ''),
-		COALESCE(expires_at, ''), COALESCE(approved_by, ''), COALESCE(approved_at, ''), COALESCE(rejected_by, ''),
-		COALESCE(rejected_at, ''), COALESCE(radius_client_id, 0), COALESCE(owner_tenant, ''), COALESCE(template_name, ''),
-		COALESCE(last_seen_at, ''), COALESCE(last_seen_reason, ''), COALESCE(drift_json, '{}'), COALESCE(evidence_sha256, ''),
-		COALESCE(created_at, ''), COALESCE(updated_at, '') FROM nas_client_enrollments`
+		COALESCE(capabilities_json, '{}'), status, COALESCE(discovery_source, ''), COALESCE(CAST(requested_at AS TEXT), ''),
+		COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(approved_by, ''), COALESCE(CAST(approved_at AS TEXT), ''), COALESCE(rejected_by, ''),
+		COALESCE(CAST(rejected_at AS TEXT), ''), COALESCE(radius_client_id, 0), COALESCE(owner_tenant, ''), COALESCE(template_name, ''),
+		COALESCE(CAST(last_seen_at AS TEXT), ''), COALESCE(last_seen_reason, ''), COALESCE(drift_json, '{}'), COALESCE(evidence_sha256, ''),
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '') FROM nas_client_enrollments`
 }
 
 func getNASClientEnrollmentTx(tx *sql.Tx, enrollmentID string) (NASClientEnrollment, error) {
@@ -975,7 +985,7 @@ func scanNASClientEnrollmentScanner(row scanner) (NASClientEnrollment, error) {
 func nasClientTemplateSelectSQL() string {
 	return `SELECT id, name, COALESCE(description, ''), nas_type, COALESCE(required_capabilities_json, '[]'),
 		COALESCE(allowed_vendors_json, '[]'), COALESCE(default_capabilities_json, '{}'), enabled,
-		COALESCE(created_at, ''), COALESCE(updated_at, '') FROM nas_client_capability_templates`
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '') FROM nas_client_capability_templates`
 }
 
 func scanNASClientTemplateRow(row *sql.Row) (NASClientCapabilityTemplate, error) {

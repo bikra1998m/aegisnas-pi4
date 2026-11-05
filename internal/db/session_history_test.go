@@ -14,7 +14,7 @@ func TestSessionHistoryRoundTripAndStats(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -94,7 +94,7 @@ func TestEmptySessionHistoryStats(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 

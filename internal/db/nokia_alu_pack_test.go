@@ -9,14 +9,14 @@ import (
 )
 
 func TestNokiaALUPackEventLifecycle(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
 
-	var tableCount int
-	require.NoError(t, DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='nokia_alu_pack_events'").Scan(&tableCount))
-	assert.Equal(t, 1, tableCount)
+	tablePresent, tableErr := tableExists(DB, "nokia_alu_pack_events")
+	require.NoError(t, tableErr)
+	assert.True(t, tablePresent)
 
 	report, err := productconfigs.BuildNokiaALUPackReport()
 	require.NoError(t, err)

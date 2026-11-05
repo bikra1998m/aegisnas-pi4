@@ -1,0 +1,80 @@
+{
+  "time": "2026-10-23T06:45:45.664403+00:00",
+  "reports": [
+    {
+      "path": "docs/reports/2026-10-23-continuation-changes.csv",
+      "bytes": 1821,
+      "sha256": "3cfa4f4b582bebc19848d5f572e27acb3c4a27e8016adb57f862d21c19b484ec"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-evidence-manifest.json",
+      "bytes": 31755,
+      "sha256": "be02efbfce37814f484a73445c1df7424cbd30e71fe2747ab97152cfe645a5fa"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-history.md",
+      "bytes": 2137,
+      "sha256": "18b99b59f14e6ef8225bb7495adda021548282d891d925b3e59a33f5e4dd0da4"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-implementation.md",
+      "bytes": 2860,
+      "sha256": "a1ff8bde5433f92f197123ec60c9396532bb9c07c40383263122174b6900cc87"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-live-services.md",
+      "bytes": 2043,
+      "sha256": "7e893b6325cad1b2725b4873e5ea3a6a5b18b2696a193ad18222ec16434c7205"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-nas0116.md",
+      "bytes": 1472,
+      "sha256": "fe5e3ad663a58be32904318b2f0e187fffaac2fb922123b29a31676c7afc6bf9"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-os-remediation.csv",
+      "bytes": 2167,
+      "sha256": "da40f837958de2fb504eccdd7f5037f9218c65dba236c47a810ccaf1c99c05ab"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-postgresql.md",
+      "bytes": 2437,
+      "sha256": "960b6bb4125359df585c03d34cada644876aac6113bb1d4f7710472c7d238bfa"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-readiness.md",
+      "bytes": 3123,
+      "sha256": "29e4e405352c9b1d5d1b0a152e8c785a401b231d460141fcc41b1d71048b1c59"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-results.json",
+      "bytes": 35062,
+      "sha256": "d6a17377cf10fba2a557bca50b878d6a596ce191e1a9bf5f451e704556b82a65"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-roadmap.md",
+      "bytes": 1713,
+      "sha256": "3034d124e97983b52f531fc57c390a96b71e13ce7ed446d0fb915fc160f1b7b1"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-security.md",
+      "bytes": 3465,
+      "sha256": "f9c3f4560f40798c617a180b070086d0cedf1d48ef11d228b3c12510858309a6"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-source-state.json",
+      "bytes": 19954,
+      "sha256": "b079b705b3f4a973bbc2026eaf2f8c2a4316c7e7dd8e52fe2adb4c59c7234d1e"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-ubuntu.md",
+      "bytes": 1356,
+      "sha256": "1f46a2433163200d3fd183693e1cc2887adb373075497cb99ab482e551393bc7"
+    },
+    {
+      "path": "docs/reports/2026-10-23-continuation-windows.md",
+      "bytes": 1295,
+      "sha256": "cb8a4022411152be85b0a1d820388bd526e5cfc69093c8780393bc671860b938"
+    }
+  ]
+}

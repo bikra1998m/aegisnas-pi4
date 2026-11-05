@@ -2,29 +2,47 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/roadmap-*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       CGO_ENABLED: 0
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.0'
+          go-version-file: go.mod
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/admin-ui/package-lock.json
       - run: npm ci
         working-directory: web/admin-ui
       - run: go build ./...
-      - run: go test -count=1 -p=1 -v ./...
+      - name: Go regression suite
+        run: |
+          set -o pipefail
+          mkdir -p build/regression
+          go test -count=1 -p=1 -json -timeout=30m ./... | tee build/regression/go.jsonl
+      - name: Supply-chain inventory, admission and snap build contracts
+        run: |
+          set -o pipefail
+          mkdir -p build/regression
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/regression/python.log
+      - name: Authenticated recovery CLI fixture (isolated SQLite)
+        run: |
+          go build -o build/recovery-bin/aegis-admin ./cmd/aegis-admin
+          python3 scripts/test_recovery_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/recovery-cli
       - run: make test-vendor-identity
       - run: make test-attribute-registry
       - run: make test-dictionary-release-profiles
@@ -38,15 +56,37 @@ jobs:
       - run: make test-broadband-service-activation
       - run: make test-broadband-governance-self-service
       - run: make test-docsis-policy
+      - name: Preserve regression and recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: regression-linux
+          path: |
+            build/regression/
+            build/recovery-cli/*.stdout
+            build/recovery-cli/*.stderr
+            build/recovery-cli/result.json
+          if-no-files-found: warn
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
       - run: cd web/admin-ui && npm ci && npm run build
       - run: cd web/admin-ui && npx playwright install --with-deps chromium
-      - run: cd web/admin-ui && npx playwright test tests/e2e/attribute-registry.spec.ts
-      - run: cd web/admin-ui && npx playwright test tests/e2e/access-settings.spec.ts
+      - name: Complete browser suite
+        working-directory: web/admin-ui
+        run: npx playwright test --workers=2 --reporter=line,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/results.json
+      - name: Preserve browser results and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-regression
+          path: web/admin-ui/test-results/
+          if-no-files-found: warn

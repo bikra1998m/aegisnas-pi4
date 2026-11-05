@@ -182,7 +182,7 @@ func ListTACACSCommandSets(enabledOnly bool) ([]TACACSCommandSetRecord, error) {
 		content_hash, COALESCE(created_by, ''), COALESCE(updated_by, ''), created_at, updated_at
 		FROM tacacs_command_sets`
 	if enabledOnly {
-		query += ` WHERE enabled = 1`
+		query += ` WHERE enabled = TRUE`
 	}
 	query += ` ORDER BY enabled DESC, name`
 	rows, err := DB.Query(query)
@@ -323,7 +323,7 @@ func SummarizeTACACS(retentionLimit int) (TACACSSummary, error) {
 		}
 		rows.Close()
 	}
-	if err := DB.QueryRow(`SELECT COUNT(*), COALESCE(MAX(created_at), '') FROM tacacs_accounting_records`).Scan(&summary.AccountingRecords, &summary.LastAccountingAt); err != nil && !tableMissing(err) {
+	if err := DB.QueryRow(`SELECT COUNT(*), COALESCE(CAST(MAX(created_at) AS TEXT), '') FROM tacacs_accounting_records`).Scan(&summary.AccountingRecords, &summary.LastAccountingAt); err != nil && !tableMissing(err) {
 		return summary, err
 	}
 	if summary.LastAccountingAt != "" {

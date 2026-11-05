@@ -292,7 +292,7 @@ func GetSubscriberServiceChain(chainID string) (SubscriberServiceChainRecord, er
 		COALESCE(tenant, ''), status, policy_set_hash, request_hash, service_chain_hash, service_count,
 		required_count, optional_count, activated_count, failed_count, rolled_back_count, activation_mode,
 		decision_json, services_json, COALESCE(failure_reason, ''), COALESCE(actor, ''), started_at, updated_at,
-		COALESCE(completed_at, ''), COALESCE(rolled_back_at, ''), created_at
+		COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(rolled_back_at AS TEXT), ''), created_at
 		FROM subscriber_service_chains WHERE chain_id = ?`, strings.TrimSpace(chainID)).Scan(
 		&record.ID, &record.ChainID, &record.SessionID, &record.UsernameHash, &record.CallingStationHash,
 		&record.Tenant, &record.Status, &record.PolicySetHash, &record.RequestHash, &record.ServiceChainHash,
@@ -320,7 +320,7 @@ func ListSubscriberServiceChains(limit int) ([]SubscriberServiceChainRecord, err
 		COALESCE(tenant, ''), status, policy_set_hash, request_hash, service_chain_hash, service_count,
 		required_count, optional_count, activated_count, failed_count, rolled_back_count, activation_mode,
 		decision_json, services_json, COALESCE(failure_reason, ''), COALESCE(actor, ''), started_at, updated_at,
-		COALESCE(completed_at, ''), COALESCE(rolled_back_at, ''), created_at
+		COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(rolled_back_at AS TEXT), ''), created_at
 		FROM subscriber_service_chains ORDER BY updated_at DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
 		if tableMissing(err) {

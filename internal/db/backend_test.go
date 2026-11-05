@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yourorg/aegisnas-pi4/internal/config"
@@ -38,6 +39,42 @@ func TestSQLiteDataSourceNameWithBusyTimeout(t *testing.T) {
 	assert.Equal(t, "data.db?_pragma=busy_timeout(5000)", sqliteDataSourceNameWithBusyTimeout("data.db"))
 	assert.Equal(t, "file:data.db?cache=shared&_pragma=busy_timeout(5000)", sqliteDataSourceNameWithBusyTimeout("file:data.db?cache=shared"))
 	assert.Equal(t, "data.db?_pragma=busy_timeout(2500)", sqliteDataSourceNameWithBusyTimeout("data.db?_pragma=busy_timeout(2500)"))
+}
+
+func TestPostgreSQLConnectionPolicyOverridesSecretDSN(t *testing.T) {
+	for _, dsn := range []string{
+		"postgres://fixture:secret@localhost/test?sslmode=disable&statement_timeout=0",
+		"host=localhost user=fixture password='secret' dbname=test sslmode=disable statement_timeout=0",
+	} {
+		plan, err := BuildConnectionPlan(context.Background(), config.DatabaseConfig{
+			Backend: "postgres", DSN: dsn, SSLMode: "verify-full", ProductionRequireTLS: true,
+			StatementTimeoutMilliseconds: 1234, ConnectTimeoutSeconds: 5,
+		}, nil)
+		require.NoError(t, err)
+		parsed, err := pgx.ParseConfig(plan.DataSourceName)
+		require.NoError(t, err)
+		require.NotNil(t, parsed.TLSConfig)
+		require.False(t, parsed.TLSConfig.InsecureSkipVerify)
+		require.Empty(t, parsed.Fallbacks)
+		require.Equal(t, "1234", parsed.RuntimeParams["statement_timeout"])
+		require.Equal(t, "verify-full", plan.ConnectionInfo().SSLMode)
+	}
+	_, err := BuildConnectionPlan(context.Background(), config.DatabaseConfig{
+		Backend: "postgres", DSN: "postgres://localhost/test", SSLMode: "disable", ProductionRequireTLS: true,
+	}, nil)
+	require.ErrorContains(t, err, "TLS is required")
+}
+
+func TestPostgreSQLConnectionURIPreservesSpacesAndLiteralPlus(t *testing.T) {
+	plan, err := BuildConnectionPlan(context.Background(), config.DatabaseConfig{
+		Backend: "postgres", DSN: "postgres://fixture@localhost/test?application_name=NAS%20branch%2B01&options=-c%20search_path%3Dpublic",
+		SSLMode: "require", ProductionRequireTLS: true,
+	}, nil)
+	require.NoError(t, err)
+	parsed, err := pgx.ParseConfig(plan.DataSourceName)
+	require.NoError(t, err)
+	require.Equal(t, "NAS branch+01", parsed.RuntimeParams["application_name"])
+	require.Equal(t, "-c search_path=public", parsed.RuntimeParams["options"])
 }
 
 func TestOpenSQLiteConfiguresBusyTimeoutBeforePing(t *testing.T) {

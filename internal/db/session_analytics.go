@@ -277,7 +277,7 @@ func listSessionAnalyticsRows(query SessionAnalyticsQuery, cutoff time.Time) ([]
 		AuthMethod:   query.AuthMethod,
 		TenantScopes: query.TenantScopes,
 	})
-	clauses = append(clauses, `(end_time IS NULL OR datetime(start_time) >= datetime(?) OR datetime(COALESCE(end_time, '')) >= datetime(?) OR datetime(COALESCE(last_activity, '')) >= datetime(?))`)
+	clauses = append(clauses, `(end_time IS NULL OR datetime(start_time) >= datetime(?) OR datetime(COALESCE(CAST(end_time AS TEXT), '')) >= datetime(?) OR datetime(COALESCE(CAST(last_activity AS TEXT), '')) >= datetime(?))`)
 	cutoffText := cutoff.Format(time.RFC3339)
 	args = append(args, cutoffText, cutoffText, cutoffText)
 	if len(clauses) > 0 {
@@ -365,6 +365,7 @@ func parseSessionAnalyticsTime(value string) time.Time {
 		"2006-01-02 15:04:05.999999999 -0700 -0700",
 		"2006-01-02 15:04:05 -0700 -0700",
 		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999-07",
 		"2006-01-02 15:04:05.999999999Z07:00",
 		"2006-01-02 15:04:05.999999999",
 		"2006-01-02 15:04:05",

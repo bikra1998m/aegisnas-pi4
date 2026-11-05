@@ -8,7 +8,7 @@ import (
 )
 
 func TestVLANPolicyEventSummary(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	defer Close()
 	require.NoError(t, Migrate())

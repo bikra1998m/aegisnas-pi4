@@ -1,0 +1,19 @@
+{
+  "reports": {
+    "2026-10-26-appliance-readiness.md": "4ac0762b1340f98f2a607572b927cbc149e2b41dee8a43ed7ad96c7737a7f88a",
+    "2026-10-26-appliance-implementation.md": "2a2aef6a2ecdef8509c040f848b9d1d3273dc8f83dbe92c98a74cd9dec687d84",
+    "2026-10-26-appliance-tests.md": "a9e43318cf6d6c90d0992fbf8c5e22b933149d0a193adf08fac80ee92afe6cb7",
+    "2026-10-26-appliance-windows.md": "271306d048280ee68b888a254a53a9bd45b49b4fec7a5d5ecda04b2fefa0f7e6",
+    "2026-10-26-appliance-ubuntu.md": "1db102f01f28078488f0b9c0ae585ba06f1f95b163d0b0ba5e1d1bd187fdfa54",
+    "2026-10-26-appliance-postgresql.md": "b80717fdfb733eefd65d28a6748964baf2e2d466b2928aca3f4e4018756da1bb",
+    "2026-10-26-appliance-nas0116.md": "312f9248a0fc26aef61a21cf92b769e4ddc07927964fdccdedea0746b0728b57",
+    "2026-10-26-appliance-live-services.md": "91f61d0f362d48813ccf4eb86a94f55bceb41fe0db19ceec3998b20c97ce2a00",
+    "2026-10-26-appliance-security.md": "df56c1ae7e62d68a75dba98447b83e934c65a0f553f0d15f93eca03c93db0b49",
+    "2026-10-26-appliance-history-roadmap.md": "2f3795c49b55d4911a5d59cfd76669309a64b6c794bed7040dd2a421153363ed",
+    "2026-10-26-appliance-changes.csv": "5202ee800d9fb50e0cab19cfce5049d511b04763a898640247ba6e4d8ba2e404",
+    "2026-10-26-appliance-milestones.csv": "4e41743e0dec8dd3526c33e068687280409c9a7e172f403839541209add71b36",
+    "2026-10-26-appliance-results.json": "3e47d6698d5653a5335790f6adc96bfbd283af5f1341c473cd7237d6f708e09c",
+    "2026-10-26-appliance-source-state.json": "776ae8526ab3f7e82632df9ae7510f6b4a6918e61a1802f81a3fa52e2d11ddc6",
+    "2026-10-26-appliance-evidence-manifest.json": "30e28a203aadf595ace4340b198bef93c77b507c8d3b05a87dea0c96b5232d81"
+  }
+}

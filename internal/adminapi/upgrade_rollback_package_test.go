@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,32 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/upgrade"
 )
+
+func TestRollbackUploadRemovesSpooledTemporaryFile(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(name, dir)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("package", "rollback.zip")
+	require.NoError(t, err)
+	data := bytes.Repeat([]byte{'x'}, (1<<20)+1)
+	_, err = part.Write(data)
+	require.NoError(t, err)
+	require.NoError(t, writer.WriteField("confirmation_text", "RESTORE UPGRADE ROLLBACK"))
+	require.NoError(t, writer.Close())
+	r := httptest.NewRequest(http.MethodPost, "/", &body)
+	r.Header.Set("Content-Type", writer.FormDataContentType())
+	got, name, err := readUpgradeRollbackPackageUpload(httptest.NewRecorder(), r)
+	require.NoError(t, err)
+	require.Equal(t, data, got)
+	require.Equal(t, "rollback.zip", name)
+	require.Equal(t, "RESTORE UPGRADE ROLLBACK", r.FormValue("confirmation_text"))
+	files, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Empty(t, files, "secret-bearing multipart spool must be removed")
+}
 
 func TestHandleDownloadUpgradeRollbackPackage(t *testing.T) {
 	_ = prepareSupportBundleTestConfig(t)
@@ -45,6 +72,19 @@ func TestHandleDownloadUpgradeRollbackPackage(t *testing.T) {
 	assert.Contains(t, rec.Header().Get("Content-Disposition"), "aegisnas-upgrade-rollback-test.zip")
 	assert.Equal(t, "8", rec.Header().Get("X-AegisNAS-Schema-Version"))
 	assert.NotEmpty(t, rec.Body.Bytes())
+}
+
+func TestDownloadSQLiteRollbackConflictForPostgreSQL(t *testing.T) {
+	_ = prepareSupportBundleTestConfig(t)
+	original := createUpgradeRollbackPackageFn
+	createUpgradeRollbackPackageFn = func(*config.Config, string) ([]byte, string, upgrade.RollbackPackageManifest, error) {
+		return nil, "", upgrade.RollbackPackageManifest{}, upgrade.ErrSQLiteRecoveryOnly
+	}
+	t.Cleanup(func() { createUpgradeRollbackPackageFn = original })
+	rec := httptest.NewRecorder()
+	HandleDownloadUpgradeRollbackPackage(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	require.Equal(t, http.StatusConflict, rec.Code)
+	require.NotContains(t, rec.Header().Get("Content-Type"), "zip")
 }
 
 func TestHandleInspectUpgradeRollbackPackage(t *testing.T) {

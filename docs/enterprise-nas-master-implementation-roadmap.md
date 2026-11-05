@@ -1,6 +1,94 @@
 # Enterprise NAS/AAA Master Implementation Roadmap
 
+November 5 continuation: the updated upstream advisory now permits remediation
+of the parent Go crypto module through its official OpenPGP module split.
+The selected upstream commit clears both Linux Go scans, and the newly reported
+`follow-redirects` npm finding is remediated to 1.16.2. Security policy is unchanged.
+NAS-0116 remains Partial because signing, production activation/recovery and
+full-image/governance gates remain open. All statuses remain 90 Complete,
+21 Partial and 24 Missing. See the [current report](reports/2026-11-05-roadmap-readiness.md).
+
+October 29 continuation: malformed dependency/npm/OS evidence schema versions
+now fail closed, with reproduced failures and Windows/Ubuntu regression tests.
+Development checkpoint branches run full browser, Go/Python, PostgreSQL and
+unsigned release-evidence workflows with retained failure reports. These changes
+do not close NAS-0116 or promote any telecom milestone. The current count remains
+90 Complete / 21 Partial / 24 Missing; see the
+[checkpoint and release assessment](reports/2026-10-29-checkpoint-readiness.md).
+
+October 27 admission continuation: NAS-0116 now re-verifies a staged release
+against its original signed archive, current policy and persistent reservation.
+An executed Linux test exposed group-writable publication directories; new
+admissions now protect those directories and the receipt explicitly. This does
+not complete production activation or trusted signing execution. NAS-0116 remains
+Partial and first unfinished in dependency order. See
+[re-verification scope](release-reverification.md).
+
+October 26 appliance continuation: NAS-0116 now includes read-only snap-blob,
+firmware and boot-file inventories with digest comparison, and repaired lab
+snap compiler/build paths. These do not establish nested package vulnerability
+coverage or signed-image readiness. The Ubuntu Core model still needs real
+Store identities and a supported confinement/integration design for RADIUS.
+NAS-0116 remains Partial; all previous roadmap classifications are preserved.
+See [inventory scope](appliance-artifact-inventory.md) and
+[image prerequisites](../image/README.md).
+
 Status: implementation roadmap derived from the repository audit and operational documentation, with engineering progress recorded through NAS-0097. This document defines backlog and release governance; external certification remains tracked in per-feature release checklists.
+
+October 26 recovery continuation: NAS-0116 adds encrypted SQLite recovery
+snapshots, exact-digest/key/context authentication, bounded archive handling and
+private staging. This closes a local recovery-data protection gap; coordinated
+production activation and enforcement at legacy restore entry points remain
+unfinished. NAS-0116 is still Partial and the first unfinished milestone. See
+the [recovery guide](authenticated-recovery-staging.md) and
+[current evidence report](reports/2026-10-26-recovery-readiness.md).
+
+October 23 accounting continuation: NAS-0008 now has generated PostgreSQL
+accounting/post-auth writes, schema-103 snapshot revision guards and an isolated
+real-packet/session fixture. The work and unsuccessful attempts are tracked in
+the [accounting report](reports/2026-10-23-sql-accounting-readiness.md) and
+[implementation guide](postgresql-radius-accounting.md). NAS-0008 remains Partial;
+schema compatibility, packet tests and production durability/certification are
+distinct gates. NAS-0116 remains the first unfinished milestone. No milestone is
+promoted by these changes and NAS-0099 remains dependent on NAS-0008.
+
+October 23 admission continuation: NAS-0116 now persists sequence/artifact
+reservations, prevents cross-invocation downgrade and sequence reuse, and
+serializes publication with an OS lock. Process-exit, I/O-failure and permission
+checks have Windows/Ubuntu evidence. NAS-0116 remains Partial: the dependency/OS
+security gates, real trusted signing and production activation/data rollback are
+not complete. No milestone has been promoted or published. See the
+[latest admission report](reports/2026-10-23-admission-sequence-readiness.md).
+
+October 23 continuation: the NAS-0008 FreeRADIUS PostgreSQL TLS-policy gap is
+repaired and verified with 22 isolated Ubuntu checks, including real SQL-backed
+RADIUS packets and database reconnect. Production accounting queries and full
+service acceptance remain open. NAS-0116 remains the first unfinished milestone;
+NAS-0008 and NAS-0092..0097 remain Partial. No engineering milestone is promoted
+to production-certified status by this fixture. See the
+[current evidence index](reports/2026-10-23-continuation-readiness.md).
+
+Audit update (2026-10-15): 90 packages retain recorded Complete status, 21 are Partial, and 24 are Missing. NAS-0092..0097 were reopened because configuration/report lifecycle evidence does not demonstrate the required live telecom data plane. NAS-0008 was subsequently reopened after live PostgreSQL testing and runtime SQL review. The remaining Complete labels are historical engineering claims, not a fresh certification of every definition-of-done gate. NAS-0116 is the first unfinished item in dependency order. See [the initial audit](reports/2026-10-15-continuation.md) and [all 135 updated milestone assessments](reports/2026-10-15-nas0116-milestones.csv).
+
+NAS-0116 continuation: dependency remediation, verified release staging,
+OS inventory/scanning, admission API/UI/support-bundle visibility and isolated
+live-service tests are implemented. Production activation, complete image/snap
+coverage, governed exceptions and trusted signing evidence remain open. See
+[the implementation and live-test report](reports/2026-10-15-nas0116-implementation.md).
+
+Historical reconciliation and focused follow-up: the archive's software/certification
+distinction is retained. The CI workflow is configured to admit signed candidates; trusted execution is still unverified;
+package exposure analysis does not waive the Go gate. PostgreSQL NAS-client
+runtime repairs have focused coverage, with earlier failures preserved. No milestone
+is newly closed. See the [current assessment and report index](reports/2026-10-15-reconciliation-readiness.md).
+
+October 22 continuation: NAS-0008 shared runtime SQL now has real PostgreSQL 14/18
+coverage, schema 102, 64-bit counters and explicit PostgreSQL file-replication
+rejection. Go and npm security updates are under renewed verification. NAS-0008
+and NAS-0116 remain Partial; no hardware feature was promoted from Partial based
+on configuration, persistence or GET-only API tests. The existing VM deployment
+is preserved. See [the current report index](reports/2026-10-22-production-readiness.md)
+and [all 135 milestone assessments](reports/2026-10-22-production-milestones.csv).
 
 ## Canonical roadmap artifacts
 
@@ -64,7 +152,7 @@ Complexity:
 - **L**: approximately 2-4 engineer-months.
 - **XL**: approximately 4-9 engineer-months and normally requires multiple disciplines or external lab access.
 
-Current ledger distribution: 82 Missing and 53 Partial work packages; 81 XL, 47 L, and 7 M. A rough unadjusted range is 423-927 engineer-months. With four well-staffed parallel squads plus a certification lab, the planning horizon is approximately 30-60 calendar months. Phase 0 must replace this estimate with measured throughput and vendor-lab lead times.
+Original planning baseline (not current completion): 82 Missing and 53 Partial work packages; 81 XL, 47 L, and 7 M. A rough unadjusted range is 423-927 engineer-months. With four well-staffed parallel squads plus a certification lab, the planning horizon is approximately 30-60 calendar months. Phase 0 must replace this estimate with measured throughput and vendor-lab lead times.
 
 ## Definition of done
 
@@ -137,8 +225,8 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0005 engineering implementation complete; external release evidence is tracked in `nas-0005-release-certification-checklist.md`.
 - [x] NAS-0006 engineering implementation complete; external release evidence is tracked in `nas-0006-release-certification-checklist.md`.
 - [x] NAS-0007 engineering implementation complete; external release evidence is tracked in `nas-0007-release-certification-checklist.md`.
-- [x] NAS-0008 engineering implementation complete; external release evidence is tracked in `nas-0008-release-certification-checklist.md`.
-- [x] Phase 0 exit gate accepted; NAS-0001..NAS-0008 Complete.
+- [ ] NAS-0008 reopened as Partial: migrations and tested runtime slices pass, but service-wide PostgreSQL compatibility remains unfinished. See `nas-0008-release-certification-checklist.md`.
+- [ ] Phase 0 exit gate reopened with NAS-0008; the previous accepted gate is historical, not current release readiness.
 - [x] NAS-0009 engineering implementation complete; external release evidence is tracked in `nas-0009-release-certification-checklist.md`.
 - [x] NAS-0010 engineering implementation complete; external release evidence is tracked in `nas-0010-release-certification-checklist.md`.
 - [x] NAS-0011 engineering implementation complete; external release evidence is tracked in `nas-0011-release-certification-checklist.md`.
@@ -231,12 +319,12 @@ The phases are ownership lanes. The executable order is the dependency-resolved 
 - [x] NAS-0090 engineering implementation complete; external release evidence is tracked in `nas-0090-release-certification-checklist.md`.
 - [x] NAS-0091 engineering implementation complete; external release evidence is tracked in `nas-0091-release-certification-checklist.md`.
 - [x] Phase 9 exit gate accepted; NAS-0082..NAS-0091 Complete.
-- [x] NAS-0092 engineering implementation complete; external release evidence is tracked in `nas-0092-release-certification-checklist.md`.
-- [x] NAS-0093 engineering implementation complete; external release evidence is tracked in `nas-0093-release-certification-checklist.md`.
-- [x] NAS-0094 engineering implementation complete; external release evidence is tracked in `nas-0094-release-certification-checklist.md`.
-- [x] NAS-0095 engineering implementation complete; external release evidence is tracked in `nas-0095-release-certification-checklist.md`.
-- [x] NAS-0096 engineering implementation complete; external release evidence is tracked in `nas-0096-release-certification-checklist.md`.
-- [x] NAS-0097 engineering implementation complete; external release evidence is tracked in `nas-0097-release-certification-checklist.md`.
+- [ ] NAS-0092 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
+- [ ] NAS-0093 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
+- [ ] NAS-0094 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
+- [ ] NAS-0095 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
+- [ ] NAS-0096 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
+- [ ] NAS-0097 reopened as Partial by the 2026-10-15 code audit; configuration/report lifecycle exists, live domain implementation remains. See `reports/2026-10-15-continuation.md`.
 - [ ] Phase 10 exit gate accepted; NAS-0092..NAS-0098 Complete.
 - [ ] Phase 11 exit gate accepted; NAS-0099..NAS-0105 Complete.
 - [ ] Phase 12 exit gate accepted; NAS-0106..NAS-0111 Complete.

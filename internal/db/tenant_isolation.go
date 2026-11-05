@@ -331,9 +331,9 @@ func SummarizeTenantIsolation() (TenantIsolationSummary, error) {
 	_ = DB.QueryRow(`SELECT COUNT(DISTINCT tenant) FROM policy_set_versions WHERE COALESCE(tenant, '') <> ''`).Scan(&summary.PolicySetTenantCount)
 	_ = DB.QueryRow(`SELECT COUNT(*) FROM policy_set_versions WHERE COALESCE(tenant, '') = ''`).Scan(&summary.UntenantedPolicySets)
 	_ = DB.QueryRow(`SELECT COUNT(*), COALESCE(SUM(CASE WHEN decision = 'deny' THEN 1 ELSE 0 END), 0), COALESCE(SUM(CASE WHEN decision = 'monitor' THEN 1 ELSE 0 END), 0) FROM tenant_isolation_events`).Scan(&summary.IsolationEventCount, &summary.DeniedEventCount, &summary.MonitorEventCount)
-	_ = DB.QueryRow(`SELECT COALESCE(created_at, ''), COALESCE(decision, ''), COALESCE(resource_type, ''), COALESCE(resource_id, '')
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(created_at AS TEXT), ''), COALESCE(decision, ''), COALESCE(resource_type, ''), COALESCE(resource_id, '')
 		FROM tenant_isolation_events ORDER BY created_at DESC, id DESC LIMIT 1`).Scan(&summary.LastEventAt, &summary.LastEventDecision, &summary.LastEventResourceType, &summary.LastEventResourceID)
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(activated_at), '') FROM policy_set_versions WHERE COALESCE(tenant, '') <> ''`).Scan(&summary.LastPolicyActivationAt)
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(MAX(activated_at) AS TEXT), '') FROM policy_set_versions WHERE COALESCE(tenant, '') <> ''`).Scan(&summary.LastPolicyActivationAt)
 	return summary, nil
 }
 

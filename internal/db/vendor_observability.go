@@ -81,15 +81,15 @@ func RecordVendorObservability(delta VendorObservabilityDelta) error {
 			last_message, last_event_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(vendor_key, nas_type) DO UPDATE SET
-			auth_success_count = auth_success_count + excluded.auth_success_count,
-			auth_failure_count = auth_failure_count + excluded.auth_failure_count,
-			vsa_parsed_count = vsa_parsed_count + excluded.vsa_parsed_count,
-			vsa_parse_failure_count = vsa_parse_failure_count + excluded.vsa_parse_failure_count,
-			unsupported_attribute_count = unsupported_attribute_count + excluded.unsupported_attribute_count,
-			coa_success_count = coa_success_count + excluded.coa_success_count,
-			coa_failure_count = coa_failure_count + excluded.coa_failure_count,
-			disconnect_success_count = disconnect_success_count + excluded.disconnect_success_count,
-			disconnect_failure_count = disconnect_failure_count + excluded.disconnect_failure_count,
+			auth_success_count = vendor_observability.auth_success_count + excluded.auth_success_count,
+			auth_failure_count = vendor_observability.auth_failure_count + excluded.auth_failure_count,
+			vsa_parsed_count = vendor_observability.vsa_parsed_count + excluded.vsa_parsed_count,
+			vsa_parse_failure_count = vendor_observability.vsa_parse_failure_count + excluded.vsa_parse_failure_count,
+			unsupported_attribute_count = vendor_observability.unsupported_attribute_count + excluded.unsupported_attribute_count,
+			coa_success_count = vendor_observability.coa_success_count + excluded.coa_success_count,
+			coa_failure_count = vendor_observability.coa_failure_count + excluded.coa_failure_count,
+			disconnect_success_count = vendor_observability.disconnect_success_count + excluded.disconnect_success_count,
+			disconnect_failure_count = vendor_observability.disconnect_failure_count + excluded.disconnect_failure_count,
 			last_message = excluded.last_message,
 			last_event_at = CURRENT_TIMESTAMP`,
 		delta.VendorKey,
@@ -124,7 +124,7 @@ func ListVendorObservability(limit int) ([]VendorObservabilityRecord, error) {
 			COALESCE(unsupported_attribute_count, 0),
 			COALESCE(coa_success_count, 0), COALESCE(coa_failure_count, 0),
 			COALESCE(disconnect_success_count, 0), COALESCE(disconnect_failure_count, 0),
-			COALESCE(last_message, ''), COALESCE(last_event_at, '')
+			COALESCE(last_message, ''), COALESCE(CAST(last_event_at AS TEXT), '')
 		FROM vendor_observability
 		ORDER BY datetime(last_event_at) DESC, vendor_key, nas_type
 		LIMIT ?`, limit)

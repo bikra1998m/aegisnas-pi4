@@ -1,6 +1,7 @@
 package adminapi
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +24,10 @@ func HandleDownloadUpgradeRollbackPackage(w http.ResponseWriter, r *http.Request
 
 	payload, filename, manifest, err := createUpgradeRollbackPackageFn(cfg, config.Path())
 	if err != nil {
+		if errors.Is(err, upgrade.ErrSQLiteRecoveryOnly) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -89,15 +94,19 @@ func HandleRestoreUpgradeRollbackPackage(w http.ResponseWriter, r *http.Request)
 }
 
 func readUpgradeRollbackPackageUpload(w http.ResponseWriter, r *http.Request) ([]byte, string, error) {
-	if err := r.ParseMultipartForm(512 << 20); err != nil {
+	// Bound the entire request before multipart parsing (including non-file
+	// fields), and promptly remove any disk-spooled temporary upload.
+	r.Body = http.MaxBytesReader(w, r.Body, upgrade.MaxRollbackPackageBytes+(1<<20))
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		return nil, "", fmt.Errorf("invalid rollback package upload: %w", err)
 	}
+	defer r.MultipartForm.RemoveAll()
 	file, header, err := r.FormFile("package")
 	if err != nil {
 		return nil, "", fmt.Errorf("rollback package file is required")
 	}
 	defer file.Close()
-	body, err := io.ReadAll(http.MaxBytesReader(w, file, 512<<20))
+	body, err := io.ReadAll(http.MaxBytesReader(w, file, upgrade.MaxRollbackPackageBytes))
 	if err != nil {
 		return nil, "", fmt.Errorf("rollback package upload is too large or unreadable")
 	}

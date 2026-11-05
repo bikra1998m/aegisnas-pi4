@@ -55,13 +55,10 @@ func SaveConfigRevision(configData, createdBy string) (int, error) {
 		return 0, err
 	}
 
-	res, err := db.Exec(`INSERT INTO config_revisions (revision, config_data, checksum, signature, created_by)
-		VALUES (?, ?, ?, ?, ?)`, nextRev, configData, checksumStr, signature, createdBy)
-	if err != nil {
-		return 0, err
-	}
-	id, _ := res.LastInsertId()
-	return int(id), nil
+	var id int
+	err = db.QueryRow(`INSERT INTO config_revisions (revision, config_data, checksum, signature, created_by)
+		VALUES (?, ?, ?, ?, ?) RETURNING id`, nextRev, configData, checksumStr, signature, createdBy).Scan(&id)
+	return id, err
 }
 
 // GetConfigRevisionByNumber returns config data and verifies signature if key is present.

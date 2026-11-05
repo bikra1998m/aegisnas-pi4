@@ -72,7 +72,21 @@ type ActivationResult struct {
 	Summary          string   `json:"summary"`
 }
 
+// ErrSQLiteReplicationOnly prevents file-based replication from exporting or
+// activating a stale local SQLite file when the actual data plane is PostgreSQL.
+var ErrSQLiteReplicationOnly = errors.New("SQLite replication packages are unavailable for PostgreSQL; use PostgreSQL backup and replication procedures")
+
+func requireSQLiteReplication(cfg *config.Config) error {
+	if cfg != nil && (strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgres") || strings.EqualFold(strings.TrimSpace(cfg.Database.Backend), "postgresql")) {
+		return ErrSQLiteReplicationOnly
+	}
+	return nil
+}
+
 func CreateReplicationPackage(cfg *config.Config) ([]byte, ReplicationManifest, error) {
+	if err := requireSQLiteReplication(cfg); err != nil {
+		return nil, ReplicationManifest{}, err
+	}
 	if cfg == nil {
 		return nil, ReplicationManifest{}, errors.New("ha replication export requires a config")
 	}
@@ -168,6 +182,9 @@ func ImportReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 }
 
 func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedBy, importedSource string) (StagedReplicationPackage, error) {
+	if err := requireSQLiteReplication(cfg); err != nil {
+		return StagedReplicationPackage{}, err
+	}
 	if cfg == nil {
 		return StagedReplicationPackage{}, errors.New("ha replication import requires a config")
 	}
@@ -261,31 +278,31 @@ func importReplicationPackage(cfg *config.Config, packageBytes []byte, importedB
 		return stage, err
 	}
 	_ = db.RecordHAHistory("replication_stage", "staged", stage.Summary, strings.TrimSpace(cfg.HighAvailability.Role), stage.ImportedBy, map[string]any{
-		"stage_id":            stage.ID,
-		"source_node":         manifest.SourceNode,
-		"source_role":         manifest.SourceRole,
-		"schema_version":      manifest.SchemaVersion,
-		"network_present":     stage.NetworkStatePresent,
-		"package_type":        manifest.PackageType,
-		"package_checksum":    stage.PackageChecksum,
-		"content_fingerprint": stage.ContentFingerprint,
-		"encryption_status":   stage.EncryptionStatus,
+		"stage_id":             stage.ID,
+		"source_node":          manifest.SourceNode,
+		"source_role":          manifest.SourceRole,
+		"schema_version":       manifest.SchemaVersion,
+		"network_present":      stage.NetworkStatePresent,
+		"package_type":         manifest.PackageType,
+		"package_checksum":     stage.PackageChecksum,
+		"content_fingerprint":  stage.ContentFingerprint,
+		"encryption_status":    stage.EncryptionStatus,
 		"encryption_algorithm": stage.EncryptionAlgorithm,
-		"signature_status":    stage.SignatureStatus,
-		"imported_source":     stage.ImportedSource,
+		"signature_status":     stage.SignatureStatus,
+		"imported_source":      stage.ImportedSource,
 	})
 	_ = db.UpsertRuntimeStatus(ReplicationRuntimeComponent, "ok", stage.Summary, map[string]any{
-		"staged_id":           stage.ID,
-		"source_node":         manifest.SourceNode,
-		"source_role":         manifest.SourceRole,
-		"imported_at":         stage.ImportedAt,
-		"network_present":     stage.NetworkStatePresent,
-		"package_checksum":    stage.PackageChecksum,
-		"content_fingerprint": stage.ContentFingerprint,
-		"encryption_status":   stage.EncryptionStatus,
+		"staged_id":            stage.ID,
+		"source_node":          manifest.SourceNode,
+		"source_role":          manifest.SourceRole,
+		"imported_at":          stage.ImportedAt,
+		"network_present":      stage.NetworkStatePresent,
+		"package_checksum":     stage.PackageChecksum,
+		"content_fingerprint":  stage.ContentFingerprint,
+		"encryption_status":    stage.EncryptionStatus,
 		"encryption_algorithm": stage.EncryptionAlgorithm,
-		"signature_status":    stage.SignatureStatus,
-		"imported_source":     stage.ImportedSource,
+		"signature_status":     stage.SignatureStatus,
+		"imported_source":      stage.ImportedSource,
 	})
 	return stage, nil
 }
@@ -361,6 +378,9 @@ func ListStagedReplicationPackages(cfg *config.Config) ([]StagedReplicationPacka
 }
 
 func ActivateStagedReplicationPackage(cfg *config.Config, id, activatedBy string) (ActivationResult, error) {
+	if err := requireSQLiteReplication(cfg); err != nil {
+		return ActivationResult{}, err
+	}
 	if cfg == nil {
 		return ActivationResult{}, errors.New("ha replication activation requires a config")
 	}

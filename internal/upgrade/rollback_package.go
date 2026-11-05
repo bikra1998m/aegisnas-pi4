@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,18 @@ import (
 
 const rollbackPackageVersion = "1"
 const rollbackRestoreConfirmationText = "RESTORE UPGRADE ROLLBACK"
+
+// Limits apply to both stored and expanded data, before allocating entries.
+const MaxRollbackPackageBytes = 512 << 20
+
+var ErrSQLiteRecoveryOnly = errors.New("SQLite rollback packages cannot back up or restore this database backend")
+
+var rollbackEntryLimits = map[string]uint64{
+	"manifest.json":               64 << 10,
+	"config/config.yaml":          4 << 20,
+	"config/system-settings.json": 4 << 20,
+	"database/data.db":            MaxRollbackPackageBytes,
+}
 
 type RollbackPackageManifest struct {
 	PackageVersion       string `json:"package_version"`
@@ -88,6 +101,9 @@ func CreateRollbackPackage(cfg *config.Config, configPath string) ([]byte, strin
 	if cfg == nil {
 		return nil, "", manifest, fmt.Errorf("configuration not loaded")
 	}
+	if err := requireSQLiteRollback(cfg); err != nil {
+		return nil, "", manifest, err
+	}
 
 	manifest.DatabasePath = cfg.Database.Path
 	manifest.DeploymentProfile = cfg.Deployment.Profile
@@ -116,6 +132,9 @@ func CreateRollbackPackage(cfg *config.Config, configPath string) ([]byte, strin
 		return nil, "", manifest, fmt.Errorf("copy database into rollback package workspace: %w", err)
 	}
 	manifest.DatabaseCopyMode = "vacuum_into"
+	if info, err := os.Stat(dbCopyPath); err != nil || info.Size() > MaxRollbackPackageBytes {
+		return nil, "", manifest, fmt.Errorf("rollback database snapshot is unreadable or exceeds size limit")
+	}
 
 	configBytes, configErr := readRollbackConfigBytes(cfg, configPath)
 	if configErr != nil {
@@ -200,44 +219,49 @@ func vacuumInto(handle *sql.DB, target string) error {
 }
 
 func InspectRollbackPackage(reader io.ReaderAt, size int64) (RollbackPackageManifest, error) {
-	var manifest RollbackPackageManifest
-	archive, err := zip.NewReader(reader, size)
-	if err != nil {
-		return manifest, err
-	}
-	for _, file := range archive.File {
-		if file.Name != "manifest.json" {
-			continue
-		}
-		handle, err := file.Open()
-		if err != nil {
-			return manifest, err
-		}
-		defer handle.Close()
-		if err := json.NewDecoder(handle).Decode(&manifest); err != nil {
-			return manifest, err
-		}
-		return manifest, nil
-	}
-	return manifest, fmt.Errorf("manifest.json not found in rollback package")
+	contents, err := ReadRollbackPackage(reader, size)
+	return contents.Manifest, err
 }
 
 func ReadRollbackPackage(reader io.ReaderAt, size int64) (RollbackPackageContents, error) {
 	var contents RollbackPackageContents
+	if size <= 0 || size > MaxRollbackPackageBytes {
+		return contents, fmt.Errorf("rollback package exceeds size limit or is empty")
+	}
 	archive, err := zip.NewReader(reader, size)
 	if err != nil {
 		return contents, err
 	}
 	contents.PackageSizeBytes = size
+	if len(archive.File) > len(rollbackEntryLimits) {
+		return contents, fmt.Errorf("too many rollback package entries")
+	}
+	seen := make(map[string]bool)
+	var total uint64
+	// Validate the entire directory before decompressing any entry.
+	for _, file := range archive.File {
+		limit, known := rollbackEntryLimits[file.Name]
+		if !known || seen[file.Name] || !file.Mode().IsRegular() {
+			return contents, fmt.Errorf("unknown, duplicate or non-regular rollback package entry")
+		}
+		seen[file.Name] = true
+		if file.UncompressedSize64 > limit || file.UncompressedSize64 > MaxRollbackPackageBytes-total {
+			return contents, fmt.Errorf("expanded rollback package exceeds size limit")
+		}
+		total += file.UncompressedSize64
+	}
 	for _, file := range archive.File {
 		handle, err := file.Open()
 		if err != nil {
 			return contents, err
 		}
-		data, err := io.ReadAll(handle)
+		data, err := io.ReadAll(io.LimitReader(handle, int64(rollbackEntryLimits[file.Name])+1))
 		_ = handle.Close()
 		if err != nil {
 			return contents, err
+		}
+		if uint64(len(data)) > rollbackEntryLimits[file.Name] {
+			return contents, fmt.Errorf("expanded rollback entry exceeds size limit")
 		}
 		switch file.Name {
 		case "manifest.json":
@@ -252,8 +276,8 @@ func ReadRollbackPackage(reader io.ReaderAt, size int64) (RollbackPackageContent
 			contents.Database = data
 		}
 	}
-	if contents.Manifest.PackageVersion == "" {
-		return contents, fmt.Errorf("manifest.json not found in rollback package")
+	if contents.Manifest.PackageVersion != rollbackPackageVersion {
+		return contents, fmt.Errorf("missing or unsupported rollback package manifest version")
 	}
 	return contents, nil
 }
@@ -285,10 +309,22 @@ func ExtractRollbackPackageBytes(packageBytes []byte, outputDir string) (Rollbac
 	}
 
 	outputDir = filepath.Clean(outputDir)
-	if err := os.MkdirAll(filepath.Join(outputDir, "config"), 0755); err != nil {
+	if err := trustedRecoveryPath(filepath.Dir(outputDir), false); err != nil {
+		return RollbackPackageExtraction{}, err
+	}
+	// Never follow an existing workspace or overwrite any of its contents.
+	if err := os.Mkdir(outputDir, 0700); err != nil {
+		return RollbackPackageExtraction{}, fmt.Errorf("create new private extraction directory: %w", err)
+	}
+	root, err := os.OpenRoot(outputDir)
+	if err != nil {
+		return RollbackPackageExtraction{}, err
+	}
+	defer root.Close()
+	if err := root.Mkdir("config", 0700); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("create config extraction directory: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Join(outputDir, "database"), 0755); err != nil {
+	if err := root.Mkdir("database", 0700); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("create database extraction directory: %w", err)
 	}
 
@@ -302,16 +338,16 @@ func ExtractRollbackPackageBytes(packageBytes []byte, outputDir string) (Rollbac
 		return RollbackPackageExtraction{}, fmt.Errorf("marshal rollback package manifest: %w", err)
 	}
 
-	if err := os.WriteFile(manifestPath, append(manifestJSON, '\n'), 0600); err != nil {
+	if err := writeNewRootFile(root, "manifest.json", append(manifestJSON, '\n')); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("write extracted manifest: %w", err)
 	}
-	if err := os.WriteFile(configPath, contents.ConfigYAML, 0600); err != nil {
+	if err := writeNewRootFile(root, "config/config.yaml", contents.ConfigYAML); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("write extracted config: %w", err)
 	}
-	if err := os.WriteFile(settingsPath, contents.SystemSettings, 0600); err != nil {
+	if err := writeNewRootFile(root, "config/system-settings.json", contents.SystemSettings); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("write extracted settings snapshot: %w", err)
 	}
-	if err := os.WriteFile(databasePath, contents.Database, 0600); err != nil {
+	if err := writeNewRootFile(root, "database/data.db", contents.Database); err != nil {
 		return RollbackPackageExtraction{}, fmt.Errorf("write extracted database: %w", err)
 	}
 
@@ -341,6 +377,10 @@ func inspectRollbackPackageContents(contents RollbackPackageContents, cfg *confi
 	}
 	if cfg == nil {
 		inspection.Warnings = append(inspection.Warnings, "Current appliance configuration is not loaded.")
+		return inspection, nil
+	}
+	if err := requireSQLiteRollback(cfg); err != nil {
+		inspection.Warnings = append(inspection.Warnings, err.Error())
 		return inspection, nil
 	}
 
@@ -489,4 +529,27 @@ func RestoreRollbackPackage(cfg *config.Config, configPath string, packageBytes 
 
 	result.RestartRequired = true
 	return result, nil
+}
+
+func requireSQLiteRollback(cfg *config.Config) error {
+	backend := strings.ToLower(strings.TrimSpace(cfg.Database.Backend))
+	if backend != "" && backend != "sqlite" {
+		return fmt.Errorf("%w: %s", ErrSQLiteRecoveryOnly, backend)
+	}
+	return nil
+}
+
+func writeNewRootFile(root *os.Root, name string, data []byte) error {
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err = f.Write(data); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	return f.Close()
 }

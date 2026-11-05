@@ -1003,7 +1003,7 @@ func loadVLANPolicySources() ([]vlanPolicySource, []vlanPolicySource, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	policies, err := loadVLANSources(`SELECT name, COALESCE(vlan, 0) FROM policy_rules WHERE enabled = 1 AND vlan IS NOT NULL AND vlan > 0 ORDER BY priority DESC, name`)
+	policies, err := loadVLANSources(`SELECT name, COALESCE(vlan, 0) FROM policy_rules WHERE enabled = TRUE AND vlan IS NOT NULL AND vlan > 0 ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, nil, err
 	}

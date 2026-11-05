@@ -166,8 +166,8 @@ func StoreDHCPLeaseObservations(observedAt time.Time, leases []DHCPLeaseObservat
 			strings.TrimSpace(lease.IP),
 			strings.TrimSpace(lease.Hostname),
 			strings.TrimSpace(lease.ClientID),
-			boolToSQLite(lease.Reservation),
-			boolToSQLite(lease.Expired),
+			lease.Reservation,
+			lease.Expired,
 			strings.TrimSpace(lease.ExpiresAt),
 			lease.RemainingSeconds,
 		); err != nil {
@@ -192,7 +192,7 @@ func ListDHCPLeaseHistory(limit int) ([]DHCPLeaseHistoryRecord, error) {
 		limit = 100
 	}
 	rows, err := DB.Query(`SELECT id, observed_at, mac, ip, COALESCE(hostname, ''), COALESCE(client_id, ''), reservation, expired,
-		COALESCE(expires_at, ''), remaining_seconds
+		COALESCE(CAST(expires_at AS TEXT), ''), remaining_seconds
 		FROM dhcp_lease_history
 		ORDER BY datetime(observed_at) DESC, id DESC
 		LIMIT ?`, limit)
@@ -205,14 +205,14 @@ func ListDHCPLeaseHistory(limit int) ([]DHCPLeaseHistoryRecord, error) {
 	for rows.Next() {
 		var (
 			item                         DHCPLeaseHistoryRecord
-			reservationValue, expiredVal int
+			reservationValue, expiredVal bool
 			remaining                    sql.NullInt64
 		)
 		if err := rows.Scan(&item.ID, &item.ObservedAt, &item.MAC, &item.IP, &item.Hostname, &item.ClientID, &reservationValue, &expiredVal, &item.ExpiresAt, &remaining); err != nil {
 			return nil, fmt.Errorf("scan dhcp lease history: %w", err)
 		}
-		item.Reservation = reservationValue == 1
-		item.Expired = expiredVal == 1
+		item.Reservation = reservationValue
+		item.Expired = expiredVal
 		if remaining.Valid {
 			item.RemainingSeconds = remaining.Int64
 		}
@@ -238,8 +238,8 @@ func GetNetworkApplyStats() (NetworkApplyStats, error) {
 		COALESCE(SUM(CASE WHEN action = 'rollback' AND status = 'success' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'auto_rolled_back' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN action = 'apply' AND status = 'auto_rollback_failed' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(CASE WHEN action = 'apply' AND status IN ('success', 'pending_confirmation', 'confirmed', 'auto_rolled_back') THEN created_at END), ''),
-		COALESCE(MAX(CASE WHEN status IN ('failed', 'auto_rollback_failed') THEN created_at END), '')
+		COALESCE(CAST(MAX(CASE WHEN action = 'apply' AND status IN ('success', 'pending_confirmation', 'confirmed', 'auto_rolled_back') THEN created_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status IN ('failed', 'auto_rollback_failed') THEN created_at END) AS TEXT), '')
 		FROM network_apply_history`).Scan(
 		&stats.TotalRecords,
 		&stats.ApplySuccessCount,
@@ -277,10 +277,10 @@ func GetDHCPLeaseTrendSummary(window time.Duration) (DHCPLeaseTrendSummary, erro
 		COUNT(*),
 		COUNT(DISTINCT CASE WHEN observed_at >= ? THEN mac END),
 		COUNT(DISTINCT CASE WHEN observed_at >= ? THEN ip END),
-		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = 0 THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN observed_at >= ? AND reservation = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = FALSE THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND expired = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN observed_at >= ? AND reservation = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM dhcp_lease_history`,
 		cutoff, cutoff, cutoff, cutoff, cutoff).Scan(
 		&summary.TotalRecords,
@@ -300,7 +300,7 @@ func GetDHCPLeaseTrendSummary(window time.Duration) (DHCPLeaseTrendSummary, erro
 		FROM dhcp_lease_history
 		WHERE observed_at >= ?
 		GROUP BY observed_at
-	)`, cutoff).Scan(&summary.PeakConcurrentLeasesWindow); err != nil {
+	) AS lease_observations`, cutoff).Scan(&summary.PeakConcurrentLeasesWindow); err != nil {
 		return DHCPLeaseTrendSummary{}, fmt.Errorf("get dhcp lease peak concurrency: %w", err)
 	}
 
@@ -332,11 +332,4 @@ func trimDHCPLeaseHistoryTx(tx *sql.Tx, maxRows int) error {
 		return fmt.Errorf("trim dhcp lease history: %w", err)
 	}
 	return nil
-}
-
-func boolToSQLite(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }

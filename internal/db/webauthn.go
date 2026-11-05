@@ -164,8 +164,8 @@ func UpsertAdminWebAuthnCredential(record AdminWebAuthnCredential, now time.Time
 		strings.TrimSpace(record.UsernameHash), strings.TrimSpace(record.Subject), nullString(record.DisplayName),
 		nullString(record.CredentialName), strings.TrimSpace(record.PublicKeyCOSEB64), record.PublicKeyAlg,
 		record.SignCount, transportsJSON, nullString(record.AAGUID), nullString(record.AttestationFormat),
-		boolToSQLite(record.UserVerifiedRequired), boolToSQLite(record.BackupEligible), boolToSQLite(record.BackupState),
-		boolToSQLite(record.Enabled), updatedAt)
+		record.UserVerifiedRequired, record.BackupEligible, record.BackupState,
+		record.Enabled, updatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert admin WebAuthn credential: %w", err)
 	}
@@ -186,10 +186,10 @@ func GetAdminWebAuthnCredentialByHash(credentialIDHash string) (AdminWebAuthnCre
 	err := DB.QueryRow(`SELECT id, credential_id_hash, credential_id_b64, username_hash, subject,
 		COALESCE(display_name, ''), COALESCE(credential_name, ''), public_key_cose_b64, public_key_alg,
 		COALESCE(sign_count, 0), COALESCE(transports_json, '[]'), COALESCE(aaguid, ''),
-		COALESCE(attestation_format, ''), COALESCE(user_verified_required, 0),
-		COALESCE(backup_eligible, 0), COALESCE(backup_state, 0), COALESCE(enabled, 1),
-		COALESCE(created_at, ''), COALESCE(updated_at, ''), COALESCE(last_used_at, ''),
-		COALESCE(revoked_at, ''), COALESCE(revoked_by, '')
+		COALESCE(attestation_format, ''), (CASE WHEN user_verified_required THEN 1 ELSE 0 END),
+		(CASE WHEN backup_eligible THEN 1 ELSE 0 END), (CASE WHEN backup_state THEN 1 ELSE 0 END), (CASE WHEN COALESCE(enabled, TRUE) THEN 1 ELSE 0 END),
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''), COALESCE(CAST(last_used_at AS TEXT), ''),
+		COALESCE(CAST(revoked_at AS TEXT), ''), COALESCE(revoked_by, '')
 		FROM admin_webauthn_credentials WHERE credential_id_hash = ?`, credentialIDHash).
 		Scan(&item.ID, &item.CredentialIDHash, &item.CredentialIDB64, &item.UsernameHash, &item.Subject,
 			&item.DisplayName, &item.CredentialName, &item.PublicKeyCOSEB64, &item.PublicKeyAlg, &item.SignCount,
@@ -222,10 +222,10 @@ func ListAdminWebAuthnCredentials(subject string, includeRevoked bool, limit int
 	query := `SELECT id, credential_id_hash, credential_id_b64, username_hash, subject,
 		COALESCE(display_name, ''), COALESCE(credential_name, ''), public_key_cose_b64, public_key_alg,
 		COALESCE(sign_count, 0), COALESCE(transports_json, '[]'), COALESCE(aaguid, ''),
-		COALESCE(attestation_format, ''), COALESCE(user_verified_required, 0),
-		COALESCE(backup_eligible, 0), COALESCE(backup_state, 0), COALESCE(enabled, 1),
-		COALESCE(created_at, ''), COALESCE(updated_at, ''), COALESCE(last_used_at, ''),
-		COALESCE(revoked_at, ''), COALESCE(revoked_by, '')
+		COALESCE(attestation_format, ''), (CASE WHEN user_verified_required THEN 1 ELSE 0 END),
+		(CASE WHEN backup_eligible THEN 1 ELSE 0 END), (CASE WHEN backup_state THEN 1 ELSE 0 END), (CASE WHEN COALESCE(enabled, TRUE) THEN 1 ELSE 0 END),
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''), COALESCE(CAST(last_used_at AS TEXT), ''),
+		COALESCE(CAST(revoked_at AS TEXT), ''), COALESCE(revoked_by, '')
 		FROM admin_webauthn_credentials WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(subject) != "" {
@@ -233,7 +233,7 @@ func ListAdminWebAuthnCredentials(subject string, includeRevoked bool, limit int
 		args = append(args, strings.TrimSpace(subject))
 	}
 	if !includeRevoked {
-		query += ` AND revoked_at IS NULL AND enabled = 1`
+		query += ` AND revoked_at IS NULL AND enabled = TRUE`
 	}
 	query += ` ORDER BY datetime(updated_at) DESC, id DESC LIMIT ?`
 	args = append(args, limit)
@@ -278,7 +278,7 @@ func RevokeAdminWebAuthnCredential(id, actor string, now time.Time) error {
 		now = time.Now().UTC()
 	}
 	res, err := DB.Exec(`UPDATE admin_webauthn_credentials
-		SET enabled = 0, revoked_at = ?, revoked_by = ?, updated_at = ?
+		SET enabled = FALSE, revoked_at = ?, revoked_by = ?, updated_at = ?
 		WHERE id = ? AND revoked_at IS NULL`,
 		now.UTC().Format(time.RFC3339), nullString(actor), now.UTC().Format(time.RFC3339), id)
 	if err != nil {
@@ -300,7 +300,7 @@ func TouchAdminWebAuthnCredentialUse(credentialIDHash string, signCount uint32, 
 	_, err := DB.Exec(`UPDATE admin_webauthn_credentials
 		SET sign_count = ?, backup_state = ?, last_used_at = ?, updated_at = ?
 		WHERE credential_id_hash = ?`,
-		signCount, boolToSQLite(backupState), now.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339), credentialIDHash)
+		signCount, backupState, now.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339), credentialIDHash)
 	if err != nil {
 		return fmt.Errorf("touch admin WebAuthn credential: %w", err)
 	}
@@ -374,8 +374,8 @@ func GetAdminWebAuthnChallengeByStateHash(stateHash string, now time.Time) (Admi
 		subject, COALESCE(display_name, ''), COALESCE(credential_name, ''), COALESCE(role, ''),
 		COALESCE(source, ''), COALESCE(provider, ''), COALESCE(tenants_json, '[]'), COALESCE(groups_json, '[]'),
 		COALESCE(first_factor, ''), COALESCE(origin, ''), COALESCE(rp_id, ''), COALESCE(attempt_count, 0),
-		COALESCE(max_attempts, 0), COALESCE(expires_at, ''), COALESCE(created_at, ''), COALESCE(updated_at, ''),
-		COALESCE(verified_at, ''), COALESCE(failure_reason, ''), COALESCE(details_json, '{}')
+		COALESCE(max_attempts, 0), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''),
+		COALESCE(CAST(verified_at AS TEXT), ''), COALESCE(failure_reason, ''), COALESCE(details_json, '{}')
 		FROM admin_webauthn_challenges WHERE state_hash = ?`, stateHash).
 		Scan(&item.ID, &item.StateHash, &item.Challenge, &item.ChallengeHash, &item.Ceremony, &item.Status,
 			&item.UsernameHash, &item.Subject, &item.DisplayName, &item.CredentialName, &item.Role, &item.Source,
@@ -391,7 +391,7 @@ func GetAdminWebAuthnChallengeByStateHash(stateHash string, now time.Time) (Admi
 	item.Tenants = decodeAdminWebAuthnStringArray(tenantsRaw)
 	item.Groups = decodeAdminWebAuthnStringArray(groupsRaw)
 	if item.Status == "pending" && item.ExpiresAt != "" {
-		if expiresAt, err := time.Parse(time.RFC3339, item.ExpiresAt); err == nil && !expiresAt.After(now.UTC()) {
+		if expiresAt := parseAccountingTime(item.ExpiresAt); expiresAt.IsZero() || !expiresAt.After(now.UTC()) {
 			_ = UpdateAdminWebAuthnChallengeStatus(item.ID, "expired", item.AttemptCount, "challenge expired", now)
 			item.Status = "expired"
 			item.FailureReason = "challenge expired"
@@ -471,10 +471,10 @@ func ListAdminWebAuthnEvents(decision, ceremony string, limit int) ([]AdminWebAu
 	if limit > 5000 {
 		limit = 5000
 	}
-	query := `SELECT id, COALESCE(observed_at, ''), COALESCE(username_hash, ''), COALESCE(subject, ''),
+	query := `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(username_hash, ''), COALESCE(subject, ''),
 		COALESCE(source, ''), COALESCE(ceremony, ''), COALESCE(decision, ''), COALESCE(reason, ''),
 		COALESCE(credential_id_hash, ''), COALESCE(role, ''), COALESCE(provider, ''), COALESCE(origin, ''),
-		COALESCE(rp_id, ''), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(rp_id, ''), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM admin_webauthn_events WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(decision) != "" {
@@ -517,11 +517,11 @@ func GetAdminWebAuthnCredentialSummary(now time.Time) (AdminWebAuthnCredentialSu
 	}
 	var summary AdminWebAuthnCredentialSummary
 	if err := DB.QueryRow(`SELECT
-		COUNT(DISTINCT CASE WHEN enabled = 1 AND revoked_at IS NULL THEN username_hash ELSE NULL END),
-		COALESCE(SUM(CASE WHEN enabled = 1 AND revoked_at IS NULL THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN revoked_at IS NOT NULL OR enabled = 0 THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), ''),
-		COALESCE(MAX(last_used_at), '')
+		COUNT(DISTINCT CASE WHEN enabled = TRUE AND revoked_at IS NULL THEN username_hash ELSE NULL END),
+		COALESCE(SUM(CASE WHEN enabled = TRUE AND revoked_at IS NULL THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN revoked_at IS NOT NULL OR enabled = FALSE THEN 1 ELSE 0 END), 0),
+		COALESCE(CAST(MAX(created_at) AS TEXT), ''),
+		COALESCE(CAST(MAX(last_used_at) AS TEXT), '')
 		FROM admin_webauthn_credentials`).Scan(&summary.EnrolledUsers, &summary.EnabledCredentials,
 		&summary.RevokedCredentials, &summary.LastEnrollmentAt, &summary.LastUsedAt); err != nil {
 		return summary, fmt.Errorf("get admin WebAuthn credential summary: %w", err)
@@ -546,7 +546,7 @@ func GetAdminWebAuthnEventSummary() (AdminWebAuthnEventSummary, error) {
 		COALESCE(SUM(CASE WHEN decision = 'accepted' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'denied' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'monitor_allowed' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM admin_webauthn_events`).Scan(&summary.TotalRecords, &summary.RegistrationCount,
 		&summary.ChallengeIssuedCount, &summary.AcceptedCount, &summary.DeniedCount,
 		&summary.MonitorAllowedCount, &summary.LastObservedAt); err != nil {

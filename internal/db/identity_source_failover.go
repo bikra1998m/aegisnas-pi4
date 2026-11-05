@@ -91,7 +91,7 @@ func ListIdentitySourceRecords() ([]IdentitySourceRecord, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	rows, err := DB.Query(`SELECT id, COALESCE(name, ''), COALESCE(type, ''), COALESCE(config, ''),
-		COALESCE(enabled, 0), COALESCE(priority, 0), COALESCE(created_at, '')
+		(CASE WHEN enabled THEN 1 ELSE 0 END), COALESCE(priority, 0), COALESCE(CAST(created_at AS TEXT), '')
 		FROM identity_sources ORDER BY priority ASC, name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list identity sources: %w", err)
@@ -143,7 +143,7 @@ func RecordIdentitySourceEvent(record IdentitySourceEvent, details any, retentio
 		strings.TrimSpace(record.Reason),
 		record.LatencyMS,
 		strings.TrimSpace(record.CircuitState),
-		boolToSQLite(record.CacheUsed),
+		record.CacheUsed,
 		detailsJSON,
 	); err != nil {
 		return fmt.Errorf("insert identity source event: %w", err)
@@ -164,9 +164,9 @@ func ListIdentitySourceEvents(source, decision string, limit int) ([]IdentitySou
 	source = strings.TrimSpace(source)
 	decision = strings.TrimSpace(decision)
 
-	query := `SELECT id, COALESCE(observed_at, ''), COALESCE(source_name, ''), COALESCE(source_type, ''),
+	query := `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(source_name, ''), COALESCE(source_type, ''),
 		COALESCE(username_hash, ''), COALESCE(decision, ''), COALESCE(reason, ''), COALESCE(latency_ms, 0),
-		COALESCE(circuit_state, ''), COALESCE(cache_used, 0), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(circuit_state, ''), (CASE WHEN cache_used THEN 1 ELSE 0 END), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM identity_source_events WHERE 1=1`
 	args := []any{}
 	if source != "" {
@@ -217,8 +217,8 @@ func GetIdentitySourceEventSummary() (IdentitySourceEventSummary, error) {
 		COALESCE(SUM(CASE WHEN decision = 'skipped' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'stale_accepted' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'split_denied' THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN cache_used = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(SUM(CASE WHEN cache_used = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM identity_source_events`).Scan(&summary.TotalRecords, &summary.AcceptedCount, &summary.RejectedCount,
 		&summary.NotFoundCount, &summary.FailureCount, &summary.SkippedCount, &summary.StaleAcceptedCount,
 		&summary.SplitDeniedCount, &summary.CacheHitCount, &summary.LastObservedAt); err != nil {
@@ -230,9 +230,11 @@ func GetIdentitySourceEventSummary() (IdentitySourceEventSummary, error) {
 			FROM identity_source_events ORDER BY datetime(observed_at) DESC, id DESC LIMIT 1`).
 			Scan(&summary.LastSourceName, &summary.LastSourceType, &summary.LastDecision, &summary.LastReason, &summary.LastCircuitState)
 	}
-	_ = DB.QueryRow(`SELECT COUNT(*) FROM (
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM (
 		SELECT source_name FROM identity_source_events WHERE circuit_state = 'open' GROUP BY source_name
-	)`).Scan(&summary.OpenCircuitSourceCount)
+	) AS open_sources`).Scan(&summary.OpenCircuitSourceCount); err != nil {
+		return IdentitySourceEventSummary{}, fmt.Errorf("count open identity source circuits: %w", err)
+	}
 	return summary, nil
 }
 
@@ -255,7 +257,7 @@ func GetIdentitySourceCircuitState(sourceName string, maxFailures, circuitOpenSe
 		now = time.Now().UTC()
 	}
 
-	rows, err := DB.Query(`SELECT COALESCE(observed_at, ''), COALESCE(decision, ''), COALESCE(reason, '')
+	rows, err := DB.Query(`SELECT COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(decision, ''), COALESCE(reason, '')
 		FROM identity_source_events WHERE source_name = ?
 		ORDER BY datetime(observed_at) DESC, id DESC LIMIT ?`, sourceName, maxFailures)
 	if err != nil {
@@ -278,8 +280,8 @@ func GetIdentitySourceCircuitState(sourceName string, maxFailures, circuitOpenSe
 			break
 		}
 		consecutiveFailures++
-		parsed, parseErr := time.Parse(time.RFC3339, observedAt)
-		if parseErr == nil {
+		parsed := parseAccountingTime(observedAt)
+		if !parsed.IsZero() {
 			oldestFailureAt = parsed
 		}
 	}
@@ -360,7 +362,7 @@ func VerifyIdentitySourceCache(sourceName, username, password string, now time.T
 	var entry IdentitySourceCacheEntry
 	var passwordHash, groupsJSON string
 	err := DB.QueryRow(`SELECT source_name, username_hash, password_hash, COALESCE(role, ''),
-		COALESCE(groups_json, '[]'), COALESCE(identity_source, ''), COALESCE(last_success_at, ''), COALESCE(expires_at, '')
+		COALESCE(groups_json, '[]'), COALESCE(identity_source, ''), COALESCE(CAST(last_success_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), '')
 		FROM identity_source_cache WHERE source_name = ? AND username_hash = ? AND datetime(expires_at) > datetime(?)`,
 		sourceName, usernameHash, now.UTC().Format(time.RFC3339)).
 		Scan(&entry.SourceName, &entry.UsernameHash, &passwordHash, &entry.Role, &groupsJSON,
@@ -390,8 +392,8 @@ func GetIdentitySourceCacheSummary(now time.Time) (IdentitySourceCacheSummary, e
 	var summary IdentitySourceCacheSummary
 	if err := DB.QueryRow(`SELECT COUNT(*),
 		COALESCE(SUM(CASE WHEN datetime(expires_at) <= datetime(?) THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(last_success_at), ''),
-		COALESCE(MIN(CASE WHEN datetime(expires_at) > datetime(?) THEN expires_at ELSE NULL END), '')
+		COALESCE(CAST(MAX(last_success_at) AS TEXT), ''),
+		COALESCE(CAST(MIN(CASE WHEN datetime(expires_at) > datetime(?) THEN expires_at ELSE NULL END) AS TEXT), '')
 		FROM identity_source_cache`, now.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339)).
 		Scan(&summary.TotalEntries, &summary.ExpiredEntries, &summary.LastSuccessAt, &summary.NextExpiresAt); err != nil {
 		return IdentitySourceCacheSummary{}, fmt.Errorf("get identity source cache summary: %w", err)

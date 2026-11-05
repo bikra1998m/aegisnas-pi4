@@ -1,7 +1,6 @@
 # NAS-0097 Release Certification Checklist
 
-Engineering implementation is complete. This checklist tracks external release
-certification evidence only.
+Engineering status: **Partial**, reopened by the [2026-10-15 audit](reports/2026-10-15-continuation.md). Configuration, preview and history tests do not establish live telecom processing. Runtime integration and its software tests remain in addition to the external evidence below.
 
 - [ ] Validate FreeRADIUS production Linux interoperability with CableLabs
   dictionaries and captured Access-Request, Access-Accept, Accounting, CoA, and

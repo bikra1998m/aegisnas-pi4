@@ -131,7 +131,7 @@ func GetRoleForGroups(groups []string) (string, error) {
 		return "", nil
 	}
 	var configJSON string
-	err := db.DB.QueryRow(`SELECT config FROM identity_sources WHERE type = 'ldap' AND enabled = 1 LIMIT 1`).Scan(&configJSON)
+	err := db.DB.QueryRow(`SELECT config FROM identity_sources WHERE type = 'ldap' AND enabled = TRUE LIMIT 1`).Scan(&configJSON)
 	if err != nil {
 		return "", err
 	}

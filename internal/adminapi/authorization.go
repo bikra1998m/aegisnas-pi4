@@ -570,6 +570,8 @@ func authorizeRequest(identity AdminIdentity, method, path string) bool {
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/database"):
 		return readonly
+	case path == "/api/v1/system/release-security":
+		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/attribute-registry"):
 		return readonly
 	case strings.HasPrefix(path, "/api/v1/system/vendor-identity"):
@@ -1077,7 +1079,7 @@ func removeAdminSession(tokenHash string) {
 
 func listAdminPrincipals() ([]AdminPrincipal, error) {
 	rows, err := db.DB.Query(`SELECT id, subject, COALESCE(provider, ''), COALESCE(display_name, ''), COALESCE(email, ''),
-		role, COALESCE(tenants, '[]'), COALESCE(groups_json, '[]'), disabled, COALESCE(last_login, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		role, COALESCE(tenants, '[]'), COALESCE(groups_json, '[]'), disabled, COALESCE(CAST(last_login AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM admin_principals ORDER BY subject`)
 	if err != nil {
 		return nil, err
@@ -1108,7 +1110,7 @@ func getAdminPrincipalBySubject(subject string) (*AdminPrincipal, error) {
 		groupsRaw string
 	)
 	err := db.DB.QueryRow(`SELECT id, subject, COALESCE(provider, ''), COALESCE(display_name, ''), COALESCE(email, ''),
-		role, COALESCE(tenants, '[]'), COALESCE(groups_json, '[]'), disabled, COALESCE(last_login, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		role, COALESCE(tenants, '[]'), COALESCE(groups_json, '[]'), disabled, COALESCE(CAST(last_login AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM admin_principals WHERE subject = ?`, subject).
 		Scan(&item.ID, &item.Subject, &item.Provider, &item.DisplayName, &item.Email, &item.Role, &tenants, &groupsRaw, &item.Disabled, &item.LastLogin, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {

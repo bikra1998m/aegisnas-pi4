@@ -1,7 +1,7 @@
 package db
 
 func LatestSchemaVersion() int {
-	return 101
+	return 103
 }
 
 func Migrate() error {
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS alerts (
 CREATE TABLE IF NOT EXISTS audit_logs (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-	user TEXT,
+	"user" TEXT,
 	action TEXT NOT NULL,
 	details TEXT,
 	result TEXT,
@@ -777,7 +777,7 @@ CREATE INDEX IF NOT EXISTS idx_nas_client_events_radius_client ON nas_client_eve
 INSERT OR IGNORE INTO nas_client_capability_templates
 	(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
 VALUES
-	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1);
+	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', TRUE);
 `
 
 const schemaV21 = `
@@ -5510,3 +5510,13 @@ CREATE INDEX IF NOT EXISTS idx_docsis_policy_profiles_seen ON docsis_policy_prof
 `
 
 const schemaV101 = docsisPolicySQL
+
+// PostgreSQL integer-width repair runs transactionally in MigrateHandle.
+const schemaV102 = `SELECT 1;`
+
+// The packet writer owns the snapshot. Revision-based acknowledgement prevents
+// a reconciler from consuming a newer packet that arrived after its SELECT.
+const schemaV103 = `
+ALTER TABLE radacct ADD COLUMN aegis_ingest_revision BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE radacct ADD COLUMN aegis_packet_source TEXT NOT NULL DEFAULT '';
+`

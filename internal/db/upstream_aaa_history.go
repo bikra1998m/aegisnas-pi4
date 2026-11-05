@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 const maxUpstreamAAAHistoryRows = 6000
@@ -59,9 +60,9 @@ func RecordUpstreamAAAHistoryRecord(record UpstreamAAAHistoryRecord) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		strings.TrimSpace(record.ServerName), strings.TrimSpace(record.Address), record.AuthPort, record.AcctPort,
 		strings.TrimSpace(record.Status), strings.TrimSpace(record.Message), strings.TrimSpace(record.ResponseCode), record.LatencyMs,
-		boolToSQLite(record.SupportsStatusServer), strings.TrimSpace(record.CheckedAt), strings.TrimSpace(record.Transport), record.RadSecPort,
+		record.SupportsStatusServer, strings.TrimSpace(record.CheckedAt), strings.TrimSpace(record.Transport), record.RadSecPort,
 		strings.TrimSpace(record.TLSVersion), strings.TrimSpace(record.TLSCipherSuite), strings.TrimSpace(record.TLSALPN),
-		strings.TrimSpace(record.PeerSubject), strings.TrimSpace(record.PeerIssuer), strings.TrimSpace(record.PeerSerial), strings.TrimSpace(record.PeerNotAfter),
+		strings.TrimSpace(record.PeerSubject), strings.TrimSpace(record.PeerIssuer), strings.TrimSpace(record.PeerSerial), nullIfEmpty(strings.TrimSpace(record.PeerNotAfter)),
 	); err != nil {
 		return fmt.Errorf("insert upstream aaa history: %w", err)
 	}
@@ -80,9 +81,9 @@ func ListUpstreamAAAHistory(serverName, status string, limit int) ([]UpstreamAAA
 
 	query := `SELECT id, COALESCE(server_name, ''), COALESCE(address, ''), COALESCE(auth_port, 0), COALESCE(acct_port, 0),
 		COALESCE(status, ''), COALESCE(message, ''), COALESCE(response_code, ''), COALESCE(latency_ms, 0),
-		COALESCE(supports_status_server, 0), COALESCE(checked_at, ''), COALESCE(created_at, ''), COALESCE(transport, 'udp'),
+		(CASE WHEN supports_status_server THEN 1 ELSE 0 END), COALESCE(CAST(checked_at AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(transport, 'udp'),
 		COALESCE(radsec_port, 0), COALESCE(tls_version, ''), COALESCE(tls_cipher_suite, ''), COALESCE(tls_alpn, ''),
-		COALESCE(peer_subject, ''), COALESCE(peer_issuer, ''), COALESCE(peer_serial, ''), COALESCE(peer_not_after, '')
+		COALESCE(peer_subject, ''), COALESCE(peer_issuer, ''), COALESCE(peer_serial, ''), COALESCE(CAST(peer_not_after AS TEXT), '')
 		FROM upstream_aaa_history WHERE 1=1`
 	args := []any{}
 	if serverName != "" {
@@ -111,6 +112,11 @@ func ListUpstreamAAAHistory(serverName, status string, limit int) ([]UpstreamAAA
 			return nil, fmt.Errorf("scan upstream aaa history: %w", err)
 		}
 		item.SupportsStatusServer = supports == 1
+		for _, field := range []*string{&item.CheckedAt, &item.CreatedAt, &item.PeerNotAfter} {
+			if timestamp := parseAccountingTime(*field); !timestamp.IsZero() {
+				*field = timestamp.UTC().Format(time.RFC3339Nano)
+			}
+		}
 		history = append(history, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -131,7 +137,7 @@ func GetUpstreamAAAHistoryStats() (UpstreamAAAHistoryStats, error) {
 		COALESCE(SUM(CASE WHEN status = 'down' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'disabled' THEN 1 ELSE 0 END), 0),
 		COALESCE(CAST(ROUND(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) AS INTEGER), 0),
-		COALESCE(MAX(checked_at), '')
+		COALESCE(CAST(MAX(checked_at) AS TEXT), '')
 		FROM upstream_aaa_history`).Scan(
 		&stats.TotalRecords,
 		&stats.OKCount,
@@ -143,6 +149,9 @@ func GetUpstreamAAAHistoryStats() (UpstreamAAAHistoryStats, error) {
 	)
 	if err != nil {
 		return UpstreamAAAHistoryStats{}, fmt.Errorf("get upstream aaa history stats: %w", err)
+	}
+	if timestamp := parseAccountingTime(stats.LastCheckedAt); !timestamp.IsZero() {
+		stats.LastCheckedAt = timestamp.UTC().Format(time.RFC3339Nano)
 	}
 	return stats, nil
 }

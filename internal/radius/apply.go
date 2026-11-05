@@ -52,14 +52,16 @@ func ApplyConfig(cfg *config.Config) error {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return fmt.Errorf("create dir for %s: %w", path, err)
 		}
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		// Configuration can contain resolved SQL, LDAP and RADIUS secrets.
+		// Preserve file ownership/group (including packaged module symlinks),
+		// but remove world access before replacing any secret-bearing content.
+		if err := writeRadiusConfigFile(path, content); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)
 		}
 	}
 
-	validateCmd := exec.Command("freeradius", "-XC")
-	if out, err := validateCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("FreeRADIUS config validation failed: %w\nOutput: %s", err, out)
+	if err := validateRadiusConfig(); err != nil {
+		return err
 	}
 
 	if err := restartSystemdService("freeradius", 3*time.Minute); err != nil {
@@ -67,6 +69,31 @@ func ApplyConfig(cfg *config.Config) error {
 	}
 
 	logging.L().Info("FreeRADIUS configuration applied and service restarted")
+	return nil
+}
+
+func writeRadiusConfigFile(path, content string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0640)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := f.Chmod(0640); err != nil {
+		return err
+	}
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	_, err = f.WriteString(content)
+	return err
+}
+
+func validateRadiusConfig() error {
+	// -X output can include a complete libpq URI, including its password.
+	// Do not forward it to API responses, service logs or support bundles.
+	if _, err := runSystemCommand("freeradius", "-XC"); err != nil {
+		return fmt.Errorf("FreeRADIUS config validation failed: %w (diagnostic output suppressed because it may contain secrets)", err)
+	}
 	return nil
 }
 

@@ -71,9 +71,9 @@ func RecordRadiusFallbackEvent(record RadiusFallbackEvent, details any, retentio
 		strings.TrimSpace(record.Reason),
 		strings.TrimSpace(record.UpstreamStatus),
 		strings.TrimSpace(record.PolicyMode),
-		boolToSQLite(record.FailClosed),
-		strings.TrimSpace(record.OutageStartedAt),
-		strings.TrimSpace(record.ExpiresAt),
+		record.FailClosed,
+		nullIfEmpty(strings.TrimSpace(record.OutageStartedAt)),
+		nullIfEmpty(strings.TrimSpace(record.ExpiresAt)),
 		detailsJSON,
 	); err != nil {
 		return fmt.Errorf("insert radius fallback event: %w", err)
@@ -94,10 +94,10 @@ func ListRadiusFallbackEvents(decision, source string, limit int) ([]RadiusFallb
 	decision = strings.TrimSpace(decision)
 	source = strings.TrimSpace(source)
 
-	query := `SELECT id, COALESCE(observed_at, ''), COALESCE(source, ''), COALESCE(username_hash, ''),
+	query := `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(source, ''), COALESCE(username_hash, ''),
 		COALESCE(realm, ''), COALESCE(identity_source, ''), COALESCE(role, ''), COALESCE(decision, ''),
-		COALESCE(reason, ''), COALESCE(upstream_status, ''), COALESCE(policy_mode, ''), COALESCE(fail_closed, 0),
-		COALESCE(outage_started_at, ''), COALESCE(expires_at, ''), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(reason, ''), COALESCE(upstream_status, ''), COALESCE(policy_mode, ''), (CASE WHEN fail_closed THEN 1 ELSE 0 END),
+		COALESCE(CAST(outage_started_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM radius_fallback_events WHERE 1=1`
 	args := []any{}
 	if decision != "" {
@@ -145,7 +145,7 @@ func GetRadiusFallbackEventSummary() (RadiusFallbackEventSummary, error) {
 		COALESCE(SUM(CASE WHEN decision = 'allowed' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'denied' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN policy_mode = 'monitor' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM radius_fallback_events`).Scan(&summary.TotalRecords, &summary.AllowedCount, &summary.DeniedCount, &summary.MonitorCount, &summary.LastObservedAt); err != nil {
 		return RadiusFallbackEventSummary{}, fmt.Errorf("get radius fallback event summary: %w", err)
 	}

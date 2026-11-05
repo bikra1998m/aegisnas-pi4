@@ -1,0 +1,974 @@
+{
+  "baseline_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "date": "2026-10-15",
+  "timezone": "Asia/Colombo",
+  "go_suite_process": {
+    "duration_seconds": 2594.4683439,
+    "command": "go test -json -count=1 -p=2 -timeout=30m ./...",
+    "exit_code": 1
+  },
+  "go_packages": {
+    "pass": 39,
+    "skip": 12,
+    "fail": 1
+  },
+  "go_tests_including_subtests": {
+    "pass": 1386,
+    "fail": 2,
+    "skip": 1
+  },
+  "go_failures": [
+    {
+      "package": "github.com/yourorg/aegisnas-pi4/internal/sessions",
+      "test": "TestManager_ReclassifyByCriteriaImmediateIdleTimeout"
+    },
+    {
+      "package": "github.com/yourorg/aegisnas-pi4/internal/sessions",
+      "test": "TestManager_ReclassifyByCriteriaVLANChangeRequiresReauth"
+    },
+    {
+      "package": "github.com/yourorg/aegisnas-pi4/internal/sessions",
+      "test": ""
+    }
+  ],
+  "go_skips": [
+    {
+      "package": "github.com/yourorg/aegisnas-pi4/internal/vendoridentity",
+      "test": "TestLiveIANAAssignment"
+    }
+  ],
+  "windows_initial_build": {
+    "duration_seconds": 332.06804919999996,
+    "command": "go build ./...",
+    "exit_code": 1
+  },
+  "windows_serial_build": {
+    "duration_seconds": 399.17407679999997,
+    "command": "GOMAXPROCS=2 go build -p=1 ./...",
+    "exit_code": 0
+  },
+  "linux_arm64_build": {
+    "duration_seconds": 436.0235211,
+    "command": "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 GOMAXPROCS=2 go build -p=1 ./...",
+    "exit_code": 0
+  },
+  "live_api": {
+    "status": "PASS",
+    "checks": [
+      {
+        "check": "live-config-validation",
+        "exit_code": 0,
+        "seconds": 0.8793771999917226
+      },
+      {
+        "check": "live-migrate",
+        "exit_code": 0,
+        "seconds": 0.4633639999956358
+      },
+      {
+        "check": "live-seed",
+        "exit_code": 0,
+        "seconds": 0.1790976999909617
+      },
+      {
+        "check": "live-health",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04735199999413453,
+        "bytes": 16
+      },
+      {
+        "check": "live-auth-required",
+        "status": 401,
+        "expected": 401,
+        "seconds": 0.014961599998059683,
+        "bytes": 29
+      },
+      {
+        "check": "live-database",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.019937400007620454,
+        "bytes": 1067
+      },
+      {
+        "check": "live-roles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011498399995616637,
+        "bytes": 767
+      },
+      {
+        "check": "live-docsis-status",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010252300009597093,
+        "bytes": 14233
+      },
+      {
+        "check": "live-docsis-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02993429999332875,
+        "bytes": 13833
+      },
+      {
+        "check": "live-ui",
+        "status": 200,
+        "expected": 200,
+        "seconds": 2.9912124999973457,
+        "bytes": 472
+      }
+    ]
+  },
+  "browser_baseline": {
+    "startTime": "2026-10-15T08:03:17.328Z",
+    "duration": 343808.599,
+    "expected": 27,
+    "skipped": 0,
+    "unexpected": 8,
+    "flaky": 0
+  },
+  "browser_updated": {
+    "startTime": "2026-10-15T08:21:04.277Z",
+    "duration": 111142.05399999999,
+    "expected": 35,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "npm_baseline": {
+    "info": 0,
+    "low": 0,
+    "moderate": 5,
+    "high": 12,
+    "critical": 0,
+    "total": 17
+  },
+  "npm_updated": {
+    "info": 0,
+    "low": 0,
+    "moderate": 4,
+    "high": 5,
+    "critical": 0,
+    "total": 9
+  },
+  "go_vulnerabilities": {
+    "scan_level": "module",
+    "findings": 62,
+    "unique_ids": 57,
+    "modules": {
+      "github.com/jackc/pgx/v5": 3,
+      "stdlib": 39,
+      "golang.org/x/crypto": 17,
+      "golang.org/x/text": 2,
+      "golang.org/x/sys": 1
+    },
+    "details": [
+      {
+        "id": "GO-2026-4771",
+        "module": "github.com/jackc/pgx/v5",
+        "version": "v5.7.6",
+        "fixed_version": "v5.9.0"
+      },
+      {
+        "id": "GO-2026-4772",
+        "module": "github.com/jackc/pgx/v5",
+        "version": "v5.7.6",
+        "fixed_version": "v5.9.0"
+      },
+      {
+        "id": "GO-2026-5004",
+        "module": "github.com/jackc/pgx/v5",
+        "version": "v5.7.6",
+        "fixed_version": "v5.9.2"
+      },
+      {
+        "id": "GO-2026-4918",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4970",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.5"
+      },
+      {
+        "id": "GO-2026-4971",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4976",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4977",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4980",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4981",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4982",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-4986",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.3"
+      },
+      {
+        "id": "GO-2026-5026",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-5037",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.4"
+      },
+      {
+        "id": "GO-2026-5038",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.4"
+      },
+      {
+        "id": "GO-2026-5039",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.4"
+      },
+      {
+        "id": "GO-2026-5856",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.5"
+      },
+      {
+        "id": "GO-2026-5942",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-5972",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6088",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6089",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6090",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6091",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6218",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.6"
+      },
+      {
+        "id": "GO-2026-6599",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6600",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6603",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6603",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6604",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6605",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6607",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6608",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6609",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6610",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6610",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6611",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6611",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6612",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6612",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6613",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6617",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-6617",
+        "module": "stdlib",
+        "version": "v1.26.2",
+        "fixed_version": "v1.26.9"
+      },
+      {
+        "id": "GO-2026-5005",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5006",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5013",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5014",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5015",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5016",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5017",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5018",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5019",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5020",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5021",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5023",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5033",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.52.0"
+      },
+      {
+        "id": "GO-2026-5932",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": null
+      },
+      {
+        "id": "GO-2026-6303",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.55.0"
+      },
+      {
+        "id": "GO-2026-6354",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.56.0"
+      },
+      {
+        "id": "GO-2026-6355",
+        "module": "golang.org/x/crypto",
+        "version": "v0.48.0",
+        "fixed_version": "v0.56.0"
+      },
+      {
+        "id": "GO-2026-5970",
+        "module": "golang.org/x/text",
+        "version": "v0.34.0",
+        "fixed_version": "v0.39.0"
+      },
+      {
+        "id": "GO-2026-6629",
+        "module": "golang.org/x/text",
+        "version": "v0.34.0",
+        "fixed_version": "v0.41.0"
+      },
+      {
+        "id": "GO-2026-5024",
+        "module": "golang.org/x/sys",
+        "version": "v0.42.0",
+        "fixed_version": "v0.44.0"
+      }
+    ]
+  },
+  "supply_chain_gate": {
+    "blockers": [
+      "source changed during scan",
+      "evidence does not match current source and dependency inputs",
+      "npm audit: 5 high and 0 critical vulnerabilities",
+      "67 dependency vulnerability findings violate policy"
+    ],
+    "feature_id": "NAS-0116",
+    "findings": [
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.44.0",
+        "id": "GO-2026-5024"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5005"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5006"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5013"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5014"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5015"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5016"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5017"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5018"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5019"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5020"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5021"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5023"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.52.0",
+        "id": "GO-2026-5033"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "",
+        "id": "GO-2026-5932"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.55.0",
+        "id": "GO-2026-6303"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.56.0",
+        "id": "GO-2026-6354"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.56.0",
+        "id": "GO-2026-6355"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4918"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.5",
+        "id": "GO-2026-4970"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4971"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4976"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4977"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4980"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4981"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4982"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.3",
+        "id": "GO-2026-4986"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-5026"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.4",
+        "id": "GO-2026-5037"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.4",
+        "id": "GO-2026-5038"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.4",
+        "id": "GO-2026-5039"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.5",
+        "id": "GO-2026-5856"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-5942"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-5972"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-6088"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-6089"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-6090"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-6091"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.6",
+        "id": "GO-2026-6218"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6599"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6600"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6603"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6603"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6604"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6605"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6607"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6608"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6609"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6610"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6610"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6611"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6611"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6612"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6612"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6613"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6617"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v1.26.9",
+        "id": "GO-2026-6617"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.39.0",
+        "id": "GO-2026-5970"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v0.41.0",
+        "id": "GO-2026-6629"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v5.9.0",
+        "id": "GO-2026-4771"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v5.9.0",
+        "id": "GO-2026-4772"
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "v5.9.2",
+        "id": "GO-2026-5004"
+      },
+      {
+        "ecosystem": "npm",
+        "id": "braces",
+        "severity": "high"
+      },
+      {
+        "ecosystem": "npm",
+        "id": "chokidar",
+        "severity": "high"
+      },
+      {
+        "ecosystem": "npm",
+        "id": "fast-glob",
+        "severity": "high"
+      },
+      {
+        "ecosystem": "npm",
+        "id": "micromatch",
+        "severity": "high"
+      },
+      {
+        "ecosystem": "npm",
+        "id": "tailwindcss",
+        "severity": "high"
+      }
+    ],
+    "schema_version": 1,
+    "signature_verified": false,
+    "status": "blocked"
+  },
+  "supply_chain_commands": {
+    "go-mod-verify": {
+      "argv": [
+        "go",
+        "mod",
+        "verify"
+      ],
+      "cwd": ".",
+      "duration_seconds": 782.53,
+      "exit_code": 0,
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go-sbom": {
+      "argv": [
+        "cyclonedx-gomod",
+        "mod",
+        "-std",
+        "-json"
+      ],
+      "cwd": ".",
+      "duration_seconds": 109.619,
+      "exit_code": 0,
+      "sha256": "e7df303727ae427ca242e3b333385e7cc8dfbde9e1a2b7a592eaee6f1ae8bb35",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "go-vulnerabilities": {
+      "argv": [
+        "govulncheck",
+        "-json",
+        "-scan=module"
+      ],
+      "cwd": "cmd/aegis-admin",
+      "duration_seconds": 1.906,
+      "exit_code": 0,
+      "sha256": "246e165581b0e2214d7bdf5637f1724e58206c5022dbc72f84e33d8148eea5cf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "npm-sbom": {
+      "argv": [
+        "npm",
+        "sbom",
+        "--sbom-format=cyclonedx",
+        "--package-lock-only"
+      ],
+      "cwd": "web/admin-ui",
+      "duration_seconds": 5.355,
+      "exit_code": 0,
+      "sha256": "f3a983cb0a0986403e2a8a88f8eaaa2b66ee7bffccc5f77a9813c17d4420546b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "npm-vulnerabilities": {
+      "argv": [
+        "npm",
+        "audit",
+        "--json"
+      ],
+      "cwd": "web/admin-ui",
+      "duration_seconds": 4.337,
+      "exit_code": 1,
+      "sha256": "8072162116c0e04beb0df64e383ce1bef8ec896e792f93efc405a75b8cbdfdb5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "supply_chain_sbom_components": {
+    "go": 65,
+    "npm": 199
+  },
+  "sessions_isolated_retries": {
+    "command": "GOMAXPROCS=2 go test -p=1 ./internal/sessions -run TestManager_ReclassifyByCriteria(ImmediateIdleTimeout|VLANChangeRequiresReauth)$ -count=3 -timeout=5m -v",
+    "passed": 6,
+    "failed": 0,
+    "elapsed_seconds": 137.859
+  },
+  "additional_checks": {
+    "release_security_unit_tests": {
+      "passed": 14
+    },
+    "example_config_and_acceptance": "passed",
+    "postgres_live": "skipped: AEGIS_TEST_POSTGRES_DSN absent"
+  },
+  "benchmarks": "goos: windows\r\ngoarch: amd64\r\npkg: github.com/yourorg/aegisnas-pi4/configs\r\ncpu: 11th Gen Intel(R) Core(TM) i5-11400 @ 2.60GHz\r\nBenchmarkAttributeRegistryLookupWire-2   \t 4617326\t       250.6 ns/op\t     400 B/op\t       3 allocs/op\r\nPASS\r\nok  \tgithub.com/yourorg/aegisnas-pi4/configs\t2.186s\r\ngoos: windows\r\ngoarch: amd64\r\npkg: github.com/yourorg/aegisnas-pi4/internal/vendoridentity\r\ncpu: 11th Gen Intel(R) Core(TM) i5-11400 @ 2.60GHz\r\nBenchmarkFindAssignment-2   \t  144806\t      8897 ns/op\t   66374 B/op\t      28 allocs/op\r\nPASS\r\nok  \tgithub.com/yourorg/aegisnas-pi4/internal/vendoridentity\t1.501s\r\n",
+  "fuzz": "fuzz: elapsed: 0s, gathering baseline coverage: 0/2 completed\r\nfuzz: elapsed: 0s, gathering baseline coverage: 2/2 completed, now fuzzing with 1 workers\r\nfuzz: elapsed: 3s, execs: 13312 (4437/sec), new interesting: 4 (total: 6)\r\nfuzz: elapsed: 6s, execs: 46727 (11138/sec), new interesting: 13 (total: 15)\r\nfuzz: elapsed: 9s, execs: 47542 (272/sec), new interesting: 16 (total: 18)\r\nfuzz: elapsed: 12s, execs: 47542 (0/sec), new interesting: 16 (total: 18)\r\nfuzz: elapsed: 15s, execs: 47542 (0/sec), new interesting: 16 (total: 18)\r\nfuzz: elapsed: 16s, execs: 47542 (0/sec), new interesting: 16 (total: 18)\r\nPASS\r\nok  \tgithub.com/yourorg/aegisnas-pi4/configs\t16.541s\r\n"
+}

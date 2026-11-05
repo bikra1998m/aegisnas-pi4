@@ -481,7 +481,7 @@ func broadbandQoSFlowSelectSQL() string {
 		priority, dscp_mark, download_min_rate_kbps, download_rate_kbps, download_peak_rate_kbps,
 		upload_min_rate_kbps, upload_rate_kbps, upload_peak_rate_kbps, aggregate_limit_kbps,
 		status, vendor_packs_json, compiled_attributes_json, diagnostics_json, COALESCE(source_event_id, ''),
-		plan_fingerprint, COALESCE(installed_at, ''), COALESCE(withdrawn_at, ''), last_seen_at, created_at, updated_at
+		plan_fingerprint, COALESCE(CAST(installed_at AS TEXT), ''), COALESCE(CAST(withdrawn_at AS TEXT), ''), last_seen_at, created_at, updated_at
 		FROM broadband_qos_service_flows`
 }
 

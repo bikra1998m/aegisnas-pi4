@@ -1,0 +1,565 @@
+{
+  "created_at": "2026-10-26T14:20:39.023885+00:00",
+  "artifacts": [
+    {
+      "path": ".tmp/appliance-inventory-20261026/attempts.json",
+      "size": 4032,
+      "sha256": "722af1992c890c17668a3ac906b222d141ada4abdbede28f59f416ebd757fe95"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/baseline.json",
+      "size": 179200,
+      "sha256": "e5fdb1a05c3a983040a7429ed94782301c462f4b68258ef4d2820f7dad5bdf1b"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/build_payload.py",
+      "size": 1125,
+      "sha256": "e80a0225d1df1103009f82e19e9669ecd14500f8a80ded06955ec95fbccc5872"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/build_payload_guarded.py",
+      "size": 2870,
+      "sha256": "32e254547fb1bdff49cd7c5bcbbe9f4c9a8b45afcc6f47b1eab8b50b674f0471"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/build_reports.py",
+      "size": 37408,
+      "sha256": "dea407e11855083560426d3f6f19c02a4aaf3ef70405d1c0e83c65f648c84069"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-final.result.json",
+      "size": 94,
+      "sha256": "35706b1cd54ebe8b08fa726793c5a8b7898e00fb1a93f4d9764da52accf0a30f"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-final.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-final.stdout",
+      "size": 2373,
+      "sha256": "247ce44929710e7e48fb5c5fe3fe5e40cbc90360f8585509ad1ef9e5fbdc07d4"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-postbuild.result.json",
+      "size": 97,
+      "sha256": "cbe14be03b0ec33dd807c32dbee4e0e5d7ed91da72d2849b7fdc50f7152079ec"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-postbuild.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-postbuild.stdout",
+      "size": 18138,
+      "sha256": "d641d89b35fc9dd28e01e1af46b18c751d902502f25d014f6f9107f96538ce2c"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-retry.result.json",
+      "size": 94,
+      "sha256": "0680bf034bcf3b7fc1b2e592808ba7d1844bad7594648a25bb82ac9171253f3f"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-retry.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/deployed-probes-retry.stdout",
+      "size": 18136,
+      "sha256": "8a89a947ee479f3163b90bf47ae870a910e910d13899bb970bfdda16d985f84a"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/diff-check.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/diff-check.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/final_live.py",
+      "size": 2872,
+      "sha256": "31f13c16eb2135e855346e2cb58042487859b16495f3e37d2a673163f9d246a2"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/final_units.py",
+      "size": 1677,
+      "sha256": "637002035fbd4965923fe718d4189c6e86f32558f8da6846ac2715518076fc48"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory-bounded.json",
+      "size": 1820,
+      "sha256": "4a8870be297547e2ac4d6c7fe183eced187b60ebd512fc6b0af8584c8f696148"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory-bounded.result.json",
+      "size": 95,
+      "sha256": "c1c61d04270c79caee82951ebaa7435dccde60fcd6f2357f220eb8bb7aa4e795"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory-bounded.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory-bounded.stdout",
+      "size": 514,
+      "sha256": "06ae9235278d2083d2d6f5919de2d0ccad9014b25964d2b41409631c9752cf3a"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory.json",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory.stderr",
+      "size": 1179,
+      "sha256": "ebe47e3f25a424aa246625d673531bea4cca09412ff4d9b55276e7ded2b59677"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/live-inventory.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-process-check.result.json",
+      "size": 92,
+      "sha256": "30fb8c35715ee42a69f3a9500504bcfd4bd0b12c72ab41cc47cac00024068aa5"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-process-check.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-process-check.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-processes-postbuild.result.json",
+      "size": 97,
+      "sha256": "3bab08ab76d309f09dec4b2e9aa810906580151147a712d07b491f7319e83912"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-processes-postbuild.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/owned-processes-postbuild.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-build-amd64.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-build-amd64.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-guarded-amd64-cleanup.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-guarded-amd64-cleanup.stdout",
+      "size": 606,
+      "sha256": "1d036ba6117e14575b2c1fbc040258e1983050f9eaa536a2b39abe7ea24c3b6f"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-guarded-amd64.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-guarded-amd64.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/payload-guarded-results.json",
+      "size": 3254,
+      "sha256": "ecf04402a337900100af23e693630d8e1826b5d92f2db046b6a753c597644ffd"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/post_build.py",
+      "size": 1249,
+      "sha256": "43b11582ba2f806f8dcb07b43ed0343b99ea0d0e4ebc9e570ad904e889e95fb8"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/relieve_vm.py",
+      "size": 1502,
+      "sha256": "48b9bcaa8029ffba4b95c44d159460fd8095330b6ab962705412073ce8102899"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/remote.py",
+      "size": 1022,
+      "sha256": "5f9d572ab0af88095851e912e90d89b7dc754d0cdcb1f5970a40e2b45d1b31fe"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/run_vm.py",
+      "size": 2652,
+      "sha256": "e38a4e127b1e6494b3f7109343ec201a937c645515bba3a5a698a93c471624cd"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/run_vm_v4.py",
+      "size": 2608,
+      "sha256": "98d7b7e70dd83e1c019925ffe9b0dfb8cbad5851b728c9edca3828302e54286d"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/run_windows.py",
+      "size": 962,
+      "sha256": "1bcb643659e78777e8de703cb261e0dc7d0196ab40216b7845c5c1ff09620941"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/service-lifecycle.result.json",
+      "size": 89,
+      "sha256": "a5fe738619d1679fedff7571284e7b098702a0c5a52d55ca087cb70d5b17a398"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/service-lifecycle.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/service-lifecycle.stdout",
+      "size": 2922,
+      "sha256": "55dc3e1d5d267efb00f2fb3cafed48abc8fbe2bf8bb0d56ec711a3247aeaeefa"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/shell-syntax.result.json",
+      "size": 86,
+      "sha256": "760e02d0711420887620ee54a46a4293fea9b6490910511a63fde42103b633bd"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/shell-syntax.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/shell-syntax.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/stop_inventory.py",
+      "size": 1264,
+      "sha256": "10cadd1f65e47e045011519033449839c449026b8de0a7ac5ae220613f84e99a"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/stop_inventory_retry.py",
+      "size": 1304,
+      "sha256": "4c6b9c96a594781bc19cc87a4cd4c1d1df2294a1eeb88b35c16ff06c360d5f6e"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-final.json",
+      "size": 58,
+      "sha256": "50e48cc760444e9b32d65a27b3bb8373252d5c06e2de66e5850f4781a6d2ba53"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-final.stderr",
+      "size": 8033,
+      "sha256": "8c758922435f3f6bbafaff05e91546d6c5f67219128f0b5d6846b979e1fd8b3c"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-final.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-v4.result.json",
+      "size": 93,
+      "sha256": "039afd6a56f17571d97607ed56761b52529256a7697d37466c40d4cbac4c595f"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-v4.stderr",
+      "size": 7917,
+      "sha256": "fc74273ea6adea0d4a1bfcb4ce3ff6f325ed62713af973e1e61127183ed557b9"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression-v4.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression.json",
+      "size": 90,
+      "sha256": "d608325daafb099b3fa933bfdc5d5e0c49bb9cc83ae47a8cfc75e20ed0688880"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression.stderr",
+      "size": 6745,
+      "sha256": "784d64600106bef822354ac0e39976267bedf5e1936c0b185c07db043821a97e"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-regression.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-tested-inputs.json",
+      "size": 1577,
+      "sha256": "bcd5b36fee58dfa4af634fcf35e960bead72e5803e4f64f7c85267129fa9c8ca"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-v4-inputs.json",
+      "size": 2911,
+      "sha256": "358c4a469ab000da5e751a93a0d22c6dd93ad5af76c63f67337ac8963c490e53"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/ubuntu-v5-inputs.json",
+      "size": 2911,
+      "sha256": "8c6add058e8ccc6ecf27ca83d4870f047f008236821748e0d129450a56d7cd40"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/v2-inventory_appliance.py",
+      "size": 14127,
+      "sha256": "35f5c85cc5b0f358d0d869bd794e82bdf93cb040ce8098f2bd3049a64bd105fe"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/v2-test_inventory_appliance.py",
+      "size": 10233,
+      "sha256": "88625786b2f03733891b9e97edd9761cc182ed3ce252e9fb56a1664e94e43fce"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-after.result.json",
+      "size": 81,
+      "sha256": "23fe60251a7811a64f949b5c98de8a924c8e18251af946876d5583f4dbe73a18"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-after.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-after.stdout",
+      "size": 2087,
+      "sha256": "096dde5493e184aee93b5d475baff9d66031e3541650468f9562dc521968f7fd"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-before.result.json",
+      "size": 81,
+      "sha256": "f3018e32b6b109b630fa4acaa4612ac79168c25d807b27cac277afc25c2cd6a6"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-before.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-before.stdout",
+      "size": 2087,
+      "sha256": "57e274a79093c19d29bf7dd131eab144e35f9900fb09222ba0127291617ffc5f"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-final.result.json",
+      "size": 80,
+      "sha256": "2ee354f36e5cf0e5f864e2fd9e4690b1de425d672b6ab9258a1b0b7b087ecc61"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-final.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-final.stdout",
+      "size": 2087,
+      "sha256": "e4864f7c70c79933e6c28cae8c4c2c96a557c1314478b22be94b450de4e980a6"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-postbuild.result.json",
+      "size": 84,
+      "sha256": "2263674c3130edaf286578f7ed4094bba8881700d3f87bbf2531327288fe6fc5"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-postbuild.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-postbuild.stdout",
+      "size": 2087,
+      "sha256": "3b50320000f5521b1eb1033e6b69e6c0e36a8549e1f1d5fe45af4947a1ef93ad"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-priority.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-priority.stdout",
+      "size": 501,
+      "sha256": "7fff7bc6407dcde044cf957aadde8ffaec0aa22e6c70002269f57bc414503c7e"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-processes.result.json",
+      "size": 85,
+      "sha256": "7db90a70ed7bb51db958c1f1d8b4671d3b624ae3a0f4f49bfb78f3833f9080a3"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-processes.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-processes.stdout",
+      "size": 13782,
+      "sha256": "1f1a7fd0b7a63b6cbb63e0b29f536a51475e9e6828fe6001e81efef096c42428"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-progress.result.json",
+      "size": 82,
+      "sha256": "a0afaef60cadb9fbcc4e9248a861825add280f9bc7dd4f78258b5a31ceb195fd"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-progress.stderr",
+      "size": 638,
+      "sha256": "da51c40d45306075be49d804b606c99255030a3784ce7c49ce02532ca9fac693"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-progress.stdout",
+      "size": 49,
+      "sha256": "d034b27224a69cc6d2cc7605cb321bfcbc968babacc2f615f99648e89061fec6"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-stop-inventory.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-stop-inventory.stdout",
+      "size": 168,
+      "sha256": "074899ea1434ac8697d0ab2adf62a66761c24fb975ef8a56b06d0ff344754374"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-tools.result.json",
+      "size": 80,
+      "sha256": "f74d3cbe43ca9062115eba7b96874051206856aea120cef04db8267f1785de7c"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-tools.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/vm-tools.stdout",
+      "size": 818,
+      "sha256": "76a1935cd4f381c94b7f236ad873ed9c8498abd366dc33aaa9bc092ae2753bd6"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-initial-tail.log",
+      "size": 5772,
+      "sha256": "cfd5badba37d0815eadc19b04ad3064c09e4ad272e7e0a470e96a7bd19a50382"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-final.stderr",
+      "size": 2857,
+      "sha256": "39cbeeb270acc5380a8e3f4b1c7b6da8040d5cfeb520732d9568676017a66e1e"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-final.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-retry.json",
+      "size": 1875,
+      "sha256": "a18978909f9f4e69c384ed6c18cc7cdeee467c0355501e82ef77d8b3176c4537"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-retry.stderr",
+      "size": 12422,
+      "sha256": "bbe95465b0eaddd8d5aac4f3aa89d8d9f6b70c925976a835010aa6ad4be9896a"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-retry.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v2.json",
+      "size": 1768,
+      "sha256": "c42114651dfc712706d00693b4b78efd12535c9bbd33b867c8d28368d93c6c35"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v2.stderr",
+      "size": 10347,
+      "sha256": "519a311653f9756a617de622ab81298f8c54a68c7efd334221449d7f83ac896e"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v2.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v3.json",
+      "size": 1871,
+      "sha256": "7ef543406e29518bffeac3963b483c1ebc0ba036ce08805fa7d643a16c108482"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v3.stderr",
+      "size": 11862,
+      "sha256": "cf7a7c0f20d52710a1b4642ffd095f29c92f991f303e12844806ef3cca31d2c0"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v3.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v4.json",
+      "size": 1872,
+      "sha256": "762ecc124ed0fa983b7c1db90c8581b4266513150f3aca4cd642b7a7211c94f8"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v4.stderr",
+      "size": 12231,
+      "sha256": "736ed544544312b39285fd610e410541cc861fac5bc3da014c47b1cfb51f5a42"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v4.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v5.json",
+      "size": 1871,
+      "sha256": "d4f89413783b5965017b06b66a947ec331eb3fde33636b4fdcbbb3c0cc2ac07a"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v5.stderr",
+      "size": 12648,
+      "sha256": "d62723c9db18c04d9f618ef7fdfc1344a8bfaa4ded21b93ec46ba9fc28014a7c"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/windows-regression-v5.stdout",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/yaml-validation.result.json",
+      "size": 88,
+      "sha256": "41c7e062f054d976c006cb9bce24c22e8ee15371518d5d832f6e479b99a6bcad"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/yaml-validation.stderr",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/appliance-inventory-20261026/yaml-validation.stdout",
+      "size": 63,
+      "sha256": "4c6bc04ba686422146ba0e7370ebdc816d7ded4e09f599e14234375c46eec617"
+    }
+  ]
+}

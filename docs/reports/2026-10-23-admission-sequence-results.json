@@ -1,0 +1,146 @@
+{
+  "time": "2026-10-23T07:18:28.936131+00:00",
+  "head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "release_decision": "BLOCKED",
+  "NAS-0116": "Partial",
+  "milestones": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "current_tests": {
+    "windows_python": {
+      "pass": 47,
+      "fail": 0,
+      "error": 0,
+      "skip": 1
+    },
+    "ubuntu_python": {
+      "pass": 48,
+      "fail": 0,
+      "error": 0,
+      "skip": 0
+    },
+    "live_vm": {
+      "pass": 21,
+      "fail": 0
+    },
+    "python_ast_files": 11,
+    "workflow_shell_syntax": {
+      "pass": 7
+    },
+    "quality_checks": 9,
+    "evidence_checks": 10
+  },
+  "prior_results_not_rerun": {
+    "windows_go": {
+      "pass": 1414,
+      "skip": 3
+    },
+    "ubuntu_changed_go_packages": {
+      "pass": 705,
+      "skip": 1
+    },
+    "oct22_full_ubuntu_go": {
+      "pass": 1400,
+      "skip": 2
+    },
+    "oct22_browser": {
+      "pass": 37
+    },
+    "oct22_postgresql14_matrix": {
+      "pass": 152
+    },
+    "oct22_postgresql18_matrix": {
+      "pass": 152
+    },
+    "oct22_pg_tls_restore": {
+      "pass": 25
+    },
+    "earlier_oct23_freeradius_postgresql": {
+      "pass": 22
+    }
+  },
+  "performance": {
+    "scope": "successful deployed loopback HTTP probes; small diagnostic sample, not throughput or capacity benchmark",
+    "requests": 10,
+    "minimum_ms": 0.47577199984516483,
+    "median_ms": 1.834935500028223,
+    "maximum_ms": 3449.967857000047
+  },
+  "security": {
+    "current_source_gate": {
+      "schema_version": 1,
+      "feature_id": "NAS-0116",
+      "status": "blocked",
+      "signature_verified": false,
+      "blockers": [
+        "candidate requires a clean committed source tree",
+        "evidence does not match current source and dependency inputs",
+        "2 dependency vulnerability findings violate policy"
+      ],
+      "findings": [
+        {
+          "ecosystem": "Go",
+          "id": "GO-2026-5932",
+          "target": {
+            "GOOS": "linux",
+            "GOARCH": "amd64",
+            "CGO_ENABLED": "0"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ],
+          "fixed_version": ""
+        },
+        {
+          "ecosystem": "Go",
+          "id": "GO-2026-5932",
+          "target": {
+            "GOOS": "linux",
+            "GOARCH": "arm64",
+            "CGO_ENABLED": "0"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ],
+          "fixed_version": ""
+        }
+      ]
+    },
+    "scan_epoch": "earlier October 23; no scanners rerun in this admission-only continuation",
+    "os_blocking_occurrences": 9380,
+    "os_distinct_blocking_ids": 964,
+    "os_affected_packages": 18
+  },
+  "vm": {
+    "production_changed": false,
+    "reboots": 0,
+    "readiness": {
+      "status": "blocked",
+      "ready": false,
+      "score": 0,
+      "blocking_count": 5,
+      "warning_count": 4,
+      "degraded_count": 17,
+      "passing_count": 68
+    }
+  },
+  "git": {
+    "commit": false,
+    "push": false,
+    "status_counts": {
+      " M": 245,
+      "??": 113
+    },
+    "non_report_files_changed_this_continuation": 9
+  },
+  "windows_python_seconds": 14.773,
+  "ubuntu_python_seconds": 0.903
+}

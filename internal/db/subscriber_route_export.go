@@ -166,7 +166,7 @@ func RecordSubscriberRouteExportSnapshot(input SubscriberRouteExportSnapshotInpu
 	defer tx.Rollback()
 
 	if input.Active {
-		if _, err := tx.Exec(`UPDATE subscriber_route_export_snapshots SET active = 0 WHERE active = 1`); err != nil {
+		if _, err := tx.Exec(`UPDATE subscriber_route_export_snapshots SET active = FALSE WHERE active = TRUE`); err != nil {
 			return "", fmt.Errorf("deactivate subscriber route export snapshots: %w", err)
 		}
 	}
@@ -287,7 +287,7 @@ func GetActiveSubscriberRouteExportSnapshot() (SubscriberRouteExportSnapshot, bo
 	if DB == nil {
 		return SubscriberRouteExportSnapshot{}, false, nil
 	}
-	row := DB.QueryRow(subscriberRouteExportSnapshotSelectSQL() + ` WHERE active = 1 ORDER BY datetime(created_at) DESC, id DESC LIMIT 1`)
+	row := DB.QueryRow(subscriberRouteExportSnapshotSelectSQL() + ` WHERE active = TRUE ORDER BY datetime(created_at) DESC, id DESC LIMIT 1`)
 	snapshot, err := scanSubscriberRouteExportSnapshot(row)
 	if err == sql.ErrNoRows {
 		return SubscriberRouteExportSnapshot{}, false, nil

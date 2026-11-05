@@ -42,6 +42,15 @@ func TestIdentitySourceEventsSummaryAndCircuitState(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 3)
 	assert.NotContains(t, events[0].UsernameHash, "alice")
+	for _, source := range []string{"ldap-primary", "ldap-primary", "ldap-secondary"} {
+		require.NoError(t, RecordIdentitySourceEvent(IdentitySourceEvent{
+			ObservedAt: time.Now().UTC().Format(time.RFC3339), SourceName: source,
+			SourceType: "ldap", Decision: "skipped", CircuitState: "open",
+		}, nil, 10))
+	}
+	summary, err = GetIdentitySourceEventSummary()
+	require.NoError(t, err)
+	assert.Equal(t, 2, summary.OpenCircuitSourceCount, "count distinct sources with open-circuit events on every supported backend")
 }
 
 func TestIdentitySourceCredentialCacheUsesBcryptAndExpires(t *testing.T) {
@@ -85,6 +94,6 @@ func setupIdentitySourceFailoverDB(t *testing.T) {
 		_ = Close()
 		_ = os.Remove(dbPath)
 	})
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	require.NoError(t, Migrate())
 }

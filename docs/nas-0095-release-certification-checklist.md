@@ -1,5 +1,9 @@
 # NAS-0095 Release Certification Checklist
 
+Audit status (2026-10-15): **Partial**. The checked software evidence below covers
+configuration/report lifecycle; live policy-control integration and its software
+tests remain. See [the audit](reports/2026-10-15-continuation.md).
+
 NAS-0095 software implementation is complete. This checklist tracks work that requires external systems, physical devices, production environments, or independent release sign-off.
 
 ## Software Completion

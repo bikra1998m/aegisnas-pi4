@@ -123,7 +123,7 @@ func GetHAHistoryStats() (HAHistoryStats, error) {
 		COALESCE(SUM(CASE WHEN event_type = 'replication_freshness' AND status = 'stale' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN event_type = 'replication_stage' AND status = 'staged' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN event_type = 'replication_activate' AND status = 'activated' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), '')
+		COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM ha_history`).Scan(
 		&stats.TotalRecords,
 		&stats.FailoverPromotions,

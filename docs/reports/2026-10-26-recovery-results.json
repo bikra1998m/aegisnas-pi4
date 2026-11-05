@@ -1,0 +1,4705 @@
+{
+  "generated_at": "2026-10-26T12:30:46.254552+00:00",
+  "head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "milestone": "NAS-0116",
+  "milestone_status": "Partial",
+  "release_ready": false,
+  "security_gate": "BLOCKED",
+  "commit_created": false,
+  "pushed": false,
+  "status_counts": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "source_epochs": {
+    "initial": "Initial implementation; preserved failed compile and Ubuntu fixture failures",
+    "v2": "Only test directories changed to mode 0700; production permission policy unchanged",
+    "v3": "Final recovery runtime: PostgreSQL rehearsal refusal and consistent SQLite WAL snapshot",
+    "final": "Only OpenAPI 409 documentation and its contract assertion added after v3 runtime checks"
+  },
+  "windows_initial_affected_full": {
+    "PASS": 374,
+    "SKIP": 1
+  },
+  "windows_final_upgrade": {
+    "PASS": 44,
+    "SKIP": 1
+  },
+  "windows_final_focused_api": {
+    "PASS": 72
+  },
+  "windows_final_openapi": {
+    "PASS": 1
+  },
+  "ubuntu_initial_upgrade": {
+    "PASS": 40,
+    "FAIL": 3,
+    "SKIP": 0
+  },
+  "ubuntu_initial_api_full": {
+    "PASS": 330,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "ubuntu_final_upgrade": {
+    "PASS": 45,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "ubuntu_final_focused_api": {
+    "PASS": 72,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "windows_cli": {
+    "status": "PASS",
+    "checks": [
+      {
+        "check": "validate",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 1.0373071000212803
+      },
+      {
+        "check": "migrate",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 0.5208365999860689
+      },
+      {
+        "check": "create-snapshot",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 1.4279714999720454
+      },
+      {
+        "check": "sealed-digest-matches",
+        "status": "PASS"
+      },
+      {
+        "check": "does-not-authorize-activation",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-overwrite",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 1.5860179999726824
+      },
+      {
+        "check": "original-encrypted-snapshot-preserved",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-key",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.04161489999387413
+      },
+      {
+        "check": "no-output-wrong-key",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-context",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.034987199993338436
+      },
+      {
+        "check": "no-output-wrong-context",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-digest",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.03696060000220314
+      },
+      {
+        "check": "no-output-wrong-digest",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-tampered",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.034137000038754195
+      },
+      {
+        "check": "no-output-tampered",
+        "status": "PASS"
+      },
+      {
+        "check": "extract-snapshot",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 0.0656275000073947
+      },
+      {
+        "check": "authenticated-staging-receipt",
+        "status": "PASS"
+      },
+      {
+        "check": "snapshot-data-restored-in-isolation",
+        "status": "PASS"
+      },
+      {
+        "check": "snapshot-sqlite-integrity",
+        "status": "PASS"
+      },
+      {
+        "check": "config-snapshot-identical",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-extraction-overwrite",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.04739520000293851
+      },
+      {
+        "check": "live-database-untouched",
+        "status": "PASS"
+      },
+      {
+        "check": "live-config-untouched",
+        "status": "PASS"
+      },
+      {
+        "check": "linux-staging-permissions",
+        "status": "SKIPPED",
+        "reason": "Windows ACLs are not certified"
+      }
+    ],
+    "scope": "Actual CLI + isolated populated SQLite recovery; no production activation or signed release.",
+    "recovery_receipt": {
+      "schema_version": 1,
+      "status": "sealed",
+      "algorithm": "AES-256-GCM",
+      "recovery_context": "isolated-cli/appliance-42/recovery-1",
+      "sealed_sha256": "293c8f983a2cc462f0268b63b427412a5b27f1d20bc7175bc6867047aa473d63",
+      "package_sha256": "9fd5bd9a29a968975344766b93d7c436dde55311889cdfd616c121f02084c328",
+      "production_activation_authorized": false
+    },
+    "seconds": 6.777831099985633,
+    "counts": {
+      "PASS": 23,
+      "FAIL": 0,
+      "SKIPPED": 1
+    }
+  },
+  "ubuntu_cli": {
+    "status": "PASS",
+    "checks": [
+      {
+        "check": "validate",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 1.5745521080007165
+      },
+      {
+        "check": "migrate",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 1.5097405220003566
+      },
+      {
+        "check": "create-snapshot",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 0.9452620620004382
+      },
+      {
+        "check": "sealed-digest-matches",
+        "status": "PASS"
+      },
+      {
+        "check": "does-not-authorize-activation",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-overwrite",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.6641184270001759
+      },
+      {
+        "check": "original-encrypted-snapshot-preserved",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-key",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.13804595199962932
+      },
+      {
+        "check": "no-output-wrong-key",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-context",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.20508051100023295
+      },
+      {
+        "check": "no-output-wrong-context",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-wrong-digest",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.2553287889995772
+      },
+      {
+        "check": "no-output-wrong-digest",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-tampered",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.2358531239997319
+      },
+      {
+        "check": "no-output-tampered",
+        "status": "PASS"
+      },
+      {
+        "check": "extract-snapshot",
+        "status": "PASS",
+        "exit_code": 0,
+        "expected_success": true,
+        "seconds": 0.6247188390007068
+      },
+      {
+        "check": "authenticated-staging-receipt",
+        "status": "PASS"
+      },
+      {
+        "check": "snapshot-data-restored-in-isolation",
+        "status": "PASS"
+      },
+      {
+        "check": "snapshot-sqlite-integrity",
+        "status": "PASS"
+      },
+      {
+        "check": "config-snapshot-identical",
+        "status": "PASS"
+      },
+      {
+        "check": "reject-extraction-overwrite",
+        "status": "PASS",
+        "exit_code": 1,
+        "expected_success": false,
+        "seconds": 0.24018890600018494
+      },
+      {
+        "check": "live-database-untouched",
+        "status": "PASS"
+      },
+      {
+        "check": "live-config-untouched",
+        "status": "PASS"
+      },
+      {
+        "check": "private-staging-permissions",
+        "status": "PASS"
+      }
+    ],
+    "scope": "Actual CLI + isolated populated SQLite recovery; no production activation or signed release.",
+    "recovery_receipt": {
+      "schema_version": 1,
+      "status": "sealed",
+      "algorithm": "AES-256-GCM",
+      "recovery_context": "isolated-cli/appliance-42/recovery-1",
+      "sealed_sha256": "8bcfe305905761ba60d7f1900b47271619ae69781df2e2f9ca0e91b7e9c40d06",
+      "package_sha256": "174ac41adde3301e6b57ca7485310fbcaa6669d32b29ba4bd074f4ea656e0c2d",
+      "production_activation_authorized": false
+    },
+    "seconds": 8.362173212000016,
+    "counts": {
+      "PASS": 24,
+      "FAIL": 0,
+      "SKIPPED": 0
+    }
+  },
+  "python": {
+    "unittest_exit_code": 0,
+    "unittest_summary": "Ran 48 tests in 18.791s; OK (skipped=1)",
+    "PASS": 47,
+    "SKIPPED": 1,
+    "syntax": "PASS",
+    "yaml_first_attempt": "FAILED: optional Python yaml module unavailable; tests had already passed"
+  },
+  "builds": [
+    {
+      "name": "windows-upgrade-v3",
+      "exit_code": 0,
+      "seconds": 32.47996419999981,
+      "command": [
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/upgrade"
+      ],
+      "target": {}
+    },
+    {
+      "name": "windows-api-recovery-v3",
+      "exit_code": 0,
+      "seconds": 110.71326550003141,
+      "command": [
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/adminapi",
+        "-run",
+        "UpgradeReadiness|SupportBundle|Rollback"
+      ],
+      "target": {}
+    },
+    {
+      "name": "vet-v3",
+      "exit_code": 0,
+      "seconds": 4.226932400022633,
+      "command": [
+        "vet",
+        "./internal/upgrade",
+        "./internal/adminapi",
+        "./cmd/aegis-admin"
+      ],
+      "target": {}
+    },
+    {
+      "name": "build-windows-amd64-v3",
+      "exit_code": 0,
+      "seconds": 35.134737999993376,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\windows-amd64-v3/",
+        "./cmd/..."
+      ],
+      "target": {
+        "GOOS": "windows",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "build-linux-amd64-v3",
+      "exit_code": 0,
+      "seconds": 57.55974229995627,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-amd64-v3/",
+        "./cmd/..."
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "test-binary-upgrade-v3",
+      "exit_code": 0,
+      "seconds": 13.15144510002574,
+      "command": [
+        "test",
+        "-c",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-amd64-v3\\upgrade.test",
+        "./internal/upgrade"
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "test-binary-adminapi-v3",
+      "exit_code": 0,
+      "seconds": 20.04223969997838,
+      "command": [
+        "test",
+        "-c",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-amd64-v3\\adminapi.test",
+        "./internal/adminapi"
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "build-linux-arm64-v3",
+      "exit_code": 0,
+      "seconds": 157.2916843999992,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-arm64-v3/",
+        "./cmd/..."
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "arm64"
+      }
+    }
+  ],
+  "openapi_final_builds": [
+    {
+      "name": "openapi-contract",
+      "exit_code": 0,
+      "seconds": 405.7351633000071,
+      "command": [
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/adminapi",
+        "-run",
+        "^TestHandleGetOpenAPI$"
+      ],
+      "target": {}
+    },
+    {
+      "name": "build-api-windows-amd64-final",
+      "exit_code": 0,
+      "seconds": 21.291200199979357,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\windows-amd64-final/",
+        "./cmd/aegis-admin-api"
+      ],
+      "target": {
+        "GOOS": "windows",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "build-api-linux-amd64-final",
+      "exit_code": 0,
+      "seconds": 54.85630869999295,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-amd64-final/",
+        "./cmd/aegis-admin-api"
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+      }
+    },
+    {
+      "name": "build-api-linux-arm64-final",
+      "exit_code": 0,
+      "seconds": 49.370426499983296,
+      "command": [
+        "build",
+        "-o",
+        ".tmp\\recovery-security-20261026\\linux-arm64-final/",
+        "./cmd/aegis-admin-api"
+      ],
+      "target": {
+        "GOOS": "linux",
+        "GOARCH": "arm64"
+      }
+    }
+  ],
+  "sqlite_api": {
+    "status": "PASS",
+    "scope": "Real isolated API + SQLite + built UI; no external NAS or production deployment.",
+    "checks": [
+      {
+        "check": "validate-config",
+        "exit_code": 0,
+        "seconds": 0.9256412249997084
+      },
+      {
+        "check": "migrate",
+        "exit_code": 0,
+        "seconds": 0.841353624000476
+      },
+      {
+        "check": "seed",
+        "exit_code": 0,
+        "seconds": 0.38132454800052074
+      },
+      {
+        "check": "health",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04842927400022745,
+        "bytes": 16
+      },
+      {
+        "check": "authentication-required",
+        "status": 401,
+        "expected": 401,
+        "seconds": 0.0008721439999135328,
+        "bytes": 29
+      },
+      {
+        "check": "release-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0728745570004321,
+        "bytes": 433
+      },
+      {
+        "check": "database",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.8362013870000737,
+        "bytes": 1030
+      },
+      {
+        "check": "docsis-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04997065299994574,
+        "bytes": 14233
+      },
+      {
+        "check": "upgrade-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.47212402500008466,
+        "bytes": 650
+      },
+      {
+        "check": "support-bundle/summary",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008575906000260147,
+        "bytes": 13271
+      },
+      {
+        "check": "roles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014462469998761662,
+        "bytes": 767
+      },
+      {
+        "check": "docsis-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03191251199950784,
+        "bytes": 13833
+      },
+      {
+        "check": "built-ui",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03641431100004411,
+        "bytes": 472
+      },
+      {
+        "check": "openapi",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01064347200008342,
+        "bytes": 710721
+      },
+      {
+        "check": "system-read:/api/v1/system/access-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0026563560004433384,
+        "bytes": 94113
+      },
+      {
+        "check": "system-read:/api/v1/system/access-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010514059995330172,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-charging",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002074994000395236,
+        "bytes": 1980
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-counters",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010706309994930052,
+        "bytes": 1070
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ingest-spool",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009938410003087483,
+        "bytes": 1232
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ip",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001009432000500965,
+        "bytes": 1514
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ordering",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013449570005832356,
+        "bytes": 812
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-services",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011302110005999566,
+        "bytes": 1830
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-spool",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008632749995740596,
+        "bytes": 751
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-ast",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007387710002149106,
+        "bytes": 357
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-compilers",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0022014570004103007,
+        "bytes": 25613
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-compilers/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010093299997606664,
+        "bytes": 266
+      },
+      {
+        "check": "system-read:/api/v1/system/active-directory",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01721553799961839,
+        "bytes": 1554
+      },
+      {
+        "check": "system-read:/api/v1/system/address-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018362040000283741,
+        "bytes": 4946
+      },
+      {
+        "check": "system-read:/api/v1/system/address-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013058060003459104,
+        "bytes": 435
+      },
+      {
+        "check": "system-read:/api/v1/system/aruba-family-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002969667999423109,
+        "bytes": 181880
+      },
+      {
+        "check": "system-read:/api/v1/system/aruba-family-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011594050001804135,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/attribute-registry",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00382299100056116,
+        "bytes": 67498
+      },
+      {
+        "check": "system-read:/api/v1/system/audit-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015593070002068998,
+        "bytes": 383
+      },
+      {
+        "check": "system-read:/api/v1/system/audit-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011556589997780975,
+        "bytes": 300
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-address-leases",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019204689997422975,
+        "bytes": 9754
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-address-leases/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001211054000123113,
+        "bytes": 625
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-commercial-catalog",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0026509069994062884,
+        "bytes": 10288
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-commercial-catalog/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002097127000524779,
+        "bytes": 760
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-dhcp-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0021991180001350585,
+        "bytes": 9375
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-dhcp-security/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012321610001890804,
+        "bytes": 542
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-governance-self-service",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017582130003575003,
+        "bytes": 10487
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-governance-self-service/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019288539997432963,
+        "bytes": 526
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-l2tp-wholesale",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001975596000193036,
+        "bytes": 9577
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-l2tp-wholesale/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001665245999902254,
+        "bytes": 498
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-qos-service-flows",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002476299000591098,
+        "bytes": 11481
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-qos-service-flows/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00763893699968321,
+        "bytes": 475
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-quota-balance",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006038163999619428,
+        "bytes": 9755
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-quota-balance/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001379411999550939,
+        "bytes": 501
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-service-activation",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002213560000200232,
+        "bytes": 16487
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-service-activation/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010323850001441315,
+        "bytes": 551
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-subscriber-state",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001422058000571269,
+        "bytes": 16368
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-subscriber-state/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009060799993676483,
+        "bytes": 380
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0037396819998321007,
+        "bytes": 522517
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011020270003427868,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/certificate-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015568009994240128,
+        "bytes": 4707
+      },
+      {
+        "check": "system-read:/api/v1/system/cisco-family-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010040628999377077,
+        "bytes": 1203391
+      },
+      {
+        "check": "system-read:/api/v1/system/cisco-family-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013137730002199532,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/cloud-controller-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001660519999859389,
+        "bytes": 23830
+      },
+      {
+        "check": "system-read:/api/v1/system/cloud-controller-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010154719993806793,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/compatibility-evidence",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.8080576930005918,
+        "bytes": 194157
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-adapters",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.025587665999410092,
+        "bytes": 8061
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-estate-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017827780002335203,
+        "bytes": 13129
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-estate-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011120030003439751,
+        "bytes": 554
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-sync/preview",
+        "status": 400,
+        "expected": 400,
+        "seconds": 0.0007901859999037697,
+        "bytes": 29
+      },
+      {
+        "check": "system-read:/api/v1/system/cwa-portal-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03578164000009565,
+        "bytes": 7220
+      },
+      {
+        "check": "system-read:/api/v1/system/cwa-portal-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011006739996446413,
+        "bytes": 444
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-client",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004156746000262501,
+        "bytes": 4258
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-client/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002081206999719143,
+        "bytes": 517
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-handoff",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012644150001506205,
+        "bytes": 766
+      },
+      {
+        "check": "system-read:/api/v1/system/database",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008255600005213637,
+        "bytes": 1030
+      },
+      {
+        "check": "system-read:/api/v1/system/dhcp-lease-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008898509995560744,
+        "bytes": 63
+      },
+      {
+        "check": "system-read:/api/v1/system/dhcp-leases",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011927870000363328,
+        "bytes": 188
+      },
+      {
+        "check": "system-read:/api/v1/system/diagnostics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010796599999594036,
+        "bytes": 393
+      },
+      {
+        "check": "system-read:/api/v1/system/diagnostics-report",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.49878646100023616,
+        "bytes": 50522
+      },
+      {
+        "check": "system-read:/api/v1/system/dictionary-release-profiles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005058862000623776,
+        "bytes": 27213
+      },
+      {
+        "check": "system-read:/api/v1/system/docsis-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008047168000302918,
+        "bytes": 40515
+      },
+      {
+        "check": "system-read:/api/v1/system/docsis-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0022925370003576973,
+        "bytes": 26845
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002312433999577479,
+        "bytes": 27867
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/fast-pwd",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001199289000396675,
+        "bytes": 4415
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/machine-user",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001315550999606785,
+        "bytes": 3505
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/sim-aka",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011522459999468992,
+        "bytes": 5321
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/teap",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013019779999012826,
+        "bytes": 4292
+      },
+      {
+        "check": "system-read:/api/v1/system/enforcement-transactions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002364113000112411,
+        "bytes": 5306
+      },
+      {
+        "check": "system-read:/api/v1/system/enforcement-transactions/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009677640000518295,
+        "bytes": 479
+      },
+      {
+        "check": "system-read:/api/v1/system/external-vendor-intake",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011896030000571045,
+        "bytes": 2806
+      },
+      {
+        "check": "system-read:/api/v1/system/external-vendor-intake/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009323710000899155,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/fallback-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011814760000561364,
+        "bytes": 1107
+      },
+      {
+        "check": "system-read:/api/v1/system/fortinet-paloalto-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018535470007918775,
+        "bytes": 82743
+      },
+      {
+        "check": "system-read:/api/v1/system/fortinet-paloalto-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008685449993208749,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-conversion-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007252610002979054,
+        "bytes": 4949
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-conversion-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010272058999362343,
+        "bytes": 495
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008191480001187301,
+        "bytes": 7648
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008848266000313743,
+        "bytes": 489
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-failures",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000835804999951506,
+        "bytes": 4850
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-failures-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007056109998302418,
+        "bytes": 486
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-invite-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007167769999796292,
+        "bytes": 4752
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-invite-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007778119997965405,
+        "bytes": 391
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008137810000334866,
+        "bytes": 4098
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-lifecycle-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007939500999782467,
+        "bytes": 462
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-rejection-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008219350002036663,
+        "bytes": 4959
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-rejection-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03813103700031206,
+        "bytes": 492
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-sponsor-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008307329999297508,
+        "bytes": 7702
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-sponsor-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008157419997587567,
+        "bytes": 486
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009401190000062343,
+        "bytes": 416
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/replication-package",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.027825932999803626,
+        "bytes": 125392
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/replication-shared",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009219789999406203,
+        "bytes": 288
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/replication-staged",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.16168598700005532,
+        "bytes": 64
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.3116586180003651,
+        "bytes": 308
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-vlan-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016360119998353184,
+        "bytes": 13715
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-vlan-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009496870006842073,
+        "bytes": 437
+      },
+      {
+        "check": "system-read:/api/v1/system/identity-failover",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012807309994968819,
+        "bytes": 1889
+      },
+      {
+        "check": "system-read:/api/v1/system/integration-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.11148416400010319,
+        "bytes": 401
+      },
+      {
+        "check": "system-read:/api/v1/system/integration-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010075489999508136,
+        "bytes": 365
+      },
+      {
+        "check": "system-read:/api/v1/system/juniper-extreme-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0035885349998352467,
+        "bytes": 370824
+      },
+      {
+        "check": "system-read:/api/v1/system/juniper-extreme-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012540269999590237,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/long-tail-namespaces",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.023620726999979524,
+        "bytes": 1848681
+      },
+      {
+        "check": "system-read:/api/v1/system/long-tail-namespaces/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001298426000175823,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/mab",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012742090002575424,
+        "bytes": 1386
+      },
+      {
+        "check": "system-read:/api/v1/system/mab/endpoints",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008235559998865938,
+        "bytes": 55
+      },
+      {
+        "check": "system-read:/api/v1/system/mfa",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011316509999232949,
+        "bytes": 1396
+      },
+      {
+        "check": "system-read:/api/v1/system/mikrotik-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016308779995597433,
+        "bytes": 63527
+      },
+      {
+        "check": "system-read:/api/v1/system/mikrotik-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010559329994066502,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-charging",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005145011000422528,
+        "bytes": 11292
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-charging/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013967260001663817,
+        "bytes": 565
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-grouped-avps",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004740612999739824,
+        "bytes": 9210
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-grouped-avps/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012659510002777097,
+        "bytes": 439
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-policy-control",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007809597999766993,
+        "bytes": 13139
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-policy-control/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013921380004831008,
+        "bytes": 561
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-sessions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004149224000684626,
+        "bytes": 9795
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-sessions/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0037245780004013795,
+        "bytes": 473
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0021322120001059375,
+        "bytes": 698
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients/enrollments",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009015059995363117,
+        "bytes": 5
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients/templates",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008852330001900555,
+        "bytes": 393
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-ownership",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013864829998055939,
+        "bytes": 938
+      },
+      {
+        "check": "system-read:/api/v1/system/network-apply-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007229800003187847,
+        "bytes": 63
+      },
+      {
+        "check": "system-read:/api/v1/system/network-backups",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.014746920999641588,
+        "bytes": 27
+      },
+      {
+        "check": "system-read:/api/v1/system/network-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006327742999928887,
+        "bytes": 389
+      },
+      {
+        "check": "system-read:/api/v1/system/network-observability",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001577699000335997,
+        "bytes": 990
+      },
+      {
+        "check": "system-read:/api/v1/system/network-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011398629994801013,
+        "bytes": 2868
+      },
+      {
+        "check": "system-read:/api/v1/system/nokia-alu-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.013335202999769535,
+        "bytes": 598195
+      },
+      {
+        "check": "system-read:/api/v1/system/nokia-alu-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016081960002338747,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/opaque-passthrough",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0035843269997712923,
+        "bytes": 2329
+      },
+      {
+        "check": "system-read:/api/v1/system/passpoint-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014497829997708322,
+        "bytes": 3439
+      },
+      {
+        "check": "system-read:/api/v1/system/passpoint-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010137449999092496,
+        "bytes": 540
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-engine",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0025348819999635452,
+        "bytes": 7311
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018656940001164912,
+        "bytes": 753
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets/analyses",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007707860004302347,
+        "bytes": 3
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets/versions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007232969992401195,
+        "bytes": 3
+      },
+      {
+        "check": "system-read:/api/v1/system/pppoe-access-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001488055000663735,
+        "bytes": 10552
+      },
+      {
+        "check": "system-read:/api/v1/system/pppoe-access-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0012502709996624617,
+        "bytes": 466
+      },
+      {
+        "check": "system-read:/api/v1/system/ppsk-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011983630001850543,
+        "bytes": 4066
+      },
+      {
+        "check": "system-read:/api/v1/system/ppsk-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008912789999158122,
+        "bytes": 529
+      },
+      {
+        "check": "system-read:/api/v1/system/production-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 2.03640456300036,
+        "bytes": 90118
+      },
+      {
+        "check": "system-read:/api/v1/system/proxy-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03655802399953245,
+        "bytes": 947
+      },
+      {
+        "check": "system-read:/api/v1/system/proxy-routes",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000979401000222424,
+        "bytes": 453
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013434050006253528,
+        "bytes": 2259
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009676129993749782,
+        "bytes": 370
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler/profiles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008657259995743516,
+        "bytes": 56
+      },
+      {
+        "check": "system-read:/api/v1/system/radius-hardening",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002243018000626762,
+        "bytes": 1962
+      },
+      {
+        "check": "system-read:/api/v1/system/radsec-credentials",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0020439580002857838,
+        "bytes": 399
+      },
+      {
+        "check": "system-read:/api/v1/system/rate-compiler",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0021642150004481664,
+        "bytes": 2072
+      },
+      {
+        "check": "system-read:/api/v1/system/release-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008671670002513565,
+        "bytes": 433
+      },
+      {
+        "check": "system-read:/api/v1/system/rf-planning-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010938859995803796,
+        "bytes": 3046
+      },
+      {
+        "check": "system-read:/api/v1/system/rf-planning-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009479599993937882,
+        "bytes": 464
+      },
+      {
+        "check": "system-read:/api/v1/system/route-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014018789997862768,
+        "bytes": 2532
+      },
+      {
+        "check": "system-read:/api/v1/system/route-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016154060003827908,
+        "bytes": 385
+      },
+      {
+        "check": "system-read:/api/v1/system/ruckus-icx-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002741861999311368,
+        "bytes": 165217
+      },
+      {
+        "check": "system-read:/api/v1/system/ruckus-icx-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000874430999829201,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/runtime-firewall",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010340560002077837,
+        "bytes": 1217
+      },
+      {
+        "check": "system-read:/api/v1/system/runtime-firewall/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008700110001882422,
+        "bytes": 409
+      },
+      {
+        "check": "system-read:/api/v1/system/secret-providers",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007944319995658589,
+        "bytes": 4542
+      },
+      {
+        "check": "system-read:/api/v1/system/session-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0006552720005856827,
+        "bytes": 4231
+      },
+      {
+        "check": "system-read:/api/v1/system/session-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0006284710007093963,
+        "bytes": 455
+      },
+      {
+        "check": "system-read:/api/v1/system/session-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.036902558999827306,
+        "bytes": 389
+      },
+      {
+        "check": "system-read:/api/v1/system/session-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001017599000078917,
+        "bytes": 382
+      },
+      {
+        "check": "system-read:/api/v1/system/settings",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003157661000841472,
+        "bytes": 91612
+      },
+      {
+        "check": "system-read:/api/v1/system/sql-accounting",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018365669993727352,
+        "bytes": 1373
+      },
+      {
+        "check": "system-read:/api/v1/system/status",
+        "status": 200,
+        "expected": 200,
+        "seconds": 2.982756586000505,
+        "bytes": 182661
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-route-export",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.07620420799958083,
+        "bytes": 2638
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-route-export/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011952760005442542,
+        "bytes": 383
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-service-chains",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011607819997152546,
+        "bytes": 516
+      },
+      {
+        "check": "system-read:/api/v1/system/supplicant-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013958979998278664,
+        "bytes": 3746
+      },
+      {
+        "check": "system-read:/api/v1/system/switching-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019951280000896077,
+        "bytes": 126972
+      },
+      {
+        "check": "system-read:/api/v1/system/switching-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007800260000294656,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/tacacs",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001053681000485085,
+        "bytes": 2976
+      },
+      {
+        "check": "system-read:/api/v1/system/tenant-isolation",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001095779000024777,
+        "bytes": 2091
+      },
+      {
+        "check": "system-read:/api/v1/system/translation-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013696940004592761,
+        "bytes": 3530
+      },
+      {
+        "check": "system-read:/api/v1/system/translation-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013571689996751957,
+        "bytes": 406
+      },
+      {
+        "check": "system-read:/api/v1/system/transport-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001285843999539793,
+        "bytes": 920
+      },
+      {
+        "check": "system-read:/api/v1/system/upgrade-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 1.1541770740004722,
+        "bytes": 650
+      },
+      {
+        "check": "system-read:/api/v1/system/upgrade-readiness-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.044982962000176485,
+        "bytes": 420
+      },
+      {
+        "check": "system-read:/api/v1/system/upgrade-rollback-package",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.25045420399965224,
+        "bytes": 136298
+      },
+      {
+        "check": "system-read:/api/v1/system/upstream-aaa-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010448769999129581,
+        "bytes": 404
+      },
+      {
+        "check": "system-read:/api/v1/system/upstream-aaa-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009991580000132672,
+        "bytes": 1468
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-compatibility",
+        "status": 200,
+        "expected": 200,
+        "seconds": 1.4284696959994108,
+        "bytes": 3005319
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-identity",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.033665289000055054,
+        "bytes": 337
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-mapping-certification",
+        "status": 200,
+        "expected": 200,
+        "seconds": 1.1307833159999063,
+        "bytes": 528574
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-mapping-certification/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03668766999999207,
+        "bytes": 236
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-observability",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03062042700003076,
+        "bytes": 348
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014376949993675225,
+        "bytes": 8961
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0011944230000153766,
+        "bytes": 413
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010787089995574206,
+        "bytes": 2457
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000825101999907929,
+        "bytes": 272
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-aging-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000686422000399034,
+        "bytes": 5501
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-aging-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007331270007853163,
+        "bytes": 474
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008130579999487964,
+        "bytes": 5152
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.000944800000070245,
+        "bytes": 456
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-expiry-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007939360002637841,
+        "bytes": 6164
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-expiry-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0008312399995702435,
+        "bytes": 477
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-redemption-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007350259993472719,
+        "bytes": 6031
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-redemption-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04770120200009842,
+        "bytes": 489
+      },
+      {
+        "check": "system-read:/api/v1/system/vsa-codec",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.27112845800002106,
+        "bytes": 1247
+      },
+      {
+        "check": "system-read:/api/v1/system/webauthn",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018227930004286463,
+        "bytes": 1400
+      },
+      {
+        "check": "system-read:/api/v1/system/wimax-service-flows",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011668795999867143,
+        "bytes": 13063
+      },
+      {
+        "check": "system-read:/api/v1/system/wimax-service-flows/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010146326999347366,
+        "bytes": 567
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-roaming-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001082274000509642,
+        "bytes": 3266
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-roaming-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007834680000087246,
+        "bytes": 388
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-security-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010031379997599288,
+        "bytes": 3183
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-security-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0007743260002825991,
+        "bytes": 504
+      },
+      {
+        "check": "support-bundle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 16.110760399000355,
+        "bytes": 627704
+      }
+    ],
+    "system_read_failures": [],
+    "omitted_system_routes": [
+      "/api/v1/system/accounting-charging/export/download",
+      "/api/v1/system/audit-exports/download",
+      "/api/v1/system/audit-history/export",
+      "/api/v1/system/dhcp-lease-history/export",
+      "/api/v1/system/diagnostics-exports/download",
+      "/api/v1/system/diagnostics-report/export",
+      "/api/v1/system/guest-conversion-analytics-exports/download",
+      "/api/v1/system/guest-conversion-analytics/export",
+      "/api/v1/system/guest-delivery-analytics-exports/download",
+      "/api/v1/system/guest-delivery-analytics/export",
+      "/api/v1/system/guest-delivery-failures-exports/download",
+      "/api/v1/system/guest-delivery-failures/export",
+      "/api/v1/system/guest-invite-analytics-exports/download",
+      "/api/v1/system/guest-invite-analytics/export",
+      "/api/v1/system/guest-lifecycle-exports/download",
+      "/api/v1/system/guest-lifecycle/export",
+      "/api/v1/system/guest-rejection-analytics-exports/download",
+      "/api/v1/system/guest-rejection-analytics/export",
+      "/api/v1/system/guest-sponsor-analytics-exports/download",
+      "/api/v1/system/guest-sponsor-analytics/export",
+      "/api/v1/system/ha/exports",
+      "/api/v1/system/ha/exports/download",
+      "/api/v1/system/ha/history/export",
+      "/api/v1/system/integration-exports/download",
+      "/api/v1/system/integration-history/export",
+      "/api/v1/system/network-apply-history/export",
+      "/api/v1/system/network-exports/download",
+      "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}",
+      "/api/v1/system/policy-sets/versions/{id}",
+      "/api/v1/system/session-analytics-exports/download",
+      "/api/v1/system/session-analytics/export",
+      "/api/v1/system/session-exports/download",
+      "/api/v1/system/session-history/export",
+      "/api/v1/system/settings/export",
+      "/api/v1/system/support-bundle",
+      "/api/v1/system/support-bundle-exports",
+      "/api/v1/system/support-bundle-exports/download",
+      "/api/v1/system/support-bundle/summary",
+      "/api/v1/system/upgrade-readiness-exports/download",
+      "/api/v1/system/upstream-aaa-exports/download",
+      "/api/v1/system/upstream-aaa-history/export",
+      "/api/v1/system/vendor-observability/export",
+      "/api/v1/system/voucher-aging-analytics-exports/download",
+      "/api/v1/system/voucher-aging-analytics/export",
+      "/api/v1/system/voucher-analytics-exports/download",
+      "/api/v1/system/voucher-analytics/export",
+      "/api/v1/system/voucher-expiry-analytics-exports/download",
+      "/api/v1/system/voucher-expiry-analytics/export",
+      "/api/v1/system/voucher-redemption-analytics-exports/download",
+      "/api/v1/system/voucher-redemption-analytics/export"
+    ],
+    "performance": {
+      "endpoint": "/api/v1/system/release-security",
+      "requests": 100,
+      "concurrency": 1,
+      "unit": "ms",
+      "median": 0.6938460001038038,
+      "p95": 10.047436000604648,
+      "max": 47.314614999777405,
+      "scope": "Loopback HTTP latency for missing admission; not NAS forwarding throughput."
+    }
+  },
+  "postgres_api": {
+    "status": "PASS",
+    "scope": "Real isolated API + PostgreSQL + built UI; no external NAS or production deployment.",
+    "checks": [
+      {
+        "check": "validate-config",
+        "exit_code": 0,
+        "seconds": 1.1661408019999726
+      },
+      {
+        "check": "migrate",
+        "exit_code": 0,
+        "seconds": 35.96026153999992
+      },
+      {
+        "check": "seed",
+        "exit_code": 0,
+        "seconds": 0.7989935120003793
+      },
+      {
+        "check": "health",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0044375980005497695,
+        "bytes": 16
+      },
+      {
+        "check": "authentication-required",
+        "status": 401,
+        "expected": 401,
+        "seconds": 0.10691425999993953,
+        "bytes": 29
+      },
+      {
+        "check": "release-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.10397993500009761,
+        "bytes": 433
+      },
+      {
+        "check": "database",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02330594300019584,
+        "bytes": 976
+      },
+      {
+        "check": "docsis-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.1957423080002627,
+        "bytes": 14233
+      },
+      {
+        "check": "upgrade-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03404020499965554,
+        "bytes": 805
+      },
+      {
+        "check": "support-bundle/summary",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0023144709994085133,
+        "bytes": 13275
+      },
+      {
+        "check": "roles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017692020001049968,
+        "bytes": 767
+      },
+      {
+        "check": "docsis-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.238259480999659,
+        "bytes": 13833
+      },
+      {
+        "check": "built-ui",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016459540001960704,
+        "bytes": 472
+      },
+      {
+        "check": "openapi",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011831033999442297,
+        "bytes": 710721
+      },
+      {
+        "check": "system-read:/api/v1/system/access-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005596003000391647,
+        "bytes": 94113
+      },
+      {
+        "check": "system-read:/api/v1/system/access-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002301129999978002,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-charging",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003471503000582743,
+        "bytes": 1980
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-counters",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0032377729994550464,
+        "bytes": 1070
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ingest-spool",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002858484000171302,
+        "bytes": 1232
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ip",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0031413080005222582,
+        "bytes": 1514
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-ordering",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0028184309994685464,
+        "bytes": 812
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-services",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003713624999363674,
+        "bytes": 1830
+      },
+      {
+        "check": "system-read:/api/v1/system/accounting-spool",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015357669999502832,
+        "bytes": 751
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-ast",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017475370004831348,
+        "bytes": 357
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-compilers",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002612119999866991,
+        "bytes": 25613
+      },
+      {
+        "check": "system-read:/api/v1/system/acl-compilers/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05673458999990544,
+        "bytes": 266
+      },
+      {
+        "check": "system-read:/api/v1/system/active-directory",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004844957999921462,
+        "bytes": 1554
+      },
+      {
+        "check": "system-read:/api/v1/system/address-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004248364999511978,
+        "bytes": 4946
+      },
+      {
+        "check": "system-read:/api/v1/system/address-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002019145000303979,
+        "bytes": 435
+      },
+      {
+        "check": "system-read:/api/v1/system/aruba-family-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0036646700000346755,
+        "bytes": 181880
+      },
+      {
+        "check": "system-read:/api/v1/system/aruba-family-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0023595379998369026,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/attribute-registry",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004045829999995476,
+        "bytes": 67498
+      },
+      {
+        "check": "system-read:/api/v1/system/audit-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001585709000210045,
+        "bytes": 392
+      },
+      {
+        "check": "system-read:/api/v1/system/audit-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001895420999971975,
+        "bytes": 300
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-address-leases",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0037898970003880095,
+        "bytes": 9754
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-address-leases/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015587889993184945,
+        "bytes": 625
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-commercial-catalog",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007784690999869781,
+        "bytes": 10288
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-commercial-catalog/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0030315229996631388,
+        "bytes": 760
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-dhcp-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0035377530002733693,
+        "bytes": 9375
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-dhcp-security/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015058720000524772,
+        "bytes": 542
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-governance-self-service",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004153642000346736,
+        "bytes": 10487
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-governance-self-service/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018201869997938047,
+        "bytes": 526
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-l2tp-wholesale",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002846272000169847,
+        "bytes": 9577
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-l2tp-wholesale/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015619659998264979,
+        "bytes": 498
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-qos-service-flows",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0032182800005102763,
+        "bytes": 11481
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-qos-service-flows/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00154175099942222,
+        "bytes": 475
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-quota-balance",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.009515968000414432,
+        "bytes": 9755
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-quota-balance/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0033782949994929368,
+        "bytes": 501
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-service-activation",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0038961949994700262,
+        "bytes": 16487
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-service-activation/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0020958800005246303,
+        "bytes": 551
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-subscriber-state",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0034387000005153823,
+        "bytes": 16368
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-subscriber-state/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014907009999660659,
+        "bytes": 380
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005401281999183993,
+        "bytes": 522517
+      },
+      {
+        "check": "system-read:/api/v1/system/broadband-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001922364000165544,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/certificate-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0900948980006433,
+        "bytes": 4709
+      },
+      {
+        "check": "system-read:/api/v1/system/cisco-family-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.016381010000259266,
+        "bytes": 1203391
+      },
+      {
+        "check": "system-read:/api/v1/system/cisco-family-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.14207908000025782,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/cloud-controller-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.015736401999674854,
+        "bytes": 23830
+      },
+      {
+        "check": "system-read:/api/v1/system/cloud-controller-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005473452999467554,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/compatibility-evidence",
+        "status": 200,
+        "expected": 200,
+        "seconds": 6.863284262999514,
+        "bytes": 194157
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-adapters",
+        "status": 200,
+        "expected": 200,
+        "seconds": 2.089158886000405,
+        "bytes": 8061
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-estate-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.3914116770001783,
+        "bytes": 13129
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-estate-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005018412999561406,
+        "bytes": 554
+      },
+      {
+        "check": "system-read:/api/v1/system/controller-sync/preview",
+        "status": 400,
+        "expected": 400,
+        "seconds": 0.0013059709999652114,
+        "bytes": 29
+      },
+      {
+        "check": "system-read:/api/v1/system/cwa-portal-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 1.4575959740004691,
+        "bytes": 7220
+      },
+      {
+        "check": "system-read:/api/v1/system/cwa-portal-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0020875899999737157,
+        "bytes": 444
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-client",
+        "status": 200,
+        "expected": 200,
+        "seconds": 5.237936845999684,
+        "bytes": 4258
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-client/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.8540740959997493,
+        "bytes": 517
+      },
+      {
+        "check": "system-read:/api/v1/system/dac-handoff",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003942446000110067,
+        "bytes": 766
+      },
+      {
+        "check": "system-read:/api/v1/system/database",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01095151400022587,
+        "bytes": 976
+      },
+      {
+        "check": "system-read:/api/v1/system/dhcp-lease-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.12674956599948928,
+        "bytes": 63
+      },
+      {
+        "check": "system-read:/api/v1/system/dhcp-leases",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.18975527099973988,
+        "bytes": 188
+      },
+      {
+        "check": "system-read:/api/v1/system/diagnostics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010167929000090226,
+        "bytes": 402
+      },
+      {
+        "check": "system-read:/api/v1/system/diagnostics-report",
+        "status": 200,
+        "expected": 200,
+        "seconds": 32.29993368699979,
+        "bytes": 50867
+      },
+      {
+        "check": "system-read:/api/v1/system/dictionary-release-profiles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03175971699965885,
+        "bytes": 27213
+      },
+      {
+        "check": "system-read:/api/v1/system/docsis-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.022641603000010946,
+        "bytes": 40776
+      },
+      {
+        "check": "system-read:/api/v1/system/docsis-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01045032000001811,
+        "bytes": 27106
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05060323899942887,
+        "bytes": 27867
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/fast-pwd",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.015360608999799297,
+        "bytes": 4415
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/machine-user",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0032978389999698265,
+        "bytes": 3505
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/sim-aka",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0070771929995316896,
+        "bytes": 5321
+      },
+      {
+        "check": "system-read:/api/v1/system/eap-framework/teap",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003965701000197441,
+        "bytes": 4292
+      },
+      {
+        "check": "system-read:/api/v1/system/enforcement-transactions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.029036687000370875,
+        "bytes": 5306
+      },
+      {
+        "check": "system-read:/api/v1/system/enforcement-transactions/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.020266288000129862,
+        "bytes": 479
+      },
+      {
+        "check": "system-read:/api/v1/system/external-vendor-intake",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010586271999272867,
+        "bytes": 2806
+      },
+      {
+        "check": "system-read:/api/v1/system/external-vendor-intake/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02758449799966911,
+        "bytes": 233
+      },
+      {
+        "check": "system-read:/api/v1/system/fallback-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.009474198000134493,
+        "bytes": 1107
+      },
+      {
+        "check": "system-read:/api/v1/system/fortinet-paloalto-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.014695333000418032,
+        "bytes": 82743
+      },
+      {
+        "check": "system-read:/api/v1/system/fortinet-paloalto-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004062114000589645,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-conversion-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00583148700025049,
+        "bytes": 4949
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-conversion-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011285966000286862,
+        "bytes": 504
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006316767000498658,
+        "bytes": 7648
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00142695599970466,
+        "bytes": 498
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-failures",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.014168638999763061,
+        "bytes": 4850
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-delivery-failures-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03566323100039881,
+        "bytes": 495
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-invite-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007505758000661444,
+        "bytes": 4752
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-invite-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002279786999679345,
+        "bytes": 398
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017707120005070465,
+        "bytes": 4098
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-lifecycle-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03635514800043893,
+        "bytes": 471
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-rejection-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00805826500072726,
+        "bytes": 4959
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-rejection-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.030028879000383313,
+        "bytes": 501
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-sponsor-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.009783982999579166,
+        "bytes": 7702
+      },
+      {
+        "check": "system-read:/api/v1/system/guest-sponsor-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013539870005843113,
+        "bytes": 495
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.016230146999987483,
+        "bytes": 416
+      },
+      {
+        "check": "unsupported-sqlite-replication-on-postgres",
+        "status": 409,
+        "expected": 409,
+        "seconds": 0.017096026000217535,
+        "bytes": 109
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/replication-shared",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007404574999782199,
+        "bytes": 292
+      },
+      {
+        "check": "system-read:/api/v1/system/ha/replication-staged",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.09264536799946654,
+        "bytes": 64
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.11483449499974085,
+        "bytes": 308
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-vlan-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.11676335299944185,
+        "bytes": 13715
+      },
+      {
+        "check": "system-read:/api/v1/system/hostapd-vlan-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.012405013999341463,
+        "bytes": 437
+      },
+      {
+        "check": "system-read:/api/v1/system/identity-failover",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.2978524460004337,
+        "bytes": 1889
+      },
+      {
+        "check": "system-read:/api/v1/system/integration-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001273558000320918,
+        "bytes": 410
+      },
+      {
+        "check": "system-read:/api/v1/system/integration-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05657667700052116,
+        "bytes": 365
+      },
+      {
+        "check": "system-read:/api/v1/system/juniper-extreme-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05779130900009477,
+        "bytes": 370824
+      },
+      {
+        "check": "system-read:/api/v1/system/juniper-extreme-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04780765299983614,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/long-tail-namespaces",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.15020131199980824,
+        "bytes": 1848681
+      },
+      {
+        "check": "system-read:/api/v1/system/long-tail-namespaces/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04038193599990336,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/mab",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00987427700056287,
+        "bytes": 1386
+      },
+      {
+        "check": "system-read:/api/v1/system/mab/endpoints",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03288727800008928,
+        "bytes": 55
+      },
+      {
+        "check": "system-read:/api/v1/system/mfa",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00838713299981464,
+        "bytes": 1396
+      },
+      {
+        "check": "system-read:/api/v1/system/mikrotik-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008675379999658617,
+        "bytes": 63527
+      },
+      {
+        "check": "system-read:/api/v1/system/mikrotik-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005198691000259714,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-charging",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.009720473000015772,
+        "bytes": 11292
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-charging/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005952526999863039,
+        "bytes": 565
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-grouped-avps",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01409029099977488,
+        "bytes": 9210
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-grouped-avps/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004134561000682879,
+        "bytes": 439
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-policy-control",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.023383770999316766,
+        "bytes": 13139
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-policy-control/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.023415603999637824,
+        "bytes": 561
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-sessions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010405435000393481,
+        "bytes": 9795
+      },
+      {
+        "check": "system-read:/api/v1/system/mobile-sessions/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00836065499970573,
+        "bytes": 473
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.023823325000194018,
+        "bytes": 698
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients/enrollments",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006148479000330553,
+        "bytes": 5
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-clients/templates",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.007671503999517881,
+        "bytes": 413
+      },
+      {
+        "check": "system-read:/api/v1/system/nas-ownership",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.005095314000755025,
+        "bytes": 938
+      },
+      {
+        "check": "system-read:/api/v1/system/network-apply-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01915194400044129,
+        "bytes": 63
+      },
+      {
+        "check": "system-read:/api/v1/system/network-backups",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.029471374999957334,
+        "bytes": 27
+      },
+      {
+        "check": "system-read:/api/v1/system/network-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.026669702999242872,
+        "bytes": 398
+      },
+      {
+        "check": "system-read:/api/v1/system/network-observability",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02647559800061572,
+        "bytes": 990
+      },
+      {
+        "check": "system-read:/api/v1/system/network-preview",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.010836676000508305,
+        "bytes": 2868
+      },
+      {
+        "check": "system-read:/api/v1/system/nokia-alu-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01517781999973522,
+        "bytes": 598195
+      },
+      {
+        "check": "system-read:/api/v1/system/nokia-alu-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018592349997561541,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/opaque-passthrough",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006289979000030144,
+        "bytes": 2329
+      },
+      {
+        "check": "system-read:/api/v1/system/passpoint-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.022386886000276718,
+        "bytes": 3439
+      },
+      {
+        "check": "system-read:/api/v1/system/passpoint-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.021614612999655947,
+        "bytes": 540
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-engine",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.009046291000231577,
+        "bytes": 7311
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008701425000253948,
+        "bytes": 753
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets/analyses",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.024135351000040828,
+        "bytes": 3
+      },
+      {
+        "check": "system-read:/api/v1/system/policy-sets/versions",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.011280805999376753,
+        "bytes": 3
+      },
+      {
+        "check": "system-read:/api/v1/system/pppoe-access-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05520747099944856,
+        "bytes": 10552
+      },
+      {
+        "check": "system-read:/api/v1/system/pppoe-access-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.021140498999557167,
+        "bytes": 466
+      },
+      {
+        "check": "system-read:/api/v1/system/ppsk-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01854397999977664,
+        "bytes": 4066
+      },
+      {
+        "check": "system-read:/api/v1/system/ppsk-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.006340339000416861,
+        "bytes": 529
+      },
+      {
+        "check": "system-read:/api/v1/system/production-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 5.096819162999964,
+        "bytes": 90110
+      },
+      {
+        "check": "system-read:/api/v1/system/proxy-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019178729999111965,
+        "bytes": 947
+      },
+      {
+        "check": "system-read:/api/v1/system/proxy-routes",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0013462639999488601,
+        "bytes": 453
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0033658160000413773,
+        "bytes": 2259
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0023236659999383846,
+        "bytes": 370
+      },
+      {
+        "check": "system-read:/api/v1/system/qos-scheduler/profiles",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004392597999867576,
+        "bytes": 56
+      },
+      {
+        "check": "system-read:/api/v1/system/radius-hardening",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0020645849999709753,
+        "bytes": 1962
+      },
+      {
+        "check": "system-read:/api/v1/system/radsec-credentials",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015541909997409675,
+        "bytes": 399
+      },
+      {
+        "check": "system-read:/api/v1/system/rate-compiler",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016335290001734393,
+        "bytes": 2072
+      },
+      {
+        "check": "system-read:/api/v1/system/release-security",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0009810940000534174,
+        "bytes": 433
+      },
+      {
+        "check": "system-read:/api/v1/system/rf-planning-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0022279100003288477,
+        "bytes": 3046
+      },
+      {
+        "check": "system-read:/api/v1/system/rf-planning-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0017043719999492168,
+        "bytes": 464
+      },
+      {
+        "check": "system-read:/api/v1/system/route-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003985309999734454,
+        "bytes": 2532
+      },
+      {
+        "check": "system-read:/api/v1/system/route-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03345177699975466,
+        "bytes": 385
+      },
+      {
+        "check": "system-read:/api/v1/system/ruckus-icx-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.00605252900004416,
+        "bytes": 165217
+      },
+      {
+        "check": "system-read:/api/v1/system/ruckus-icx-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.022952422999878763,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/runtime-firewall",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.05495813800007454,
+        "bytes": 1217
+      },
+      {
+        "check": "system-read:/api/v1/system/runtime-firewall/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02654203800011601,
+        "bytes": 409
+      },
+      {
+        "check": "system-read:/api/v1/system/secret-providers",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014614100000471808,
+        "bytes": 4798
+      },
+      {
+        "check": "system-read:/api/v1/system/session-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.04506079000020691,
+        "bytes": 4231
+      },
+      {
+        "check": "system-read:/api/v1/system/session-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.08413384600044083,
+        "bytes": 463
+      },
+      {
+        "check": "system-read:/api/v1/system/session-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.026637000000846456,
+        "bytes": 398
+      },
+      {
+        "check": "system-read:/api/v1/system/session-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008066055000199412,
+        "bytes": 382
+      },
+      {
+        "check": "system-read:/api/v1/system/settings",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.02282078099960927,
+        "bytes": 91689
+      },
+      {
+        "check": "system-read:/api/v1/system/sql-accounting",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003358176999427087,
+        "bytes": 1373
+      },
+      {
+        "check": "system-read:/api/v1/system/status",
+        "status": 200,
+        "expected": 200,
+        "seconds": 3.984357870000167,
+        "bytes": 182673
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-route-export",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0023288160000447533,
+        "bytes": 2642
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-route-export/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0014681940001537441,
+        "bytes": 383
+      },
+      {
+        "check": "system-read:/api/v1/system/subscriber-service-chains",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016243179998127744,
+        "bytes": 516
+      },
+      {
+        "check": "system-read:/api/v1/system/supplicant-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018168349997722544,
+        "bytes": 3746
+      },
+      {
+        "check": "system-read:/api/v1/system/switching-vendor-pack",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003032202999747824,
+        "bytes": 126972
+      },
+      {
+        "check": "system-read:/api/v1/system/switching-vendor-pack/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015307780004150118,
+        "bytes": 284
+      },
+      {
+        "check": "system-read:/api/v1/system/tacacs",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019186159997843788,
+        "bytes": 2976
+      },
+      {
+        "check": "system-read:/api/v1/system/tenant-isolation",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0018708600000536535,
+        "bytes": 2091
+      },
+      {
+        "check": "system-read:/api/v1/system/translation-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0023309959997277474,
+        "bytes": 3530
+      },
+      {
+        "check": "system-read:/api/v1/system/translation-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0024002829995879438,
+        "bytes": 406
+      },
+      {
+        "check": "system-read:/api/v1/system/transport-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0010218490006081993,
+        "bytes": 920
+      },
+      {
+        "check": "system-read:/api/v1/system/upgrade-readiness",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03393519400015066,
+        "bytes": 805
+      },
+      {
+        "check": "system-read:/api/v1/system/upgrade-readiness-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0021455409996633534,
+        "bytes": 429
+      },
+      {
+        "check": "unsupported-sqlite-rollback-on-postgres",
+        "status": 409,
+        "expected": 409,
+        "seconds": 0.0017110560002038255,
+        "bytes": 83
+      },
+      {
+        "check": "system-read:/api/v1/system/upstream-aaa-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.061752108999826305,
+        "bytes": 413
+      },
+      {
+        "check": "system-read:/api/v1/system/upstream-aaa-history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.01127527700009523,
+        "bytes": 1496
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-compatibility",
+        "status": 200,
+        "expected": 200,
+        "seconds": 1.779553246999967,
+        "bytes": 3005319
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-identity",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004622205000487156,
+        "bytes": 337
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-mapping-certification",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.9948083959998257,
+        "bytes": 528574
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-mapping-certification/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003470782000476902,
+        "bytes": 236
+      },
+      {
+        "check": "system-read:/api/v1/system/vendor-observability",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0024097100003928063,
+        "bytes": 348
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.003684022999550507,
+        "bytes": 8961
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002689334000024246,
+        "bytes": 413
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-policy",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0022196239997356315,
+        "bytes": 2457
+      },
+      {
+        "check": "system-read:/api/v1/system/vlan-policy/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019522200000210432,
+        "bytes": 272
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-aging-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0027634200005195453,
+        "bytes": 5501
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-aging-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.027636169000288646,
+        "bytes": 482
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0019331749999764725,
+        "bytes": 5152
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.014775536000342981,
+        "bytes": 465
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-expiry-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.002278663000652159,
+        "bytes": 6164
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-expiry-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.004896872999779589,
+        "bytes": 486
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-redemption-analytics",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0020322159998613643,
+        "bytes": 6031
+      },
+      {
+        "check": "system-read:/api/v1/system/voucher-redemption-analytics-exports",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.03237366800021846,
+        "bytes": 498
+      },
+      {
+        "check": "system-read:/api/v1/system/vsa-codec",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.15399092500047118,
+        "bytes": 1247
+      },
+      {
+        "check": "system-read:/api/v1/system/webauthn",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0031326839998655487,
+        "bytes": 1400
+      },
+      {
+        "check": "system-read:/api/v1/system/wimax-service-flows",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.008807942999737861,
+        "bytes": 13063
+      },
+      {
+        "check": "system-read:/api/v1/system/wimax-service-flows/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016456829998787725,
+        "bytes": 567
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-roaming-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015534539998043329,
+        "bytes": 3266
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-roaming-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0015020230002846802,
+        "bytes": 388
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-security-lifecycle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.0016835229998832801,
+        "bytes": 3183
+      },
+      {
+        "check": "system-read:/api/v1/system/wireless-security-lifecycle/history",
+        "status": 200,
+        "expected": 200,
+        "seconds": 0.001211626999975124,
+        "bytes": 504
+      },
+      {
+        "check": "support-bundle",
+        "status": 200,
+        "expected": 200,
+        "seconds": 4.426926439000454,
+        "bytes": 627848
+      }
+    ],
+    "system_read_failures": [],
+    "omitted_system_routes": [
+      "/api/v1/system/accounting-charging/export/download",
+      "/api/v1/system/audit-exports/download",
+      "/api/v1/system/audit-history/export",
+      "/api/v1/system/dhcp-lease-history/export",
+      "/api/v1/system/diagnostics-exports/download",
+      "/api/v1/system/diagnostics-report/export",
+      "/api/v1/system/guest-conversion-analytics-exports/download",
+      "/api/v1/system/guest-conversion-analytics/export",
+      "/api/v1/system/guest-delivery-analytics-exports/download",
+      "/api/v1/system/guest-delivery-analytics/export",
+      "/api/v1/system/guest-delivery-failures-exports/download",
+      "/api/v1/system/guest-delivery-failures/export",
+      "/api/v1/system/guest-invite-analytics-exports/download",
+      "/api/v1/system/guest-invite-analytics/export",
+      "/api/v1/system/guest-lifecycle-exports/download",
+      "/api/v1/system/guest-lifecycle/export",
+      "/api/v1/system/guest-rejection-analytics-exports/download",
+      "/api/v1/system/guest-rejection-analytics/export",
+      "/api/v1/system/guest-sponsor-analytics-exports/download",
+      "/api/v1/system/guest-sponsor-analytics/export",
+      "/api/v1/system/ha/exports",
+      "/api/v1/system/ha/exports/download",
+      "/api/v1/system/ha/history/export",
+      "/api/v1/system/integration-exports/download",
+      "/api/v1/system/integration-history/export",
+      "/api/v1/system/network-apply-history/export",
+      "/api/v1/system/network-exports/download",
+      "/api/v1/system/policy-sets/versions/{fromID}/compare/{toID}",
+      "/api/v1/system/policy-sets/versions/{id}",
+      "/api/v1/system/session-analytics-exports/download",
+      "/api/v1/system/session-analytics/export",
+      "/api/v1/system/session-exports/download",
+      "/api/v1/system/session-history/export",
+      "/api/v1/system/settings/export",
+      "/api/v1/system/support-bundle",
+      "/api/v1/system/support-bundle-exports",
+      "/api/v1/system/support-bundle-exports/download",
+      "/api/v1/system/support-bundle/summary",
+      "/api/v1/system/upgrade-readiness-exports/download",
+      "/api/v1/system/upstream-aaa-exports/download",
+      "/api/v1/system/upstream-aaa-history/export",
+      "/api/v1/system/vendor-observability/export",
+      "/api/v1/system/voucher-aging-analytics-exports/download",
+      "/api/v1/system/voucher-aging-analytics/export",
+      "/api/v1/system/voucher-analytics-exports/download",
+      "/api/v1/system/voucher-analytics/export",
+      "/api/v1/system/voucher-expiry-analytics-exports/download",
+      "/api/v1/system/voucher-expiry-analytics/export",
+      "/api/v1/system/voucher-redemption-analytics-exports/download",
+      "/api/v1/system/voucher-redemption-analytics/export"
+    ],
+    "performance": {
+      "endpoint": "/api/v1/system/release-security",
+      "requests": 100,
+      "concurrency": 1,
+      "unit": "ms",
+      "median": 0.8882594997885462,
+      "p95": 1.5988049999577925,
+      "max": 3.0830000005153124,
+      "scope": "Loopback HTTP latency for missing admission; not NAS forwarding throughput."
+    }
+  },
+  "postgres_fixture": [
+    {
+      "name": "sqlite-api",
+      "exit_code": 0,
+      "seconds": 35.42845021700032
+    },
+    {
+      "name": "initdb",
+      "exit_code": 0,
+      "seconds": 26.668390779999754
+    },
+    {
+      "name": "start",
+      "exit_code": 0,
+      "seconds": 0.5349985299999389
+    },
+    {
+      "name": "settings",
+      "exit_code": 0,
+      "seconds": 0.9616850849997718
+    },
+    {
+      "name": "createdb",
+      "exit_code": 0,
+      "seconds": 2.50308564199986
+    },
+    {
+      "name": "postgres-api",
+      "exit_code": 0,
+      "seconds": 111.21026409700062
+    },
+    {
+      "name": "stop",
+      "exit_code": 0,
+      "seconds": 0.3436567020007715
+    }
+  ],
+  "deployed_probes": {
+    "scope": "Existing deployed lab services, not the uncommitted candidate",
+    "time": "2026-10-26T12:10:52.426559+00:00",
+    "checks": [
+      {
+        "name": "aegis-gateway",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-radius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-portal",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-session",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-policy",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-admin-api",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "freeradius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "dnsmasq",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "health-8080",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.07459268999991764
+      },
+      {
+        "name": "health-8081",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.015967748999173637
+      },
+      {
+        "name": "health-8082",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.08123000400064484
+      },
+      {
+        "name": "health-8083",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.11806887300008384
+      },
+      {
+        "name": "health-8085",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.5043472339993968
+      },
+      {
+        "name": "health-8087",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.06577359800030536
+      },
+      {
+        "name": "unauthenticated-roles",
+        "passed": true,
+        "http_status": 401
+      },
+      {
+        "name": "authenticated-roles",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.8279681989997698
+      },
+      {
+        "name": "authenticated-database",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.377379622999797
+      },
+      {
+        "name": "authenticated-readiness",
+        "passed": false,
+        "error": "timed out"
+      },
+      {
+        "name": "authenticated-system-status",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 9.200482999000087
+      },
+      {
+        "name": "freeradius-config",
+        "passed": true,
+        "exit_code": 0
+      },
+      {
+        "name": "radius-negative-pap",
+        "passed": true,
+        "exit_code": 1,
+        "response": "Access-Reject"
+      }
+    ],
+    "deployment_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1"
+  },
+  "deployed_readiness_retry": {
+    "deadline_seconds": 20,
+    "scope": "Same-deadline retry of deployed readiness; no service mutation",
+    "http_status": 200,
+    "status": "PASS",
+    "readiness_summary": {
+      "status": "blocked",
+      "ready": false,
+      "blocking_count": 5,
+      "warning_count": 4,
+      "degraded_count": 17,
+      "passing_count": 68
+    },
+    "readiness_checks": [
+      {
+        "key": "config_validation",
+        "status": "passed",
+        "category": "configuration",
+        "label": "Configuration Validation"
+      },
+      {
+        "key": "hardware_scaling",
+        "status": "warned",
+        "category": "deployment",
+        "label": "Hardware Scaling"
+      },
+      {
+        "key": "vendor_identity",
+        "status": "warned",
+        "category": "vendor",
+        "label": "AegisNAS Vendor Identity"
+      },
+      {
+        "key": "attribute_registry",
+        "status": "passed",
+        "category": "radius",
+        "label": "Typed Attribute Registry"
+      },
+      {
+        "key": "vsa_codec",
+        "status": "passed",
+        "category": "radius",
+        "label": "VSA Codec"
+      },
+      {
+        "key": "opaque_passthrough",
+        "status": "passed",
+        "category": "radius",
+        "label": "Opaque Attribute Pass-through"
+      },
+      {
+        "key": "radius_packet_hardening",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Packet Hardening"
+      },
+      {
+        "key": "dynamic_nas_clients",
+        "status": "degraded",
+        "category": "radius",
+        "label": "Dynamic NAS Clients And Capability Discovery"
+      },
+      {
+        "key": "radius_outbound_dac_client",
+        "status": "blocked",
+        "category": "radius",
+        "label": "Outbound CoA And Disconnect Client"
+      },
+      {
+        "key": "nas_capability_ownership",
+        "status": "degraded",
+        "category": "radius",
+        "label": "NAS Capability And Session Ownership Registry"
+      },
+      {
+        "key": "radius_dac_handoff",
+        "status": "passed",
+        "category": "radius",
+        "label": "HA-Aware CoA Cluster Handoff"
+      },
+      {
+        "key": "radius_proxy_routes",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Proxy Route Table"
+      },
+      {
+        "key": "radius_transport_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Transport Downgrade Policy"
+      },
+      {
+        "key": "radius_proxy_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Proxy Loop And Attribute Policy"
+      },
+      {
+        "key": "radius_accounting_spool",
+        "status": "passed",
+        "category": "radius",
+        "label": "Durable RADIUS Accounting Spool"
+      },
+      {
+        "key": "radius_accounting_ingest_spool",
+        "status": "passed",
+        "category": "radius",
+        "label": "Durable Local Accounting Ingest Spool"
+      },
+      {
+        "key": "radius_accounting_charging",
+        "status": "passed",
+        "category": "radius",
+        "label": "Charging Records, Rating, And Export Integrity"
+      },
+      {
+        "key": "radius_sql_accounting",
+        "status": "passed",
+        "category": "radius",
+        "label": "FreeRADIUS SQL Accounting Reconciliation"
+      },
+      {
+        "key": "radius_accounting_ordering",
+        "status": "passed",
+        "category": "radius",
+        "label": "Accounting Idempotency And Ordering"
+      },
+      {
+        "key": "radius_accounting_counters",
+        "status": "passed",
+        "category": "radius",
+        "label": "64-bit Accounting Counters And Gigawords"
+      },
+      {
+        "key": "radius_accounting_ip",
+        "status": "passed",
+        "category": "radius",
+        "label": "IPv6, Prefix, And Route Accounting"
+      },
+      {
+        "key": "radius_accounting_services",
+        "status": "blocked",
+        "category": "radius",
+        "label": "Multi-Service Accounting Correlation"
+      },
+      {
+        "key": "radius_fallback_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "Upstream Outage Fallback Policy"
+      },
+      {
+        "key": "identity_source_failover",
+        "status": "blocked",
+        "category": "authentication",
+        "label": "Identity Source HA And Deterministic Failover"
+      },
+      {
+        "key": "mfa_challenge_otp",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "OTP And RADIUS Challenge MFA"
+      },
+      {
+        "key": "eap_method_framework",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "Extensible EAP Method Framework"
+      },
+      {
+        "key": "teap_method_chaining",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "TEAP Method Chaining"
+      },
+      {
+        "key": "eap_machine_user_correlation",
+        "status": "blocked",
+        "category": "authentication",
+        "label": "Machine And User Authentication Correlation"
+      },
+      {
+        "key": "eap_fast_pwd_methods",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "EAP-FAST And EAP-PWD"
+      },
+      {
+        "key": "eap_sim_aka_methods",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "EAP-SIM, EAP-AKA, And EAP-AKA-prime"
+      },
+      {
+        "key": "typed_policy_engine",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Typed Policy Expression Engine"
+      },
+      {
+        "key": "acl_ast",
+        "status": "passed",
+        "category": "policy",
+        "label": "Lossless Vendor-Neutral ACL AST"
+      },
+      {
+        "key": "acl_compilers",
+        "status": "passed",
+        "category": "policy",
+        "label": "Certified Vendor ACL Compilers And Decompilers"
+      },
+      {
+        "key": "stateful_local_firewall",
+        "status": "passed",
+        "category": "policy",
+        "label": "Stateful Per-Session Local Firewall Policy"
+      },
+      {
+        "key": "hierarchical_qos_scheduler",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Hierarchical QoS And Scheduler Model"
+      },
+      {
+        "key": "dynamic_vlan_lifecycle",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dynamic VLAN Bridge And Subinterface Lifecycle"
+      },
+      {
+        "key": "hostapd_dynamic_vlan_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0074 Hostapd Dynamic VLAN Lifecycle"
+      },
+      {
+        "key": "wireless_roaming_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0075 802.11r/k/v Roaming And Key Lifecycle"
+      },
+      {
+        "key": "passpoint_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0076 Passpoint And Hotspot 2.0 Lifecycle"
+      },
+      {
+        "key": "ppsk_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0077 DPSK/PPSK Lifecycle"
+      },
+      {
+        "key": "controller_estate_lifecycle",
+        "status": "passed",
+        "category": "integrations",
+        "label": "NAS-0078 Controller Estate And Object Lifecycle"
+      },
+      {
+        "key": "rf_planning_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0079 RF, RRM, Mesh, And Radio Planning"
+      },
+      {
+        "key": "wireless_security_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0080 Rogue, WIPS, Spectrum, Location, And Multicast"
+      },
+      {
+        "key": "cwa_portal_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0081 Controller CWA And Safe Per-session Portal"
+      },
+      {
+        "key": "pppoe_access_lifecycle",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0082 PPPoE Access Concentrator"
+      },
+      {
+        "key": "broadband_subscriber_state",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0083 Broadband Subscriber State Machine"
+      },
+      {
+        "key": "broadband_commercial_catalog",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0084 Broadband Commercial Plans, Bundles, And Concurrency"
+      },
+      {
+        "key": "broadband_quota_balance",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0085 Broadband Quota, Balance, Top-Up, Prepaid, And Postpaid"
+      },
+      {
+        "key": "broadband_address_leases",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0086 Broadband Address Pools and Lease Lifecycle"
+      },
+      {
+        "key": "broadband_qos_service_flows",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0087 BNG Hierarchical QoS And Service Flows"
+      },
+      {
+        "key": "broadband_l2tp_wholesale",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0088 L2TP And Wholesale Realm Separation"
+      },
+      {
+        "key": "broadband_dhcp_security",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0089 DHCP Relay, Snooping, Option 82, And IP Source Guard"
+      },
+      {
+        "key": "broadband_service_activation",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0090 Service Activation, BNG Route Lifecycle, And Multicast"
+      },
+      {
+        "key": "broadband_governance_self_service",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0091 Lawful-Intercept Governance And Subscriber Self-Service"
+      },
+      {
+        "key": "mobile_grouped_avps",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0092 Grouped Telecom Attribute And AVP Framework"
+      },
+      {
+        "key": "mobile_session_state",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0093 Mobile Session, APN/PDP/Bearer State"
+      },
+      {
+        "key": "mobile_charging_correlation",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0094 Online/Offline Charging Correlation"
+      },
+      {
+        "key": "mobile_policy_control",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0095 PCRF/PCF Policy, QoS, and Roaming"
+      },
+      {
+        "key": "wimax_service_flows",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0096 WiMAX Subscriber and Service Flows"
+      },
+      {
+        "key": "docsis_policy_charging",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0097 CableLabs DOCSIS Policy and Charging"
+      },
+      {
+        "key": "dynamic_subscriber_route_export",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dynamic Routing Integration For Subscriber Routes"
+      },
+      {
+        "key": "atomic_enforcement_transactions",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Atomic Enforcement Transactions And Drift Rollback"
+      },
+      {
+        "key": "tagged_vlan_qinq_policy",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Tagged Voice/Data VLAN, QinQ, Pool, And Fallback Policy"
+      },
+      {
+        "key": "per_session_route_vrf_policy",
+        "status": "passed",
+        "category": "policy",
+        "label": "Per-Session Route Injection And VRF Ownership"
+      },
+      {
+        "key": "ipv4_ipv6_pool_dhcpv6_ra_pd",
+        "status": "passed",
+        "category": "policy",
+        "label": "IPv4/IPv6 Pools, DHCPv6, RA, And Prefix Delegation"
+      },
+      {
+        "key": "cgnat_nat64_deterministic_translation",
+        "status": "passed",
+        "category": "policy",
+        "label": "CGNAT, NAT64, And Deterministic Subscriber Translation"
+      },
+      {
+        "key": "vendor_rate_compiler",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dual-stack Shaping And Vendor Rate Compiler"
+      },
+      {
+        "key": "policy_set_governance",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Nested Policy Sets And Versioned Approvals"
+      },
+      {
+        "key": "policy_simulation_analysis",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Policy Simulation Conflict And Shadow Analysis"
+      },
+      {
+        "key": "subscriber_service_chains",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Per-Service Authorization And Subscriber Chains"
+      },
+      {
+        "key": "tacacs_command_authorization",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Command Authorization And TACACS+"
+      },
+      {
+        "key": "tenant_isolation",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Hard Tenant Isolation And Delegated Policy Trees"
+      },
+      {
+        "key": "secret_providers",
+        "status": "blocked",
+        "category": "security",
+        "label": "Secret Providers"
+      },
+      {
+        "key": "database_data_plane",
+        "status": "degraded",
+        "category": "architecture",
+        "label": "Database Data Plane"
+      },
+      {
+        "key": "dictionary_release_profile",
+        "status": "passed",
+        "category": "radius",
+        "label": "Dictionary Release Profile"
+      },
+      {
+        "key": "compatibility_evidence",
+        "status": "passed",
+        "category": "radius",
+        "label": "Compatibility Evidence Model"
+      },
+      {
+        "key": "vendor_mapping_certification",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0060 Vendor Mapping Certification"
+      },
+      {
+        "key": "cisco_family_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0061 Cisco Family Pack"
+      },
+      {
+        "key": "aruba_family_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0062 Aruba/HPE Family Pack"
+      },
+      {
+        "key": "juniper_extreme_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0063 Juniper/ERX/Extreme/Mist Pack"
+      },
+      {
+        "key": "ruckus_icx_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0064 Ruckus/ICX Pack"
+      },
+      {
+        "key": "fortinet_paloalto_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0065 Fortinet/Palo Alto Pack"
+      },
+      {
+        "key": "cloud_controller_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0066 Meraki/UniFi/OpenWiFi Cloud Pack"
+      },
+      {
+        "key": "access_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0067 Cambium/TP-Link/D-Link Access Pack"
+      },
+      {
+        "key": "broadband_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0068 Huawei/H3C/ZTE Broadband Pack"
+      },
+      {
+        "key": "nokia_alu_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0069 Nokia/Alcatel-Lucent Service Router Pack"
+      },
+      {
+        "key": "mikrotik_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0070 MikroTik RouterOS Pack"
+      },
+      {
+        "key": "switching_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0071 Enterprise Switching Vendor Pack"
+      },
+      {
+        "key": "long_tail_namespace_program",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0072 Long-Tail Namespace Program"
+      },
+      {
+        "key": "external_vendor_intake",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0073 Out-Of-Corpus Vendor Intake"
+      },
+      {
+        "key": "vendor_packs",
+        "status": "passed",
+        "category": "vendor",
+        "label": "Vendor Compatibility Packs"
+      },
+      {
+        "key": "nas_profile_coverage",
+        "status": "warned",
+        "category": "vendor",
+        "label": "NAS Profile Coverage"
+      },
+      {
+        "key": "feature_capabilities",
+        "status": "passed",
+        "category": "features",
+        "label": "Feature Capability Gates"
+      },
+      {
+        "key": "vendor_runtime_evidence",
+        "status": "warned",
+        "category": "observability",
+        "label": "Vendor Runtime Evidence"
+      }
+    ],
+    "seconds": 4.238368594000349
+  },
+  "environment_checks": {
+    "status": "FAIL",
+    "checks": {
+      "eight-service-identities-unchanged": true,
+      "deployed-probes-pass": false,
+      "os-inputs-match-retained-fresh-scan": true,
+      "owned-postgres-stopped": true,
+      "owned-test-processes-stopped": true
+    },
+    "os_hashes": {
+      "/etc/os-release": "594d5ddd35aedb47f00d9c34d140017907a5b9f93c975aba125fc924daac5c07",
+      "/etc/lsb-release": "6dc8ba4242e0e699e3360b84e38ccecfc4dcedaa4701c8ebee3836decd815654",
+      "/var/lib/dpkg/status": "d5fd36b173f0499839e6509b9f8936f9a9c3bd0f2ba546f650ac5e3b8bb4d0f3"
+    },
+    "owned_processes": "",
+    "disk": "Filesystem       1B-blocks        Used   Available Use% Mounted on\n/dev/sda3      73128038400 39609622528 30092881920  57% /\n"
+  },
+  "go_scans": {
+    "created_at": "2026-10-26T12:21:18.288145+00:00",
+    "source": {
+      "commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "dirty": true,
+      "tree_sha256": "0af5478ff95ddf56459ed5ae5f7f88139bf8c87622f0a737828e4354cc0182cf",
+      "inputs": {
+        "go.mod": "4cb7caf0179ceee1bb614aba2298a01876cfb73d97bda62f9fafe7e525b5608a",
+        "go.sum": "6568e891020df0472c359fbe9c8e1bdc101346a7aeb575eefef427397ac2baa5",
+        "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+        "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+        "web/admin-ui/package.json": "a4df4bb857fafaa1ab0be00d9629472bf412c19c8661dd93cf9c6152ee1f44f0",
+        "web/admin-ui/package-lock.json": "f0b0d7a215d249f330cdf8c6878f47d769bc906219321d3c73d8d95f31eb931a"
+      }
+    },
+    "commands": [
+      {
+        "name": "go-vulnerabilities",
+        "target": {
+          "GOOS": "linux",
+          "GOARCH": "amd64",
+          "CGO_ENABLED": "0"
+        },
+        "exit_code": 0,
+        "seconds": 41.57795370003441,
+        "findings": [
+          {
+            "osv": "GO-2026-5932",
+            "trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ]
+          }
+        ],
+        "configs": [
+          {
+            "protocol_version": "v1.0.0",
+            "scanner_name": "govulncheck",
+            "scanner_version": "v1.9.0",
+            "db": "https://vuln.go.dev",
+            "db_last_modified": "2026-10-21T00:27:29Z",
+            "go_version": "go1.26.10",
+            "scan_level": "package",
+            "scan_mode": "source"
+          }
+        ],
+        "sha256": "f7d0170dc98e0576adafcb888750e7409bc60c3b2bb6cb449fa1e60dbac5d85c",
+        "graph_sha256": "2a1299fe4e3fa1ba8e34adc1d13a42c91b990141a8c69976c2ed7bdd69eb6499",
+        "exposure": [
+          {
+            "id": "GO-2026-5932",
+            "scanner_trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ],
+            "scanner_scope": "module",
+            "affected_packages": [
+              "golang.org/x/crypto/openpgp",
+              "golang.org/x/crypto/openpgp/armor",
+              "golang.org/x/crypto/openpgp/clearsign",
+              "golang.org/x/crypto/openpgp/elgamal",
+              "golang.org/x/crypto/openpgp/errors",
+              "golang.org/x/crypto/openpgp/packet",
+              "golang.org/x/crypto/openpgp/s2k"
+            ],
+            "shipped_affected_imports": [],
+            "classification": "affected_packages_not_imported",
+            "symbol_reachability": "not_tested",
+            "policy_waived": false
+          }
+        ]
+      },
+      {
+        "name": "go-vulnerabilities-arm64",
+        "target": {
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "CGO_ENABLED": "0"
+        },
+        "exit_code": 0,
+        "seconds": 5.346005300001707,
+        "findings": [
+          {
+            "osv": "GO-2026-5932",
+            "trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ]
+          }
+        ],
+        "configs": [
+          {
+            "protocol_version": "v1.0.0",
+            "scanner_name": "govulncheck",
+            "scanner_version": "v1.9.0",
+            "db": "https://vuln.go.dev",
+            "db_last_modified": "2026-10-21T00:27:29Z",
+            "go_version": "go1.26.10",
+            "scan_level": "package",
+            "scan_mode": "source"
+          }
+        ],
+        "sha256": "c979cdb5a996be9f6c0d62a3ff3338ab2e7c6284226607842fed115104f1da0d",
+        "graph_sha256": "08f95304e62eb2333c81fd79a9ab3212154916d7cf97ce177423d938dffd5ade",
+        "exposure": [
+          {
+            "id": "GO-2026-5932",
+            "scanner_trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ],
+            "scanner_scope": "module",
+            "affected_packages": [
+              "golang.org/x/crypto/openpgp",
+              "golang.org/x/crypto/openpgp/armor",
+              "golang.org/x/crypto/openpgp/clearsign",
+              "golang.org/x/crypto/openpgp/elgamal",
+              "golang.org/x/crypto/openpgp/errors",
+              "golang.org/x/crypto/openpgp/packet",
+              "golang.org/x/crypto/openpgp/s2k"
+            ],
+            "shipped_affected_imports": [],
+            "classification": "affected_packages_not_imported",
+            "symbol_reachability": "not_tested",
+            "policy_waived": false
+          }
+        ]
+      }
+    ],
+    "policy_waived": false,
+    "scope": "Fresh package scans and shipped import graphs; not a complete candidate inventory/attestation bundle",
+    "source_after": {
+      "commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "dirty": true,
+      "tree_sha256": "0af5478ff95ddf56459ed5ae5f7f88139bf8c87622f0a737828e4354cc0182cf",
+      "inputs": {
+        "go.mod": "4cb7caf0179ceee1bb614aba2298a01876cfb73d97bda62f9fafe7e525b5608a",
+        "go.sum": "6568e891020df0472c359fbe9c8e1bdc101346a7aeb575eefef427397ac2baa5",
+        "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+        "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+        "web/admin-ui/package.json": "a4df4bb857fafaa1ab0be00d9629472bf412c19c8661dd93cf9c6152ee1f44f0",
+        "web/admin-ui/package-lock.json": "f0b0d7a215d249f330cdf8c6878f47d769bc906219321d3c73d8d95f31eb931a"
+      }
+    },
+    "source_unchanged": true,
+    "status": "BLOCKED"
+  },
+  "attempts": [
+    {
+      "status": "FAIL",
+      "attempt": "initial Windows CLI compile",
+      "cause": "typed int MaxSealedRollbackBytes passed to int64 parameter",
+      "resolution": "explicit int64 conversion",
+      "evidence": "initial-go.jsonl"
+    },
+    {
+      "status": "FAIL",
+      "attempt": "initial Ubuntu upgrade tests",
+      "pass": 40,
+      "fail": 3,
+      "cause": "group-writable testing.TempDir children under VM umask; permission policy correctly rejected fixtures",
+      "resolution": "tests explicitly provision private mode-0700 workspaces; no production permission relaxation",
+      "evidence": "ubuntu-upgrade.stdout"
+    },
+    {
+      "status": "FAIL",
+      "attempt": "Python YAML parsing wrapper",
+      "cause": "ModuleNotFoundError: No module named yaml after unittest suite passed",
+      "resolution": "parsed both workflows successfully with existing Go YAML dependency",
+      "evidence": "workflow-validation.stdout"
+    },
+    {
+      "status": "PASS",
+      "attempt": "expected negative CLI commands",
+      "note": "exit code 1 is asserted for wrong key/context/digest, tampering and overwrite; these are passing rejection tests"
+    },
+    {
+      "status": "FAIL",
+      "attempt": "deployed service probe batch",
+      "pass": 20,
+      "fail": 1,
+      "cause": "production-readiness HTTP request exceeded 20-second deadline",
+      "resolution": "same-deadline targeted retry PASS in 4.238368594000349 seconds; root cause unestablished; initial failure retained",
+      "evidence": "deployed-probes.json"
+    }
+  ],
+  "historical_not_rerun": [
+    "Full Go suites for unchanged packages",
+    "37 browser tests",
+    "156-case durable PostgreSQL matrix",
+    "117 SQL/RADIUS packet checks"
+  ],
+  "not_tested": [
+    "Physical ARM64/Pi execution",
+    "Trusted hosted signing/admission",
+    "Coordinated production activation/rollback",
+    "Power-loss, HA, maximum-size capacity and long soak"
+  ]
+}

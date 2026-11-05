@@ -505,6 +505,7 @@ func registerAdminRoutes(r chi.Router, cfg *config.Config) {
 			r.Post("/system/mab/evaluate", adminapi.HandleEvaluateMAB)
 			r.Get("/system/secret-providers", adminapi.HandleGetSecretProviders)
 			r.Get("/system/database", adminapi.HandleGetDatabaseStatus)
+			r.Get("/system/release-security", adminapi.HandleGetReleaseSecurity)
 			r.Get("/system/attribute-registry", adminapi.HandleGetAttributeRegistry)
 			r.Get("/system/vendor-identity", adminapi.HandleGetVendorIdentity)
 			r.Post("/system/vendor-identity/migrations/preview", adminapi.HandlePreviewVendorIdentityMigration)

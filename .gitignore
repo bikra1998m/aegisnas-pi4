@@ -36,3 +36,7 @@ build/
 .cache/
 .tmp/
 release/
+
+# Python tooling caches
+__pycache__/
+*.pyc

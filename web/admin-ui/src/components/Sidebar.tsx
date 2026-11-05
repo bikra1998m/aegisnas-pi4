@@ -5,6 +5,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', mark: 'DB', roles: ['super_admin', 'ops_admin', 'guest_admin', 'read_only'] },
   { to: '/access-settings', label: 'Access Settings', mark: 'AS', roles: ['super_admin'] },
   { to: '/admin-principals', label: 'Admin Access', mark: 'AA', roles: ['super_admin'] },
+  { to: '/release-security', label: 'Release Security', mark: 'RS', roles: ['super_admin', 'ops_admin', 'guest_admin', 'read_only'] },
   { to: '/vlans', label: 'VLANs', mark: 'VL', roles: ['super_admin'] },
   { to: '/portal-profiles', label: 'Portal Profiles', mark: 'PP', roles: ['super_admin'] },
   { to: '/users', label: 'Users', mark: 'US', roles: ['super_admin'] },

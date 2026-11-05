@@ -15,7 +15,7 @@ func TestGetVoucherAgingAnalytics(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -40,7 +40,7 @@ func TestGetVoucherAgingAnalytics(t *testing.T) {
 		"VA-002", "guest-basic", 720, 5, 2, "2026-06-03T12:00:00Z", "2026-05-31T12:00:00Z",
 		"VA-003", "guest-vip", 60, 2, 2, "2026-05-30T12:00:00Z", "2026-05-20T12:00:00Z",
 		"VA-004", "guest-basic", 1440, 1, 0, "2026-06-10T12:00:00Z", "2026-05-25T12:00:00Z",
-		"VA-005", "guest-standard", 30, 3, 0, "", "2026-05-01T12:00:00Z",
+		"VA-005", "guest-standard", 30, 3, 0, nil, "2026-05-01T12:00:00Z",
 		"VA-006", "guest-basic", 1440, 3, 1, "2026-06-20T12:00:00Z", "2026-05-30T12:00:00Z",
 	)
 	require.NoError(t, err)

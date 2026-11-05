@@ -1,0 +1,13 @@
+# Windows regression evidence
+
+Implementation and the main regression suites were executed on **October 23, 2026**. This report was reconciled on **October 26** without changing tested runtime sources. October 26 evidence is labeled separately; earlier attempts remain preserved. The filename retains the implementation start date.
+
+Go 1.26.10, Windows, CGO disabled. Final full `go test ./... -count=1 -json -timeout=30m`: **PASS**, 1419 test/subtest passes, 0 failures and 4 explicit skips. Raw: `.tmp/sql-accounting-20261023/windows-verified/go.log`. Earlier RADIUS follow-up (before the final database changes): **PASS**, 378 passes and 2 skips; its count overlaps the full suite and is not added to it.
+
+The preceding full Windows run passed 1,418 test/subtests with four skips before the provider-source and PostgreSQL summary-query fixes. Full-suite skips: live PostgreSQL DSN fixture, isolated accounting packet fixture, isolated module/TLS fixture, and live IANA assignment. The available PostgreSQL fixtures were executed separately. IANA assignment remains NOT TESTED. The first intermediate full suite passed 1,417 cases with four skips before the additional URI test/final generator refinements; that result is preserved separately.
+
+Fresh Windows, Linux AMD64 and Linux ARM64 builds and `go vet ./...`: **PASS**. ARM64 binaries were cross-built, not run on hardware. PostgreSQL 18.6 compatibility: **PASS**, 156 passes in a disposable fsync-off cluster. The earlier default-durability attempt had 124 passes and 31 failures; see the PostgreSQL report rather than treating it as a pass.
+
+The first focused database run failed service-correlation metadata after the race repair. Revision-guarded metadata projection corrected it; the focused retry and subsequent suites passed. The provider-label regression test also first failed: snapshot reconciliation still performed a write-back for nonstandard source labels. The fix disables write-back for all polled snapshots while preserving source attribution; a deterministic newer-packet interleaving verifies it. The current final suites include this correction. One private cross-build command mistakenly targeted the nonexistent `cmd/aegis-db`; that orchestration failure remains logged, and the corrected `cmd/aegis-admin` build passed. All failed attempts remain separate artifacts.
+
+Historical, not rerun here: 37 browser tests and admission Python suite 47 PASS/1 SKIPPED. Frontend and admission sources remain unchanged. The final native API smoke tests additionally serve the existing built frontend; they are not new browser test execution.

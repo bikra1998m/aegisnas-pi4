@@ -12,9 +12,17 @@ import (
 
 func TestNASClientEnrollmentApprovalLifecycle(t *testing.T) {
 	path := tempDBPath(t, "nas-client-lifecycle-*.db")
-	require.NoError(t, Init(path))
+	require.NoError(t, initRuntimeTestDB(t, path))
 	require.NoError(t, Migrate())
 	t.Cleanup(func() { _ = Close() })
+	testNASClientEnrollmentApprovalLifecycle(t)
+}
+
+// Shared by SQLite and the isolated live PostgreSQL suite.
+func testNASClientEnrollmentApprovalLifecycle(t *testing.T) {
+	t.Helper()
+	before, err := GetNASClientSummary()
+	require.NoError(t, err)
 
 	enrollment, err := CreateOrRefreshNASClientEnrollment(NASClientEnrollmentRequest{
 		SourceIP:        "192.0.2.44",
@@ -36,6 +44,13 @@ func TestNASClientEnrollmentApprovalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NASClientStatusPending, enrollment.Status)
 	assert.NotEmpty(t, enrollment.EvidenceSHA256)
+	listed, err := ListNASClientEnrollments(NASClientStatusPending, 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, listed)
+	assert.Equal(t, enrollment.EnrollmentID, listed[0].EnrollmentID)
+	templates, err := ListNASClientCapabilityTemplates()
+	require.NoError(t, err)
+	require.NotEmpty(t, templates)
 
 	approved, err := ApproveNASClientEnrollment(enrollment.EnrollmentID, NASClientApprovalRequest{
 		SecretRef:  "env:AEGIS_BRANCH_AP_SECRET",
@@ -44,28 +59,54 @@ func TestNASClientEnrollmentApprovalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NASClientStatusApproved, approved.Status)
 	assert.NotZero(t, approved.RadiusClientID)
+	refreshed, err := CreateOrRefreshNASClientEnrollment(NASClientEnrollmentRequest{
+		EnrollmentID: enrollment.EnrollmentID, SourceIP: enrollment.SourceIP, ShortName: enrollment.ShortName,
+		NASType: enrollment.NASType, Vendor: enrollment.Vendor, Capabilities: enrollment.Capabilities,
+		TemplateName: "default", ExpiresAt: time.Now().UTC().Add(time.Hour),
+	}, 10)
+	require.NoError(t, err)
+	assert.Equal(t, NASClientStatusApproved, refreshed.Status)
+	assert.Equal(t, approved.RadiusClientID, refreshed.RadiusClientID)
 
 	var clientCount int
-	require.NoError(t, DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE shortname = 'branch-ap-44' AND enabled = 1 AND dynamic_source = 'enrollment' AND lifecycle_status = 'approved' AND secret_ref = 'env:AEGIS_BRANCH_AP_SECRET'`).Scan(&clientCount))
+	require.NoError(t, DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE shortname = 'branch-ap-44' AND enabled = TRUE AND dynamic_source = 'enrollment' AND lifecycle_status = 'approved' AND secret_ref = 'env:AEGIS_BRANCH_AP_SECRET'`).Scan(&clientCount))
 	assert.Equal(t, 1, clientCount)
 
 	summary, err := GetNASClientSummary()
 	require.NoError(t, err)
 	assert.Equal(t, 1, summary.ApprovedCount)
 	assert.Equal(t, 1, summary.DynamicClients)
+	assert.Equal(t, before.EnabledClients+1, summary.EnabledClients)
+	assert.NotEmpty(t, summary.LastEventAt)
+	require.NoError(t, RecordNASClientHeartbeat(enrollment.SourceIP, "integration heartbeat", time.Now().UTC()))
+	seen, err := GetNASClientEnrollment(enrollment.EnrollmentID)
+	require.NoError(t, err)
+	assert.Equal(t, "integration heartbeat", seen.LastSeenReason)
+	events, err := ListNASClientEvents(100)
+	require.NoError(t, err)
+	require.NotEmpty(t, events)
+	assert.NotEmpty(t, events[0].CreatedAt)
 
 	revoked, err := RevokeNASClientEnrollment(enrollment.EnrollmentID, "ops@example.test", "lab cleanup")
 	require.NoError(t, err)
 	assert.Equal(t, NASClientStatusRevoked, revoked.Status)
-	require.NoError(t, DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE id = ? AND enabled = 0 AND lifecycle_status = 'revoked'`, approved.RadiusClientID).Scan(&clientCount))
+	require.NoError(t, DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE id = ? AND enabled = FALSE AND lifecycle_status = 'revoked'`, approved.RadiusClientID).Scan(&clientCount))
 	assert.Equal(t, 1, clientCount)
+	after, err := GetNASClientSummary()
+	require.NoError(t, err)
+	assert.Equal(t, before.EnabledClients, after.EnabledClients)
 }
 
 func TestNASClientCapabilityTemplateBlocksMissingCapabilities(t *testing.T) {
 	path := tempDBPath(t, "nas-client-template-*.db")
-	require.NoError(t, Init(path))
+	require.NoError(t, initRuntimeTestDB(t, path))
 	require.NoError(t, Migrate())
 	t.Cleanup(func() { _ = Close() })
+	testNASClientCapabilityTemplateBlocksMissingCapabilities(t)
+}
+
+func testNASClientCapabilityTemplateBlocksMissingCapabilities(t *testing.T) {
+	t.Helper()
 
 	_, err := UpsertNASClientCapabilityTemplate(NASClientCapabilityTemplate{
 		Name:                 "enterprise-switch",
@@ -101,9 +142,14 @@ func TestNASClientCapabilityTemplateBlocksMissingCapabilities(t *testing.T) {
 
 func TestNASClientEnrollmentExpiry(t *testing.T) {
 	path := tempDBPath(t, "nas-client-expiry-*.db")
-	require.NoError(t, Init(path))
+	require.NoError(t, initRuntimeTestDB(t, path))
 	require.NoError(t, Migrate())
 	t.Cleanup(func() { _ = Close() })
+	testNASClientEnrollmentExpiry(t)
+}
+
+func testNASClientEnrollmentExpiry(t *testing.T) {
+	t.Helper()
 
 	enrollment, err := CreateOrRefreshNASClientEnrollment(NASClientEnrollmentRequest{
 		SourceIP:  "192.0.2.46",

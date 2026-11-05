@@ -9,14 +9,14 @@ import (
 )
 
 func TestSwitchingVendorPackEventLifecycle(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
 
-	var tableCount int
-	require.NoError(t, DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='switching_vendor_pack_events'").Scan(&tableCount))
-	assert.Equal(t, 1, tableCount)
+	tablePresent, tableErr := tableExists(DB, "switching_vendor_pack_events")
+	require.NoError(t, tableErr)
+	assert.True(t, tablePresent)
 
 	report, err := productconfigs.BuildSwitchingVendorPackReport()
 	require.NoError(t, err)

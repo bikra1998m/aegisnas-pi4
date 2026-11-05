@@ -2,10 +2,48 @@ package radius
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestRadiusValidationDoesNotExposeDiagnosticSecrets(t *testing.T) {
+	restore := stubSystemdRunner(t, func(name string, args ...string) ([]byte, error) {
+		if name != "freeradius" || strings.Join(args, " ") != "-XC" {
+			t.Fatal("unexpected validation command")
+		}
+		return []byte("radius_db = postgres://user:private-password@host/db"), errors.New("exit status 1")
+	})
+	defer restore()
+	err := validateRadiusConfig()
+	if err == nil || strings.Contains(err.Error(), "private-password") || strings.Contains(err.Error(), "postgres://") {
+		t.Fatalf("validation must fail without exposing diagnostic secrets: %v", err)
+	}
+}
+
+func TestRadiusConfigRemovesWorldReadOnReplacement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sql")
+	if err := os.WriteFile(path, []byte("old-long-content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeRadiusConfigFile(path, "secret"); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil || string(content) != "secret" {
+		t.Fatalf("replacement failed: %q %v", content, err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0640 {
+		t.Fatalf("secret file mode: %o", info.Mode().Perm())
+	}
+}
 
 func TestRestartSystemdServiceTreatsRecoveredRestartAsSuccess(t *testing.T) {
 	restore := stubSystemdRunner(t, func(name string, args ...string) ([]byte, error) {

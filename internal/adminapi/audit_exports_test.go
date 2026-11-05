@@ -28,10 +28,10 @@ func TestRunAuditExportCycleAndListAuditExports(t *testing.T) {
 		RetentionCount:  2,
 	}
 	now := time.Date(2026, 5, 21, 9, 15, 0, 0, time.UTC)
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(-2*time.Minute), "alice", "download_support_bundle", "bundle.zip", "downloaded", "10.0.0.10")
 	require.NoError(t, err)
-	_, err = db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err = db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(-time.Minute), "bob", "apply_edge_network", "test", "ok", "10.0.0.11")
 	require.NoError(t, err)
 
@@ -78,7 +78,7 @@ func TestHandleDownloadAuditExport(t *testing.T) {
 		RetentionCount:  2,
 	}
 	now := time.Date(2026, 5, 21, 9, 30, 0, 0, time.UTC)
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(-time.Minute), "alice", "download_support_bundle", "bundle.zip", "downloaded", "10.0.0.10")
 	require.NoError(t, err)
 

@@ -1,0 +1,822 @@
+[
+  {
+    "path": ".tmp/nas0116-20261015/arm64-build-result.json",
+    "bytes": 27,
+    "sha256": "7ee04a3dc6998860093e7ea08784e87f12742a26a9451eeec0234c68c522332d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/arm64-build.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/benchmarks.log",
+    "bytes": 576,
+    "sha256": "217e5539203dde961575b520e21b72d01fd879560cbb8e7350ad6a77cdf8b38e"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/cyclonedx-buildinfo.log",
+    "bytes": 8370,
+    "sha256": "33605e92c09a81dbee15f15ee99699c891733ddedd31c0c1a395ab769c0e93b0"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/db-isolation.log",
+    "bytes": 16794,
+    "sha256": "d3a9c053d8dadd3445a836c7584fd82e09565615cb94806167c48560b4dd081f"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/diff-check-final.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/diff-check.log",
+    "bytes": 270,
+    "sha256": "0e7a85a3ec8167725dc1e4d0822e52e79224838672de307a6c3ead344b9894e8"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/fuzz-benchmark-result.json",
+    "bytes": 64,
+    "sha256": "eddf6193d744cb284607578ab09e2c04188d9cf52f0672ee821466fb9f37de2b"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/fuzz.log",
+    "bytes": 1326,
+    "sha256": "adcae62ed421aff42c03b68eb42dbc4a7ec070b3bf5b0896acf8902651f92d7c"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-download-final.log",
+    "bytes": 4856,
+    "sha256": "9229bd4846bf0f656e78c8e17330baee8b5970a0dfc8e808c12f2fb23e9eab09"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-download-retry-result.json",
+    "bytes": 27,
+    "sha256": "7ee04a3dc6998860093e7ea08784e87f12742a26a9451eeec0234c68c522332d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-download-retry.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-packages-amd64.json",
+    "bytes": 1513080,
+    "sha256": "083627064a6f33c7867d9921e5ea055cc7d93035fbdd1c5fb5ec994acc65d660"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-test-result.json",
+    "bytes": 67,
+    "sha256": "69dc921049bc7e2e837f21adfc6b9fa3763d86638c93d0e2fd143fb7b1ef79a6"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-test.jsonl",
+    "bytes": 2567534,
+    "sha256": "2cce50381ef134fa2024a5fe611ed487d3a69c5817eee652dc38b6c23558a0f1"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-test.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-tidy.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-vet-result.json",
+    "bytes": 27,
+    "sha256": "7ee04a3dc6998860093e7ea08784e87f12742a26a9451eeec0234c68c522332d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/go-vet.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/govulncheck-buildinfo.log",
+    "bytes": 1478,
+    "sha256": "0c1665ad6f13bfda9680e7cb47d931558cbd12b426fbc33ba10668f91acd33e0"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/host-environment.json",
+    "bytes": 259,
+    "sha256": "1a89ae42c0a34c4afd9f12aed8d3ecde885cfb7aa1941499d807e4ece73d6f51"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/iana-benchmark.log",
+    "bytes": 610,
+    "sha256": "c9ce24e0eb6a463fff5d8de519f99a70baadae993acf88b489ec1e8f29cbe659"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/last-static-result.json",
+    "bytes": 51,
+    "sha256": "9926d7fabe1cdc70e7d312fc48ab6cfb6f17900da8d63025611b981e378c4151"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/live-api-driver.log",
+    "bytes": 5268,
+    "sha256": "4b6479598b7425fa2ef66f0e9259a4b654285275dbfbf1089a35bc7d989759b6"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/live-api-final/result.json",
+    "bytes": 2631,
+    "sha256": "f7bdb33dfa650bf3f22b470b9cda3547315ccf97a2685b0e0886952b503a83f4"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/live-api-final.log",
+    "bytes": 5268,
+    "sha256": "d1e8c0d03637984392b42d76873bcd80b356828df4e7b6185dc69f92ccb4a8bc"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/npm-ci-final.log",
+    "bytes": 166,
+    "sha256": "415c5c7dad49aed9a83ee0525b75663e33336b8bd5b69418bde122956f5d5f73"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/npm-sbom-final.json",
+    "bytes": 407852,
+    "sha256": "921cc8a3ee43bde9c1100da330050985352376f8b1e211e30ce5c04d4f08c368"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/npm-sbom-repair.json",
+    "bytes": 407866,
+    "sha256": "3a5ac71a6bff1743cec5b87d18bb45c01490e060b485279ee3068b131d278ab2"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/os-summary.json",
+    "bytes": 432259,
+    "sha256": "ed6eb50427de6a67fd758969712c07a94425f0889cd247053def490b5db29917"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/playwright-final.json",
+    "bytes": 99780,
+    "sha256": "320f5155876598885387d95e6ee93931dd8f6daa7fc9760a274c47ed588814cd"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/playwright.json",
+    "bytes": 95002,
+    "sha256": "f35c9c7586fbedb503eaf8f9ce168a36fda29ef5049995908c2344614a9ba867"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-driver.log",
+    "bytes": 2104,
+    "sha256": "fcf2f3deebed3b3460816da977b0e7d0476f1bcc62ba4b407eda60d8327f918e"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-fix-build-result.json",
+    "bytes": 27,
+    "sha256": "7ee04a3dc6998860093e7ea08784e87f12742a26a9451eeec0234c68c522332d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-fix-regression-result.json",
+    "bytes": 73,
+    "sha256": "87e8dcea00d7ad2758216dab91459b0d973f47a7e21c35b2264bcabfe635cf25"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-fix-regression.jsonl",
+    "bytes": 867928,
+    "sha256": "78ba174d59579be9086770b2f2fd8b1f8208676ed7932e911ebd68cdd228df08"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-fix-regression.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-live/seeded-migrations-audit/result.json",
+    "bytes": 269,
+    "sha256": "c5a2723d112499f4173229605e6999b1f64a14c21ed92a7b08333ef163732e60"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/postgres-live/seeded-migrations-audit/test.log",
+    "bytes": 169,
+    "sha256": "9c16c0e3a561cb497634346f0b8369c1028b766f2d062c65b47609f16d35beab"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/python-tests-final.log",
+    "bytes": 8076,
+    "sha256": "93fb3d2aef9d085b7fc0960c4a2cafedceccabc01f9065d9f0f2347cd1df9d8d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/python-tests.log",
+    "bytes": 7210,
+    "sha256": "2fc0e58f8f4a4aeaf4223e0e04cd84a233dfc0b8e45c00085c55f8ab06268926"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/release-api-tests.log",
+    "bytes": 128,
+    "sha256": "2bf216c633103c3ad47c6b4b9be77c1821bc42f51324974d5a48084c2e8971da"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/evidence.json",
+    "bytes": 3669,
+    "sha256": "1520cd50ae0a3808e526f2186b3fb9f9160bab1a0ac6da4b895faeeff332e081"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/gate.json",
+    "bytes": 885,
+    "sha256": "e209bb9fe3f2ca449722e909a3cfc63aed8296da58e233951166415eaef27b49"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-mod-verify.json",
+    "bytes": 21,
+    "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-mod-verify.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-sbom.json",
+    "bytes": 57265,
+    "sha256": "78a9ebc88942b8b6d08b999c5e04296e2aad100bc489b2c50c1c13aacb76f65e"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-sbom.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-vulnerabilities-arm64.json",
+    "bytes": 728954,
+    "sha256": "551bb84f33c130e76734e9b3e02328748e8cd0993d863685e067002b448e2210"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-vulnerabilities-arm64.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-vulnerabilities.json",
+    "bytes": 728954,
+    "sha256": "d725f6183e6ca2a02b34cb129cefee3084da89db921c87e622947148bd05bf8f"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/go-vulnerabilities.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/npm-sbom.json",
+    "bytes": 196364,
+    "sha256": "caa612efa81d91c4e2dddb1fba097d62f05ca8c0f3e9cc19de0c6eb7539ab732"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/npm-sbom.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/npm-vulnerabilities.json",
+    "bytes": 364,
+    "sha256": "aafe24e4e7e1056107a69edf1ebfe4945e27d6b395d74b490594a94ad0c5140a"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete/npm-vulnerabilities.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete-result.json",
+    "bytes": 27,
+    "sha256": "a10ed353125d36b15fd247b46095e233656573c441c8dd07c62adbaf7f616316"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-complete.log",
+    "bytes": 1772,
+    "sha256": "d6d1bc0417440540e1e0331f238e0501c9a45c17def9b4b62fbaf4da66511119"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/evidence.json",
+    "bytes": 3706,
+    "sha256": "478bd93356c3b981d520b4887b8cc9c5dc95d47b3fe901d08033dfe3a9b40a9c"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/gate.json",
+    "bytes": 380,
+    "sha256": "c1fcf7a26bd278ddd37cf2810c2ca15e367fcc7489d36e8544d1d74c2ba46f73"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-mod-verify.json",
+    "bytes": 21,
+    "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-mod-verify.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-sbom.json",
+    "bytes": 57265,
+    "sha256": "6f2d075ea3ea84e661d2485c66066e1cb5ac19fdb99f0f4f36b4d968ec66110d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-sbom.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-vulnerabilities-arm64.json",
+    "bytes": 728954,
+    "sha256": "96ea8df7c328e515635f9b04ee93117d247ebfe50cefad427121fdcd3636bb67"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-vulnerabilities-arm64.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-vulnerabilities.json",
+    "bytes": 728954,
+    "sha256": "62777e2e74b63ee89c057f894a2345cd96b44e4e110fcde79a67a6be6e3c8146"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/go-vulnerabilities.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/npm-sbom.json",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/npm-sbom.stderr",
+    "bytes": 726,
+    "sha256": "8f0ce7b6b266c70c380980d410887fbb77e7377a0efe52a5c8dfec917e5e6320"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/npm-vulnerabilities.json",
+    "bytes": 364,
+    "sha256": "a854b2f5e9afba58e87e57cfb05c9d0b7dff6671bd6a89f5ae9478b43bef61e0"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-evidence/npm-vulnerabilities.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/evidence.json",
+    "bytes": 3670,
+    "sha256": "1847f9e3e66dfb357704b8e5f73b3748180b9310c6a79df74ccd56993eea8b97"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/gate.json",
+    "bytes": 391,
+    "sha256": "a9754cd79dc222988087ce5d65a8d68f8359adcb278711babdccd8aa1be747db"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-mod-verify.json",
+    "bytes": 21,
+    "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-mod-verify.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-sbom.json",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-sbom.stderr",
+    "bytes": 40,
+    "sha256": "2bc247ddda3a241fe39277bad7c79d98435ce057e2958a06e8d1169c07ee34e5"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-vulnerabilities-arm64.json",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-vulnerabilities-arm64.stderr",
+    "bytes": 36,
+    "sha256": "342771980f6dee7262ba1e4d485cf22e2bfccd3817a69f36890e11c75d3e85fc"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-vulnerabilities.json",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/go-vulnerabilities.stderr",
+    "bytes": 36,
+    "sha256": "342771980f6dee7262ba1e4d485cf22e2bfccd3817a69f36890e11c75d3e85fc"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/npm-sbom.json",
+    "bytes": 196364,
+    "sha256": "0a9d9dffa97a46280ff95c6e1363408c6df6a694eed2de205cdc5a1f3826388a"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/npm-sbom.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/npm-vulnerabilities.json",
+    "bytes": 364,
+    "sha256": "aafe24e4e7e1056107a69edf1ebfe4945e27d6b395d74b490594a94ad0c5140a"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final/npm-vulnerabilities.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final-result.json",
+    "bytes": 27,
+    "sha256": "a10ed353125d36b15fd247b46095e233656573c441c8dd07c62adbaf7f616316"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-final.log",
+    "bytes": 784,
+    "sha256": "d3e726093490d239a68afbf0030b2f27865c0da35220cf50739dcfcd1d0dd4cd"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/security-scan.log",
+    "bytes": 762,
+    "sha256": "b53830046c7e99a4c43dfeb3c765f8635872bb8f384096a15321234ff7d334d0"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/sqlite-seed-final.log",
+    "bytes": 116,
+    "sha256": "5ffa579b3272bc8e1be944adf293321d18288625c32b6eb2be608e8af05777c2"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/static-final-result.json",
+    "bytes": 72,
+    "sha256": "d965c432d08edd5fa517ed7cebbc070fe1c3a6ac98a1abdf6427deb5bd875c5b"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/ui-build-final.log",
+    "bytes": 2244,
+    "sha256": "a65546a11a10af6b02d0f3f2a8f0d8b5aacfb16234fef08ef0df0fb28f9a4686"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/ui-build-lock-repair.log",
+    "bytes": 3196,
+    "sha256": "ece9991a6bd6909fef2492c91c69edf6db4d835aed93be977695dab1d93072f7"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/ui-build.log",
+    "bytes": 2244,
+    "sha256": "27b9d1e58b05c8b84c8c2d6f33a97bb955371031171b60d9f2486232b1714593"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vet-final.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-deployed-probe.json",
+    "bytes": 2759,
+    "sha256": "c1c20cc65a0ad87781fb5bf1cabdae8d059cf8599c02aab8822fc5d94cb40556"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-deployed-probe.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-benchmarks.log",
+    "bytes": 278,
+    "sha256": "14939bf7bcc3eef68a64a67d82799ba83522c59c11d7c68026ef0ceb721fd1c1"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-build-admin.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-build-all.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-build-api.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-environment.log",
+    "bytes": 565,
+    "sha256": "4925300df9304b8f586d04c67eedaaa39dd72fab4b634e70859f21040be10bfb"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-fuzz.log",
+    "bytes": 674,
+    "sha256": "f7fde85957486990f25f674f462298945f57fb2a07fa32cadcf975d0dbbfab22"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-go-test.log",
+    "bytes": 1289291,
+    "sha256": "084ec1872b238f1f26e5b9459e5a75f6956e979b92d33aeabf7bb6a8d6b1b4ac"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-go-vet.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-live-api-result.json",
+    "bytes": 2523,
+    "sha256": "9ca78c580f2403a3952f8bbe1b8023f4b644885915984c4e249752b8cc389dea"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-live-api.log",
+    "bytes": 2524,
+    "sha256": "e2f26dbb7755abda7cb59f74d48ec9a63cfcf9253a89fb4ee0da0c71c5eef507"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-evidence.json",
+    "bytes": 1859,
+    "sha256": "7dc8083a0593bd5e09074f4041edfb63eda3a4532bd80867e5dc0eeb063ded30"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-gate.json",
+    "bytes": 646409,
+    "sha256": "63605c47e4d934f52b75b0ec02ed9a831d0f4cb8b2584260d55001cf6ed07bd9"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-sbom.json",
+    "bytes": 63683394,
+    "sha256": "5dca36cebbdfcaf4f7fc85daad3e56d083eb6c2165c121c2e6bc8565218c47a9"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-sbom.stderr",
+    "bytes": 20667,
+    "sha256": "3c4a6c20affc9f1a05b913af0a5f67ab2c8b2524700a79a18e8f2becb0f6c2b2"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-vulnerabilities.json",
+    "bytes": 336646153,
+    "sha256": "dfbc35b9cb179795e5c84c822be033abc0fc37d71c79c3a9cf886a3cf6a598ab"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-os-vulnerabilities.stderr",
+    "bytes": 248,
+    "sha256": "ade576fb127f0cc027784162b61c1b59af716b8d36f1590ab0b697dc3ae58947"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-scan.log",
+    "bytes": 646409,
+    "sha256": "5970e46abac9b10d4bf67388d181f3b09f4a324152083fb5599feb3dc93829d2"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-version.json",
+    "bytes": 21,
+    "sha256": "7f36e9f444aa587efccd22a5eaf8a689526164c3a770dd44abf7a0452642e177"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-os-version.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-postgres-live-test.log",
+    "bytes": 169,
+    "sha256": "c71aee5ce7b7d2b146ec0455a6365c793d0e02b7bad20a8624075a77c3b26e2d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-postgres-server.log",
+    "bytes": 1016,
+    "sha256": "99133abe4db0c3d0569084de1f8f68ea05a3906e0483fb88425a5308f8b1abce"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-postgres-start.log",
+    "bytes": 54,
+    "sha256": "55cbef0d0d6fa340b7c897beeb2d1f44d9d9da284c9db7ffbadbd3c18661762c"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-postgres-stop.log",
+    "bytes": 56,
+    "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-python-tests.log",
+    "bytes": 2460,
+    "sha256": "bee94e87f488046f828f72f6431b18a68e51c0910d6ab46d8184a6753c3810fe"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-results.json",
+    "bytes": 4422,
+    "sha256": "3cd4f29866c14d6aafa2ffae2f603ff7ee927de07d840262d79ecc4a89393625"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-snap-inventory.log",
+    "bytes": 2172,
+    "sha256": "c8600b1911edfabaeee54f26b9fe18de22f31d91338ce5f5b4ea65c10e834813"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-state-corrected.log",
+    "bytes": 360,
+    "sha256": "f6898de4b18ac15af2402cfb3ef292eb2b97d6b404995532c57595ba9cfb6ec8"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-state.log",
+    "bytes": 726,
+    "sha256": "124f1408208d7cb2a912616680fbe9dd27cd0dc8a00dfa274c74893e0125f83b"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-final-toolchain.log",
+    "bytes": 32,
+    "sha256": "34113d5d84bc5406ab3bfd0028c381611cad764f40baa15e43cffd89485c0aee"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-go-test.log",
+    "bytes": 567,
+    "sha256": "1f8244fc81b39693fc7b3532e7e0627519a6fd62242f6058db1eb6302219a178"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-iana-benchmark.log",
+    "bytes": 682,
+    "sha256": "aa8aca6a734aed907d2805bd92ab54161ffb835ee445c4da63f54e59805a0d4d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-extract-libpq5_14.24-0ubuntu0.22.04.1_amd64.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-extract-postgresql-14_14.24-0ubuntu0.22.04.1_amd64.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-extract-postgresql-client-14_14.24-0ubuntu0.22.04.1_amd64.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-download.log",
+    "bytes": 395,
+    "sha256": "a097e20ee7533750f286bf1794bd403aa06a3b81731d1926cd37a5b549c20b5e"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-initdb.log",
+    "bytes": 1005,
+    "sha256": "965e2ecb65de51ba7ddcffdab16c73e83516426352b297a1a4d56c18310a3292"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-live-test.error",
+    "bytes": 154,
+    "sha256": "3ab48a0d3713d5d7cab467b2c727e5ef003780bb74951675ef6c3d0c5a2ce7ad"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-live-test.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-server.log",
+    "bytes": 1027,
+    "sha256": "4bf9a857e73b7bde902da1a32fc96bfa5ff615db653411c0d935bc669a404a95"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-start.log",
+    "bytes": 52,
+    "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-postgres-stop.log",
+    "bytes": 64,
+    "sha256": "f2c0faedef0a01ab1cc16ffea304c9d5e661dd13b60122fecd895a586042b79a"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-results.json",
+    "bytes": 1058,
+    "sha256": "9183d0733598761633e1f64246e5c3f19f26f00fb3108b340635d771d4a756b2"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-snap-inventory.log",
+    "bytes": 2172,
+    "sha256": "38ee0c31047cfff4291f7531e49ba847cf354ae22e6f655fe67032eb3d0e6806"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-optional-trivy-download-error.log",
+    "bytes": 28,
+    "sha256": "693919be92a592d0ab39d3a80a50801930732ee20d6dee5aaf1c0eb0cda7c5ff"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-benchmarks.log",
+    "bytes": 282,
+    "sha256": "a8fbe2c6845439bbe64969e1a74fa9da301760ae57098fd48d39531ae2441070"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-build-admin.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-build-all.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-build-api.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-fuzz.log",
+    "bytes": 672,
+    "sha256": "dccc08999d496cfe87786773bbcceb7e022e20822861a18ceac47936facad14f"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-go-test.log",
+    "bytes": 567,
+    "sha256": "1f8244fc81b39693fc7b3532e7e0627519a6fd62242f6058db1eb6302219a178"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-go-vet.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-live-api-result.json",
+    "bytes": 2522,
+    "sha256": "282e3d6333d80dfed02bd6da80f086592277470f121e96b406d36a0563cbbd9d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-live-api.log",
+    "bytes": 2523,
+    "sha256": "5220d69f8081d67ba8158f3ed5fb6381b9cf052e9386acf21149013282d77947"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-python-tests.log",
+    "bytes": 2185,
+    "sha256": "5ff080c20254dba5ce42055c94cdac833492c4af52e8c74370c100f0f20de3f8"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-results.json",
+    "bytes": 2380,
+    "sha256": "82a782914a5872395d0892bc782d4692147e7761ad2e2283d375b5f4c8b0124f"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-prereboot-toolchain.log",
+    "bytes": 232,
+    "sha256": "e5e22e8ec06aad24481274f54b8b2158b063eae8d120ebdecee8cfe5ab6e24ce"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-probe.json",
+    "bytes": 2583,
+    "sha256": "23ed3e43223299bf0198d306618de2fa7b3c429ababd4f65d2cada4461688d37"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-processes.log",
+    "bytes": 102,
+    "sha256": "f7a25a3c32593651a04f345690248fcc788b29c6dde33ae5c8daacd376daa235"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-python-tests.log",
+    "bytes": 2185,
+    "sha256": "5ff080c20254dba5ce42055c94cdac833492c4af52e8c74370c100f0f20de3f8"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-reboot.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-results.json",
+    "bytes": 391,
+    "sha256": "b5c30de822b39312bc737839d34fab6bb1fbfac61bd90167014eab3c2badc6d0"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-shell-selftests-result.json",
+    "bytes": 32,
+    "sha256": "4bcb0ae77748a39b98d872502e97b668fd6c878544ff68de27ab07141bb6de49"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-shell-selftests.log",
+    "bytes": 264,
+    "sha256": "2243933e18ab7ffb1df7df937811a555e8e6041cb035322b4d974f2372b57c71"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/vm-toolchain.log",
+    "bytes": 232,
+    "sha256": "e5e22e8ec06aad24481274f54b8b2158b063eae8d120ebdecee8cfe5ab6e24ce"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/workflow-final.log",
+    "bytes": 220,
+    "sha256": "7112f900a544dc9511e19d560b0a0488b0b8eff040ebb8253ed1a1ad20a6cb2d"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/workflow-validation-result.json",
+    "bytes": 59,
+    "sha256": "6ff9b17c295dfaea8b1522dfb51548b5b9618203485374c12facca8b96b0166b"
+  },
+  {
+    "path": ".tmp/nas0116-20261015/workflow-validation.log",
+    "bytes": 220,
+    "sha256": "7112f900a544dc9511e19d560b0a0488b0b8eff040ebb8253ed1a1ad20a6cb2d"
+  }
+]

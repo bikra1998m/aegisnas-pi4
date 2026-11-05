@@ -1,5 +1,9 @@
 # NAS-0092 Release Certification Checklist
 
+Audit status (2026-10-15): **Partial**. The checked software evidence below covers
+configuration/report lifecycle and shared codec primitives; it does not prove
+live telecom integration. See [the audit](reports/2026-10-15-continuation.md).
+
 Software engineering for NAS-0092 is complete. This checklist tracks external
 validation that requires real systems, third-party software, physical hardware,
 customer environments, or certification activity.

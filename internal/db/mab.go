@@ -219,8 +219,8 @@ func GetMABEndpoint(mac string) (MABEndpoint, bool, error) {
 	item, err := scanMABEndpoint(DB.QueryRow(`SELECT id, mac, status, COALESCE(role, ''), COALESCE(vlan, 0),
 		COALESCE(bandwidth_profile, ''), COALESCE(acl_policy_name, ''), COALESCE(tenant, ''),
 		COALESCE(device_group, ''), COALESCE(posture, ''), COALESCE(owner, ''), COALESCE(source, ''),
-		COALESCE(description, ''), COALESCE(expires_at, ''), COALESCE(last_seen_at, ''),
-		COALESCE(profile_snapshot_json, '{}'), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(description, ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(last_seen_at AS TEXT), ''),
+		COALESCE(profile_snapshot_json, '{}'), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM mab_endpoints WHERE mac = ?`, normalized))
 	if err != nil {
 		if err == sql.ErrNoRows || strings.Contains(strings.ToLower(err.Error()), "no rows") {
@@ -244,8 +244,8 @@ func ListMABEndpoints(status string, limit int) ([]MABEndpoint, error) {
 	query := `SELECT id, mac, status, COALESCE(role, ''), COALESCE(vlan, 0),
 		COALESCE(bandwidth_profile, ''), COALESCE(acl_policy_name, ''), COALESCE(tenant, ''),
 		COALESCE(device_group, ''), COALESCE(posture, ''), COALESCE(owner, ''), COALESCE(source, ''),
-		COALESCE(description, ''), COALESCE(expires_at, ''), COALESCE(last_seen_at, ''),
-		COALESCE(profile_snapshot_json, '{}'), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(description, ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(last_seen_at AS TEXT), ''),
+		COALESCE(profile_snapshot_json, '{}'), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM mab_endpoints WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(status) != "" {
@@ -320,8 +320,8 @@ func GetMABEndpointSummary() (MABEndpointSummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'quarantined' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'denied' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(updated_at), ''),
-		COALESCE(MAX(last_seen_at), ''),
+		COALESCE(CAST(MAX(updated_at) AS TEXT), ''),
+		COALESCE(CAST(MAX(last_seen_at) AS TEXT), ''),
 		COALESCE(SUM(CASE WHEN profile_snapshot_json <> '{}' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN COALESCE(role, '') <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN COALESCE(vlan, 0) > 0 THEN 1 ELSE 0 END), 0),
@@ -436,7 +436,7 @@ func GetMABEventSummary() (MABEventSummary, error) {
 	if err != nil {
 		return MABEventSummary{}, fmt.Errorf("get MAB event summary: %w", err)
 	}
-	_ = DB.QueryRow(`SELECT COALESCE(observed_at, ''), COALESCE(decision, ''), COALESCE(state, ''), COALESCE(reason, '')
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(decision, ''), COALESCE(state, ''), COALESCE(reason, '')
 		FROM mab_events ORDER BY datetime(observed_at) DESC, id DESC LIMIT 1`).
 		Scan(&summary.LastObservedAt, &summary.LastDecision, &summary.LastState, &summary.LastReason)
 	return summary, nil
@@ -458,7 +458,7 @@ func GetMABDeviceProfile(mac string) (MABDeviceProfile, bool, error) {
 		COALESCE(dhcp_fingerprint, ''), COALESCE(mac_oui, ''), COALESCE(risk_score, 0),
 		COALESCE(risk_reasons_json, '[]'), managed, compliant, COALESCE(compliance_status, ''),
 		COALESCE(remediation_state, ''), COALESCE(last_ip, ''), COALESCE(last_session_id, ''),
-		COALESCE(last_seen, '')
+		COALESCE(CAST(last_seen AS TEXT), '')
 		FROM device_inventory WHERE mac = ?`, normalizedMAC).
 		Scan(&profile.MAC, &profile.Tenant, &profile.Username, &profile.Platform, &profile.DeviceType,
 			&profile.Hostname, &profile.DHCPClientID, &profile.DHCPFingerprint, &profile.MACOUI,
@@ -483,13 +483,13 @@ func GetMABDeviceProfile(mac string) (MABDeviceProfile, bool, error) {
 }
 
 func mabEventSelectSQL() string {
-	return `SELECT id, COALESCE(observed_at, ''), COALESCE(mac, ''), COALESCE(mac_hash, ''),
+	return `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(mac, ''), COALESCE(mac_hash, ''),
 		COALESCE(nas_identifier, ''), COALESCE(nas_ip_address, ''), COALESCE(nas_port, ''),
 		COALESCE(nas_port_type, ''), COALESCE(called_station_id, ''), COALESCE(username, ''),
 		COALESCE(decision, ''), COALESCE(state, ''), COALESCE(reason, ''), COALESCE(role, ''),
 		COALESCE(vlan, 0), COALESCE(bandwidth_profile, ''), COALESCE(acl_policy_name, ''),
 		COALESCE(tenant, ''), COALESCE(device_group, ''), COALESCE(posture, ''),
-		COALESCE(latency_ms, 0), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(latency_ms, 0), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM mab_events`
 }
 

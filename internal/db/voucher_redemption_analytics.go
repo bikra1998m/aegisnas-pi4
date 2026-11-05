@@ -273,7 +273,7 @@ func GetVoucherRedemptionAnalytics(query VoucherRedemptionQuery) (VoucherRedempt
 }
 
 func listVoucherRedemptionVouchers() (map[string]voucherRedemptionVoucher, error) {
-	rows, err := DB.Query(`SELECT code, COALESCE(role, ''), COALESCE(created_at, '') FROM vouchers ORDER BY created_at DESC`)
+	rows, err := DB.Query(`SELECT code, COALESCE(role, ''), COALESCE(CAST(created_at AS TEXT), '') FROM vouchers ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list voucher redemption vouchers: %w", err)
 	}

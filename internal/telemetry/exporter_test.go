@@ -152,7 +152,7 @@ func telemetryTestConfig() *config.Config {
 }
 
 func insertAuditEvent(user, action, details, result string) error {
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address)
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address)
 		VALUES (?, ?, ?, ?, ?, ?)`, time.Now().UTC(), user, action, details, result, "192.168.50.10")
 	return err
 }

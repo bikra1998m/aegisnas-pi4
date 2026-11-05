@@ -343,7 +343,7 @@ func cleanAIText(input string, max int) string {
 }
 
 func recentAuditEvents(limit int) ([]map[string]any, error) {
-	rows, err := db.DB.Query(`SELECT COALESCE(user, ''), action, COALESCE(result, ''), COALESCE(details, ''), CAST(timestamp AS TEXT)
+	rows, err := db.DB.Query(`SELECT COALESCE("user", ''), action, COALESCE(result, ''), COALESCE(details, ''), CAST(timestamp AS TEXT)
 		FROM audit_logs ORDER BY timestamp DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err

@@ -66,7 +66,7 @@ func (a *Analyzer) RunAuthFailureAnalyzer(ctx context.Context, interval time.Dur
 
 func (a *Analyzer) analyzeAuthFailures() {
 	// Query recent failed authentications from audit_logs (or RADIUS logs)
-	rows, err := db.DB.Query(`SELECT user, details, timestamp FROM audit_logs 
+	rows, err := db.DB.Query(`SELECT "user", details, timestamp FROM audit_logs
 		WHERE action = 'auth_failure' AND timestamp > datetime('now', '-1 hour')`)
 	if err != nil {
 		a.logger.Error("failed to query auth failures", zap.Error(err))
@@ -252,7 +252,7 @@ func (a *Analyzer) sendPendingRecommendations() {
 	// Fetch unacknowledged recommendations not yet sent (we need a 'sent' column)
 	// For simplicity, send all unacknowledged.
 	rows, err := db.DB.Query(`SELECT id, severity, title, description, remediation FROM ai_recommendations 
-		WHERE acknowledged = 0 ORDER BY created_at DESC LIMIT 10`)
+		WHERE acknowledged = FALSE ORDER BY created_at DESC LIMIT 10`)
 	if err != nil {
 		a.logger.Error("failed to query recommendations", zap.Error(err))
 		return
@@ -388,7 +388,7 @@ func (a *Analyzer) HandleListRecommendations(w http.ResponseWriter, r *http.Requ
 
 func (a *Analyzer) HandleAcknowledge(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	_, err := db.DB.Exec(`UPDATE ai_recommendations SET acknowledged = 1 WHERE id = ?`, id)
+	_, err := db.DB.Exec(`UPDATE ai_recommendations SET acknowledged = TRUE WHERE id = ?`, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

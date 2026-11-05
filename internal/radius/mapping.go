@@ -200,7 +200,7 @@ func resolveInboundACLPolicyName(inboundACL, outboundACL string) string {
 	if db.DB != nil && (inboundACL != "" || outboundACL != "") {
 		var name string
 		err := db.DB.QueryRow(`SELECT name FROM acl_policies
-			WHERE enabled = 1 AND (name IN (?, ?) OR inbound_acl IN (?, ?) OR outbound_acl IN (?, ?))
+			WHERE enabled = TRUE AND (name IN (?, ?) OR inbound_acl IN (?, ?) OR outbound_acl IN (?, ?))
 			ORDER BY CASE WHEN name IN (?, ?) THEN 0 ELSE 1 END, name LIMIT 1`,
 			inboundACL, outboundACL, inboundACL, outboundACL, inboundACL, outboundACL, inboundACL, outboundACL).Scan(&name)
 		if err == nil {
@@ -214,7 +214,7 @@ func loadRadiusIdentityConfigs() ([]radiusIdentityConfig, error) {
 	if db.DB == nil {
 		return nil, nil
 	}
-	rows, err := db.DB.Query(`SELECT COALESCE(config, '{}') FROM identity_sources WHERE type = 'radius' AND enabled = 1 ORDER BY priority, name`)
+	rows, err := db.DB.Query(`SELECT COALESCE(config, '{}') FROM identity_sources WHERE type = 'radius' AND enabled = TRUE ORDER BY priority, name`)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
 			return nil, nil

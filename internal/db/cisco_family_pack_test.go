@@ -8,14 +8,14 @@ import (
 )
 
 func TestCiscoFamilyPackEventLifecycle(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	defer Close()
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 
-	var tableCount int
-	require.NoError(t, DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='cisco_family_pack_events'").Scan(&tableCount))
-	assert.Equal(t, 1, tableCount)
+	tablePresent, tableErr := tableExists(DB, "cisco_family_pack_events")
+	require.NoError(t, tableErr)
+	assert.True(t, tablePresent)
 
 	eventID, err := RecordCiscoFamilyPackEvent(CiscoFamilyPackEventInput{
 		Operation:                 "record",

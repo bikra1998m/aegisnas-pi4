@@ -40,6 +40,16 @@ func TestHandleDownloadHAReplicationPackage(t *testing.T) {
 	assert.Equal(t, "package-bytes", rec.Body.String())
 }
 
+func TestHandleDownloadHAReplicationPackageRejectsPostgreSQL(t *testing.T) {
+	prepareReplicationConfig(t)
+	cfg := config.Get()
+	cfg.Database.Backend = "postgres"
+	rec := httptest.NewRecorder()
+	HandleDownloadHAReplicationPackage(rec, httptest.NewRequest(http.MethodGet, "/api/v1/system/ha/replication-package", nil))
+	require.Equal(t, http.StatusConflict, rec.Code)
+	require.Contains(t, rec.Body.String(), "unavailable for PostgreSQL")
+}
+
 func TestHandleActivateHAReplicationPackageSchedulesRestart(t *testing.T) {
 	prepareReplicationConfig(t)
 

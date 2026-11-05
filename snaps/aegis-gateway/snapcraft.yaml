@@ -24,16 +24,15 @@ apps:
 
 parts:
   aegis-gateway:
-    plugin: go
+    plugin: nil
     source: ../../
     source-type: local
     build-snaps:
-      - go/1.22/stable
+      - go/1.26/stable
     build-packages:
       - build-essential
     override-build: |
-      craftctl default
-      cd ../../
-      go build -o $CRAFT_PART_INSTALL/bin/aegis-gateway ./cmd/aegis-gateway
+      cd "$CRAFT_PART_SRC"
+      bash scripts/build-snap-service.sh aegis-gateway "$CRAFT_PART_INSTALL"
     stage:
       - bin/aegis-gateway

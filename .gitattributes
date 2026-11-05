@@ -1,0 +1,2 @@
+# Preserve evidence bytes: report manifests refer to the original file hashes.
+docs/reports/** -text

@@ -272,7 +272,7 @@ func GetMobileSessionSummary() (MobileSessionSummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), ''),
+		COALESCE(CAST(MAX(created_at) AS TEXT), ''),
 		COALESCE((SELECT plan_fingerprint FROM mobile_session_state_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT apn_profile_count FROM mobile_session_state_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),
 		COALESCE((SELECT bearer_template_count FROM mobile_session_state_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),

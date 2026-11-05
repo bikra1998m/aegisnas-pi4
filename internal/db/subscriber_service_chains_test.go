@@ -16,10 +16,12 @@ func TestSubscriberServiceChainActivationAndRollback(t *testing.T) {
 	require.NoError(t, tmpfile.Close())
 	defer os.Remove(tmpfile.Name())
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
-	_, _ = DB.Exec("PRAGMA synchronous = OFF")
-	_, _ = DB.Exec("PRAGMA journal_mode = MEMORY")
+	if DialectForHandle(DB) == DialectSQLite {
+		_, _ = DB.Exec("PRAGMA synchronous = OFF")
+		_, _ = DB.Exec("PRAGMA journal_mode = MEMORY")
+	}
 	require.NoError(t, Migrate())
 
 	servicesJSON := `[{"key":"data","type":"data","sequence":10,"accounting_class":"internet"},{"key":"qos","type":"qos","sequence":20,"optional":true}]`

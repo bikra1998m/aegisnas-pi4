@@ -14,7 +14,7 @@ func TestPolicySimulationAnalysisPersistenceAndReplaySamples(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 	require.NoError(t, tmpfile.Close())
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	t.Cleanup(func() { _ = Close() })
 	require.NoError(t, Migrate())
 

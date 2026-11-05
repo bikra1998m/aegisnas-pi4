@@ -345,7 +345,7 @@ func ClaimOutboundDACQueue(batchSize int, ownerNode string, now time.Time, lockF
 		WHERE status IN (?, ?)
 		  AND datetime(next_attempt_at) <= datetime(?)
 		  AND datetime(expires_at) > datetime(?)
-		  AND (locked_until IS NULL OR locked_until = '' OR datetime(locked_until) <= datetime(?))
+		  AND (locked_until IS NULL OR CAST(locked_until AS TEXT) = '' OR datetime(locked_until) <= datetime(?))
 		ORDER BY datetime(next_attempt_at), id
 		LIMIT ?`, OutboundDACQueueStatusQueued, OutboundDACQueueStatusRetrying, formatSpoolTime(now), formatSpoolTime(now), formatSpoolTime(now), batchSize)
 	if err != nil {
@@ -638,7 +638,7 @@ func ListOutboundDACQueueAttempts(queueID string, limit int) ([]OutboundDACQueue
 		COALESCE(proxy_state_json, '[]'), request_code, COALESCE(response_code, 0), COALESCE(error_cause, 0),
 		COALESCE(error_cause_name, ''), COALESCE(reply_message, ''), latency_ms, packet_identifier,
 		request_fingerprint, COALESCE(response_fingerprint, ''), COALESCE(error_message, ''),
-		attempted_at, COALESCE(next_attempt_at, '')
+		attempted_at, COALESCE(CAST(next_attempt_at AS TEXT), '')
 		FROM radius_outbound_dac_queue_attempts`
 	if queueID != "" {
 		query += ` WHERE queue_id = ?`
@@ -687,12 +687,12 @@ func GetOutboundDACQueueSummary(maxQueueRecords int) (OutboundDACQueueSummary, e
 		COALESCE(SUM(CASE WHEN status = 'canceled' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status IN ('queued', 'retrying') AND datetime(next_attempt_at) <= datetime(?) THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(attempt_count), 0),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END), ''),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END), ''),
-		COALESCE(MAX(CASE WHEN status = 'ack' THEN completed_at END), ''),
-		COALESCE(MAX(CASE WHEN status = 'nak' THEN completed_at END), ''),
-		COALESCE(MAX(CASE WHEN status = 'poison' THEN updated_at END), ''),
-		COALESCE(MAX(last_attempt_at), ''),
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END) AS TEXT), ''),
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status = 'ack' THEN completed_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status = 'nak' THEN completed_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status = 'poison' THEN updated_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(last_attempt_at) AS TEXT), ''),
 		COALESCE(MAX(CASE WHEN last_error IS NOT NULL AND last_error <> '' THEN last_error END), '')
 		FROM radius_outbound_dac_queue`, now).Scan(
 		&summary.TotalRecords, &summary.QueuedCount, &summary.RetryingCount, &summary.ACKCount,
@@ -867,9 +867,9 @@ func outboundDACQueueSelectSQL() string {
 		request_fingerprint, attempt_count, max_attempts, COALESCE(last_error, ''),
 		COALESCE(last_response_code, 0), COALESCE(last_error_cause, 0),
 		COALESCE(last_error_cause_name, ''), COALESCE(last_reply_message, ''),
-		last_latency_ms, COALESCE(next_attempt_at, ''), expires_at, idempotency_expires_at,
-		COALESCE(owner_node, ''), COALESCE(locked_until, ''), COALESCE(sent_at, ''),
-		COALESCE(completed_at, ''), COALESCE(canceled_at, ''), COALESCE(canceled_by, ''),
+		last_latency_ms, COALESCE(CAST(next_attempt_at AS TEXT), ''), expires_at, idempotency_expires_at,
+		COALESCE(owner_node, ''), COALESCE(CAST(locked_until AS TEXT), ''), COALESCE(CAST(sent_at AS TEXT), ''),
+		COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(canceled_at AS TEXT), ''), COALESCE(canceled_by, ''),
 		COALESCE(cancel_reason, ''), created_at, updated_at
 		FROM radius_outbound_dac_queue`
 }

@@ -10,6 +10,20 @@ import (
 	productconfigs "github.com/yourorg/aegisnas-pi4/configs"
 )
 
+func TestRepositoryExampleConfigLoadsAndValidates(t *testing.T) {
+	// Exercise the actual Quick Start input, rather than a smaller test fixture.
+	cfg, err := LoadCandidate(filepath.Join("..", "..", "configs", "config.example.yaml"))
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+	for _, leasePool := range cfg.Broadband.AddressLeases.Pools {
+		for _, radiusPool := range cfg.Radius.AddressPolicy.Pools {
+			if leasePool.Name == radiusPool.Name {
+				assert.Equal(t, radiusPool.CIDR, leasePool.CIDR, "pool %s must describe the same network in both examples", leasePool.Name)
+			}
+		}
+	}
+}
+
 func TestConfigLoad(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "config-*.yaml")
 	require.NoError(t, err)

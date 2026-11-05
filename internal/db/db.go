@@ -117,13 +117,7 @@ func openConnectionPlan(ctx context.Context, plan ConnectionPlan) (*sql.DB, erro
 			_ = handle.Close()
 			return nil, fmt.Errorf("set busy timeout: %w", err)
 		}
-	case DialectPostgreSQL:
-		if plan.StatementTimeoutMilliseconds > 0 {
-			if _, err = handle.ExecContext(ctx, fmt.Sprintf("SET statement_timeout = %d", plan.StatementTimeoutMilliseconds)); err != nil {
-				_ = handle.Close()
-				return nil, fmt.Errorf("set PostgreSQL statement timeout: %w", err)
-			}
-		}
+
 	}
 	return handle, nil
 }

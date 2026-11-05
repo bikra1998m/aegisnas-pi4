@@ -589,7 +589,7 @@ func GetBroadbandCommercialCatalogSummary() (BroadbandCommercialCatalogSummary, 
 			COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'reconciled' THEN 1 ELSE 0 END), 0),
-			COALESCE(MAX(created_at), '')
+			COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM broadband_commercial_catalog_events`).Scan(
 		&summary.TotalEvents,
 		&summary.PreviewEvents,

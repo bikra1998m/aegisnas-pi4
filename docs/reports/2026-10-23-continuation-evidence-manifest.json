@@ -1,0 +1,836 @@
+{
+  "time": "2026-10-23T06:45:45.664403+00:00",
+  "artifacts": [
+    {
+      "path": ".tmp/production-20261023/archive-integrity.json",
+      "bytes": 405,
+      "sha256": "0ac34deb031fe9b8238c2bbcf7a1d7b6b8c260eb1674b3270a95ea8e610f7f3e"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt-failures.json",
+      "bytes": 1306,
+      "sha256": "edb1974a6247a460ee74b81d3559e5df2924c058d449eeb02a438655408e3d7d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/fixture-role.log",
+      "bytes": 16,
+      "sha256": "311e3b961e20b7bd42c4ea9130cf1abf6d604d467ec8bd942bc863b33f8489c6"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/initdb.log",
+      "bytes": 1048,
+      "sha256": "fe53d9a2b1489acc2e689cb6d7937fc3573dcf2c4ca09c2b51a0e110ef143cf6"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/postgres-reload-auth.log",
+      "bytes": 16,
+      "sha256": "c18211c156be97e3dbe9f09b7913b878f268dba8641bfe42e6656f1ba40bee5d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/postgres-start.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/postgres-stop.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/postgres.log",
+      "bytes": 1172,
+      "sha256": "17decb6346f03561a34592744c342983404eeefabbff8fc0c7a022c0ea80edf8"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/radius-valid.log",
+      "bytes": 3646,
+      "sha256": "660f0935e6d9832e8b6ac8af681155e67a0136796690f2ce4a214aedae8aee4f"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/result.json",
+      "bytes": 1468,
+      "sha256": "639819bd1c2b8290a34507b62388d47dbb57ec36cc8b81e98f248b43b44ca96f"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/server-certificate.log",
+      "bytes": 757,
+      "sha256": "3c6052305c183772e3488133e0f62c85f77281d3b648f5420ffb74e37f7cab32"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/untrusted-certificate.log",
+      "bytes": 2246,
+      "sha256": "479e8410bcee5cdae1ea6f6dc360406370b01b702dd54584c32772ca5ea5d475"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1/valid-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1.json",
+      "bytes": 1532,
+      "sha256": "a87b814337b736480b2330b6708c52e31389eae760697e877766659ad9be2265"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/database-outage-reject.log",
+      "bytes": 343,
+      "sha256": "530d59009dfba9b536c2a5f6f4248083a84c4745474aeb559e157430a933661b"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/database-reconnected.log",
+      "bytes": 330,
+      "sha256": "f7e7f16f2207177fd82441c0416d448fe8cfe67463d624acef66ed0b32de7554"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/fixture-role.log",
+      "bytes": 16,
+      "sha256": "311e3b961e20b7bd42c4ea9130cf1abf6d604d467ec8bd942bc863b33f8489c6"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/initdb.log",
+      "bytes": 1048,
+      "sha256": "5627e60a6634da8ddee1e7e25592d26ddbd075e05430ac8d24b7fb655a79fe6a"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres-outage.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres-recovery.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres-reload-auth.log",
+      "bytes": 16,
+      "sha256": "c18211c156be97e3dbe9f09b7913b878f268dba8641bfe42e6656f1ba40bee5d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres-start.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres-stop.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/postgres.log",
+      "bytes": 2457,
+      "sha256": "94a87a4c58b9ea6235ea0ad031f22da6018f6e86f71ebf27610ba41e0c08c494"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/radius-valid.log",
+      "bytes": 12367,
+      "sha256": "2d93b62488ea78c6a5c8731124cd8a31cd8b501d916ea9f9e52cfa95cd7c82ff"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/radius-wrong-host.log",
+      "bytes": 5189,
+      "sha256": "5adfd44ee0819ad7879c049966f5cbfb333e8ee47bd38e900604756cd10c711f"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/radius-wrong-root.log",
+      "bytes": 5166,
+      "sha256": "cc08ed7f1c4b895e8191bb39b914ddc7f76aa8a6bce5b9f0b4479dc84591766b"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/result.json",
+      "bytes": 2844,
+      "sha256": "e0ec9577da774ed7554f94aa2954d4d1a262babc0c86eb80accb322550bc3367"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/server-certificate.log",
+      "bytes": 1290,
+      "sha256": "8ce93bb7e693f4b019c8ba17c389c5a521c182730514dad3813faebde83ca6bf"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/untrusted-certificate.log",
+      "bytes": 1441,
+      "sha256": "8c04be5715cf7f25dd07048c4e6ae0607c7f6a1457e5d5ab7cadd24fa0dceab9"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/valid-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/valid-tls-packet.log",
+      "bytes": 330,
+      "sha256": "e800347cef51103ddc44591e74eb629f15e696db519b2058ba619b068234f9cd"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/wrong-host-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2/wrong-root-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2.json",
+      "bytes": 2973,
+      "sha256": "e4a45dd71de6037e7ea2ca88368e99276d0ab419cc988c8bcec77bcbd5215c93"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt2.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/database-outage-reject.log",
+      "bytes": 343,
+      "sha256": "b8b1e79ce305ac642d55335a6dbef01ed20c3f633ada23af1ff4eef18ca83603"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/database-reconnected.log",
+      "bytes": 330,
+      "sha256": "26b3f3fb570019b224b0c1dd3912b7a863c3e8c5c69dd6359f2913c243e090d4"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/fixture-role.log",
+      "bytes": 16,
+      "sha256": "311e3b961e20b7bd42c4ea9130cf1abf6d604d467ec8bd942bc863b33f8489c6"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/initdb.log",
+      "bytes": 1060,
+      "sha256": "31d89b55460797cb8aba7fdb2fe6f5e0c3a203b22f480a301a43c8e83815dc1f"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres-outage.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres-recovery.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres-reload-auth.log",
+      "bytes": 16,
+      "sha256": "c18211c156be97e3dbe9f09b7913b878f268dba8641bfe42e6656f1ba40bee5d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres-start.log",
+      "bytes": 52,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres-stop.log",
+      "bytes": 56,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/postgres.log",
+      "bytes": 2469,
+      "sha256": "e14bdfe54b2cb9ca35a25ea5b8ee71c125a44a68a38637ff2bbb2c02d61c99b3"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/radius-valid.log",
+      "bytes": 12797,
+      "sha256": "936f2188cfa8b31843405e6ba9c8750fe5efbf66f8b1f13fa3efae7aea95a3d9"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/radius-wrong-host.log",
+      "bytes": 5459,
+      "sha256": "e8c40147ad272168e787be622d1bdab44aceb5885ead79f6b0a9ce4869bd150d"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/radius-wrong-root.log",
+      "bytes": 5436,
+      "sha256": "83e246ae99c5de9a289f7a0464a5c92cac6a32df2008b886383f22526a9008f9"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/result.json",
+      "bytes": 2842,
+      "sha256": "49d2df4168d5875c38f346cf7402be023f0766ad4bbf231d124a0afe2c1803da"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/server-certificate.log",
+      "bytes": 1106,
+      "sha256": "824ad2035b85ea7f3d88950c82637237cb65f135d25a52643aee1ff403c3f82f"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/untrusted-certificate.log",
+      "bytes": 891,
+      "sha256": "7f7ba8206e3a89452174323deb7b38d092b9b3592a977aca0b999d3504d35aaf"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/valid-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/valid-tls-packet.log",
+      "bytes": 330,
+      "sha256": "b62dfa7d7aa69b540ebeaf181eca541941eac46cd3b8be523993f2a71f696991"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/wrong-host-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final/wrong-root-generate.log",
+      "bytes": 97,
+      "sha256": "15b2fb9c2b5b52b51d9d28f8ee3ec017caf3bcb0b49e5d2eb84fd079476a2937"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final.json",
+      "bytes": 2971,
+      "sha256": "af258d6ea6dc453bd33fdbe0be53870aa17f2baf76c6df4b79daad8207e9708b"
+    },
+    {
+      "path": ".tmp/production-20261023/attempt3-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/baseline.py",
+      "bytes": 1161,
+      "sha256": "3109b155ddb7a76abd5dd7dc187f48d41d0eaf1ff0700e62cdf18097af5de5b4"
+    },
+    {
+      "path": ".tmp/production-20261023/check_reports.py",
+      "bytes": 3283,
+      "sha256": "2da3e98e4b64aa4b2a13f5043708d106e5dca2ba0c27ae8f44ff0eea9f441789"
+    },
+    {
+      "path": ".tmp/production-20261023/deployed-live-final.json",
+      "bytes": 18839,
+      "sha256": "da6c154fdcffef8a2b5991c4685d172a185333e5045e6a7dc52295c8823c436c"
+    },
+    {
+      "path": ".tmp/production-20261023/deployed-live-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/deployed_probe.py",
+      "bytes": 4044,
+      "sha256": "e493d62662babd3c47110edc6050d38ccc5200a424decda599f36a3497d9d22a"
+    },
+    {
+      "path": ".tmp/production-20261023/diff-check.json",
+      "bytes": 16,
+      "sha256": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01"
+    },
+    {
+      "path": ".tmp/production-20261023/diff-check.stderr",
+      "bytes": 28964,
+      "sha256": "4636dadffd337dd24390ce4e8ba86970f2ad59739837b504233580425a47cd02"
+    },
+    {
+      "path": ".tmp/production-20261023/diff-check.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/entry.json",
+      "bytes": 165970,
+      "sha256": "43fdd5b7cb76798cb4e4d3ddc864ea30650ced37801846e5e6768f2002c0bca6"
+    },
+    {
+      "path": ".tmp/production-20261023/final_vm_state.py",
+      "bytes": 938,
+      "sha256": "897e6be103240b6bde29b30f89d68cf694d900f814a9d580e00c19675f44571f"
+    },
+    {
+      "path": ".tmp/production-20261023/final_vm_state.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/final_vm_state.stdout",
+      "bytes": 2165,
+      "sha256": "2f8e86a24025c04a29325ee4d423a8d85007da93fcc3dd662fef03bb0604f59d"
+    },
+    {
+      "path": ".tmp/production-20261023/linux-final-radius-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/linux-final2-radius-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/linux-radius-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/local-final-validation.json",
+      "bytes": 460,
+      "sha256": "874b54d26e3bdb21b3cdc7b7119cd27b672f794fa52ca558ac994c3889df44f0"
+    },
+    {
+      "path": ".tmp/production-20261023/local-final2-validation.json",
+      "bytes": 462,
+      "sha256": "97ad15a6edd740a833bba5c3ad5bb7c104203f84b6011a55cd5db195ee3a7124"
+    },
+    {
+      "path": ".tmp/production-20261023/local-validation.json",
+      "bytes": 441,
+      "sha256": "c45658b808a97014fa7108287e790fd5705726d10d983828c572c954c54ba588"
+    },
+    {
+      "path": ".tmp/production-20261023/local_final.py",
+      "bytes": 1107,
+      "sha256": "53351bbb4471389dc8fc4a97cff102d2f225ea3966a9320b4f22e700443badfe"
+    },
+    {
+      "path": ".tmp/production-20261023/local_final2.py",
+      "bytes": 1111,
+      "sha256": "886dfa9ec43d651f7837074c538191472e63af1b352d1133cd88105fd59cf53f"
+    },
+    {
+      "path": ".tmp/production-20261023/local_validation.py",
+      "bytes": 1074,
+      "sha256": "0a3832d5100f8f67de0000f348265c771b9967a76a2384513423ab84010529e4"
+    },
+    {
+      "path": ".tmp/production-20261023/native-adminapi-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/native-adminapi.test",
+      "bytes": 54865208,
+      "sha256": "95e911a543291387813756c4a9ef395f73feb2a8961b6ea9a0d386d5e12d402b"
+    },
+    {
+      "path": ".tmp/production-20261023/native_regression.py",
+      "bytes": 1632,
+      "sha256": "ee30c9ce03a0e4634bc664084ccd20eb1824c88b24bc043c2df2f29e1e37f006"
+    },
+    {
+      "path": ".tmp/production-20261023/npm-security-cache/_update-notifier-last-checked",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current/os-inputs-before.txt",
+      "bytes": 255,
+      "sha256": "8a15d9fcafa4f7fccd4e79330d14590925e29a121b7a126aeaaacebed89003a9"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current/os-vulnerabilities.json.gz",
+      "bytes": 69169788,
+      "sha256": "1b1922c2dc0f337d074c47eec10274722c95152569ca1fa069356087886b3f00"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current/os-vulnerabilities.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current/refresh.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current/version.json",
+      "bytes": 235,
+      "sha256": "79aa659c1538aeddcb3936878f7f1b5510c309cdda5d3bdfc5fda23d2cd597e9"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/commands.json",
+      "bytes": 1195,
+      "sha256": "01a26181f7e969e81f4d7f376ee85737b3e1a2d5cbee2cd53788b2d05a673467"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-gate.json",
+      "bytes": 1455944,
+      "sha256": "2f7b079c80d077f4b235caed6138bfe2bf3bc4446f6fcea34d075e2baa022726"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-inputs-after.txt",
+      "bytes": 255,
+      "sha256": "8a15d9fcafa4f7fccd4e79330d14590925e29a121b7a126aeaaacebed89003a9"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-inputs-before.txt",
+      "bytes": 255,
+      "sha256": "8a15d9fcafa4f7fccd4e79330d14590925e29a121b7a126aeaaacebed89003a9"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-sbom.json",
+      "bytes": 65720967,
+      "sha256": "a78cfad0df42300341f45624993fa0897453912489ba60d86bf6d95841a71c7f"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-sbom.json.gz",
+      "bytes": 8042329,
+      "sha256": "7949ebc817205e8b77785eb042d9db519dc94d38c7e4930abc0fca25c7fe1d2d"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-sbom.stderr",
+      "bytes": 583,
+      "sha256": "524e125349e72e662bdef313d00f6cb9dfe028772c51a3ffc0effd131a22b6e2"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-vulnerabilities.json",
+      "bytes": 340731915,
+      "sha256": "64fcacb653b64a4d0e7d897a61e074a02d7f2e10d62d0d545e306d996ec9a59d"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-vulnerabilities.json.gz",
+      "bytes": 69169793,
+      "sha256": "2bcf0f03621406886bfe6d42b31336628856fd8d17544fd70ee855332433dcdb"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/os-vulnerabilities.stderr",
+      "bytes": 434,
+      "sha256": "dd343f4dae228ca0c5e3486873ce8dcb96341b6b8035844da41e9b871e836e90"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/refresh.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/summary.json",
+      "bytes": 198,
+      "sha256": "e2cdce5f32b75cfe3e0dfd145b52857b89c8a0c54aa7aa5fbe4ee7fab9699d05"
+    },
+    {
+      "path": ".tmp/production-20261023/os-current2/version.json",
+      "bytes": 235,
+      "sha256": "79aa659c1538aeddcb3936878f7f1b5510c309cdda5d3bdfc5fda23d2cd597e9"
+    },
+    {
+      "path": ".tmp/production-20261023/os-details.json",
+      "bytes": 278,
+      "sha256": "3a46bee657986fee58713d8a6de17bc4b10fa071f05f41bb73caceb7c6b12fa0"
+    },
+    {
+      "path": ".tmp/production-20261023/os_current.py",
+      "bytes": 4314,
+      "sha256": "c0f1472f47301b008524a98ca0df3a2d4b9c8355c89b0e1dd0a57292cb4f7e8e"
+    },
+    {
+      "path": ".tmp/production-20261023/os_current2.py",
+      "bytes": 4315,
+      "sha256": "e86be8b56f2283131403273d481c683f915aad701c90af69eed7a5a0610eb4d7"
+    },
+    {
+      "path": ".tmp/production-20261023/prepare_vm.py",
+      "bytes": 1216,
+      "sha256": "8887c8b0ba9fde0a312046ae5da3e1dc5fa97ec1ed1af4c841dbb8aa8174efa3"
+    },
+    {
+      "path": ".tmp/production-20261023/prepare_vm.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/prepare_vm.stdout",
+      "bytes": 2165,
+      "sha256": "f209b4f2e103a86c06f7d7118a1fa40e636f88c587b5d30b4503e6a0af4c6dc5"
+    },
+    {
+      "path": ".tmp/production-20261023/preserved-evidence-verification.json",
+      "bytes": 241336,
+      "sha256": "07ab50380f88f2c2206be0d4f88f5bc18f85970ba34f1049201285e90d08165a"
+    },
+    {
+      "path": ".tmp/production-20261023/radius-final-vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/radius-final2-vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/radius-focused.jsonl",
+      "bytes": 27908,
+      "sha256": "33fe951e7d1b1535bbcf26adc60dc5003804174810e469db47aa7135b9bf65e6"
+    },
+    {
+      "path": ".tmp/production-20261023/radius-vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/radius.test",
+      "bytes": 36697337,
+      "sha256": "a4c4708da6a0f9f0da3fe1da625ee7c4820e004f772bc7c64fb245f7960ee23e"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/adminapi.test",
+      "bytes": 54865208,
+      "sha256": "95e911a543291387813756c4a9ef395f73feb2a8961b6ea9a0d386d5e12d402b"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/arm64-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/linux-adminapi-test-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/linux-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/python.log",
+      "bytes": 4749,
+      "sha256": "44e8ac5dd714468a0a44ece143314140f758f9dcb0525163fc5d2793c23a3f39"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/results.json",
+      "bytes": 2436,
+      "sha256": "a677caf4a90f415da3d731ea5dc65c3a178fc06df9ded5e7a9dd42b0367c246c"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/windows-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/regression/windows-go.log",
+      "bytes": 1300185,
+      "sha256": "cec5fc4a142b9b79249e312dea08bdf8de4d664920722cb6c1fb785cb6817ada"
+    },
+    {
+      "path": ".tmp/production-20261023/regression.py",
+      "bytes": 1478,
+      "sha256": "3279a935101fa3c1c27262bf52b53070bd2ea804f6288730fc1ab67feac8550a"
+    },
+    {
+      "path": ".tmp/production-20261023/remediation_preview.py",
+      "bytes": 950,
+      "sha256": "42cc3a0d6461f68b3bddb2a78751eb68cab808650cf0247539c0a3e5aedd2544"
+    },
+    {
+      "path": ".tmp/production-20261023/remediation_preview.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/remediation_preview.stdout",
+      "bytes": 1706,
+      "sha256": "ee19d7b1ba427298e6ef8e824e01b437b71c72c074a69360921aca0b9b63875f"
+    },
+    {
+      "path": ".tmp/production-20261023/remote.py",
+      "bytes": 1774,
+      "sha256": "a31beb2d8c6bbe3c91a4898974969b100440af799afe51846ddf37dce609ab49"
+    },
+    {
+      "path": ".tmp/production-20261023/reports.py",
+      "bytes": 27266,
+      "sha256": "edd075602657818c42fc4c58516f0d125c7e5a0f1ef6ebc26da788d1bb7d9b11"
+    },
+    {
+      "path": ".tmp/production-20261023/run_deployed.py",
+      "bytes": 1114,
+      "sha256": "4ff101a58be2bf719d1a7230fc849e48c39817394e833c812c60280f4967090d"
+    },
+    {
+      "path": ".tmp/production-20261023/run_fixture.py",
+      "bytes": 1427,
+      "sha256": "700970ba41b1af13c893ddae40dca5d87495e15dab56dddafe8c2e1987c6bc5d"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/evidence.json",
+      "bytes": 3668,
+      "sha256": "2c3441a6d0d4b99c8c04c834a25f877addd675b4619ced7d784303bc78c4fefe"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/gate.json",
+      "bytes": 942,
+      "sha256": "c912585fdd6b03427b2f7e3e6d72fd24ebf6df27c76a9f981f6708cfc9fd36ff"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-mod-verify.json",
+      "bytes": 21,
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-mod-verify.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-sbom.json",
+      "bytes": 57270,
+      "sha256": "7fa4675bf59fa3963d6b8ac587bf5eb296782f753fe0da68a165307271a5de7d"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-sbom.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-vulnerabilities-arm64.json",
+      "bytes": 730847,
+      "sha256": "eb5735632d10d83241562c053d28e6ae622f07a1d0e81219b695b140f6888d2b"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-vulnerabilities-arm64.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-vulnerabilities.json",
+      "bytes": 730847,
+      "sha256": "695cb99d736331955da0a619eacbeebecdf97267948ed3ed515db06dd58f60df"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/go-vulnerabilities.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/npm-sbom.json",
+      "bytes": 196364,
+      "sha256": "f22b04c21083142e5bc09e5bf793439556b5569320027970172f0af28f32a0f8"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/npm-sbom.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/npm-vulnerabilities.json",
+      "bytes": 364,
+      "sha256": "aafe24e4e7e1056107a69edf1ebfe4945e27d6b395d74b490594a94ad0c5140a"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final/npm-vulnerabilities.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure/amd64-imports.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure/amd64-imports.txt",
+      "bytes": 11079,
+      "sha256": "2a1299fe4e3fa1ba8e34adc1d13a42c91b990141a8c69976c2ed7bdd69eb6499"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure/arm64-imports.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure/arm64-imports.txt",
+      "bytes": 11051,
+      "sha256": "08f95304e62eb2333c81fd79a9ab3212154916d7cf97ce177423d938dffd5ade"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure/exposure.json",
+      "bytes": 5989,
+      "sha256": "62a47deca34d811582a7174dfec76e78b4148d093710e81e6ffbab314e5ce8bc"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-exposure.log",
+      "bytes": 199,
+      "sha256": "2bffc2c48a17f900b6b619852b0fb2a1742b752829bbe185cff3ad3377015d16"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-results.json",
+      "bytes": 293,
+      "sha256": "ede77546552d3008a9e197935b471f8a0d217711da54f20c8d2c68e020442af7"
+    },
+    {
+      "path": ".tmp/production-20261023/security-final-scan.log",
+      "bytes": 942,
+      "sha256": "7f8b45ccba3af41aaf9567bea41050584984db9cb0e261938ff2010e33c57d1a"
+    },
+    {
+      "path": ".tmp/production-20261023/security_final.py",
+      "bytes": 1581,
+      "sha256": "c53af0a6354bda525b96acf08d23f1aae036c40d25f06b9793ab5d0ed77954cb"
+    },
+    {
+      "path": ".tmp/production-20261023/security_final2.py",
+      "bytes": 1578,
+      "sha256": "62324f8eabdf9555abcd6763d03125e44be2672030b9b2d59c31bdab2a0c8e03"
+    },
+    {
+      "path": ".tmp/production-20261023/tested-source.json",
+      "bytes": 103456,
+      "sha256": "da87f32e63e9b06c93db25baddd718f98af5551f83bd30dbf18d97cdae7bbe28"
+    },
+    {
+      "path": ".tmp/production-20261023/ubuntu-adminapi.jsonl",
+      "bytes": 294153,
+      "sha256": "1cc5d96dfe6782b725477b1cb7294cc18537f99b1f31cfc90b526c8a06e70fce"
+    },
+    {
+      "path": ".tmp/production-20261023/ubuntu-adminapi.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/ubuntu-radius.jsonl",
+      "bytes": 360400,
+      "sha256": "62f4fc6f19fd08651141f5ed9d5f31a11c6a22edbfea729a8f10f6f0d118dff5"
+    },
+    {
+      "path": ".tmp/production-20261023/ubuntu-radius.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/production-20261023/ubuntu-regression.json",
+      "bytes": 555,
+      "sha256": "e800fd9f8147cdca13c098b2b5b7e0d57aaef30329243ef42593405605b8dc9a"
+    },
+    {
+      "path": ".tmp/production-20261023/verify_history.py",
+      "bytes": 932,
+      "sha256": "bc97f4f7d64fd3bcfbbd5d56da33fb114712e37a19501f947afde78511866eb5"
+    },
+    {
+      "path": ".tmp/production-20261023/vm-inventory.txt",
+      "bytes": 1609,
+      "sha256": "b4ca55cd486a5f6474204fcad70e7e92d21d792ba083619615d85771cb00964e"
+    },
+    {
+      "path": ".tmp/production-20261023/windows-final-radius.log",
+      "bytes": 355917,
+      "sha256": "74102307510d175ff1a42a35e54e87c1adb7324f3dbf7748741d21ca806fcf34"
+    },
+    {
+      "path": ".tmp/production-20261023/windows-final2-radius.log",
+      "bytes": 357555,
+      "sha256": "d1d0c6191b31961d6de6b1cbfe7602cde8b23202744018d47e69c1f70ed3e7e2"
+    },
+    {
+      "path": ".tmp/production-20261023/windows-radius.log",
+      "bytes": 355972,
+      "sha256": "5948cca9bec3f51407c68cd28fe2ada27d7f444b600d154648d6820d197cf3c3"
+    }
+  ],
+  "scope": "Includes failures and retries. Raw data retained outside Git."
+}

@@ -361,7 +361,7 @@ func (e *SIEMExporter) buildElasticRequest(ctx context.Context, token string, au
 }
 
 func loadAuditBatch(afterID int64, limit int) ([]siemAuditEvent, error) {
-	rows, err := db.DB.Query(`SELECT id, CAST(timestamp AS TEXT), COALESCE(user, ''), action, COALESCE(details, ''),
+	rows, err := db.DB.Query(`SELECT id, CAST(timestamp AS TEXT), COALESCE("user", ''), action, COALESCE(details, ''),
 			COALESCE(result, ''), COALESCE(ip_address, '')
 		FROM audit_logs
 		WHERE id > ?

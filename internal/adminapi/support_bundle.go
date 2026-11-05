@@ -427,6 +427,7 @@ func supportBundleAPICaptures() []supportBundleAPICapture {
 		{archivePath: "api/upgrade-readiness.json", requestPath: "/api/v1/system/upgrade-readiness", label: "Upgrade readiness", handler: HandleGetUpgradeReadiness},
 		{archivePath: "api/secret-providers.json", requestPath: "/api/v1/system/secret-providers", label: "Secret provider readiness", handler: HandleGetSecretProviders},
 		{archivePath: "api/database.json", requestPath: "/api/v1/system/database", label: "Database data-plane readiness", handler: HandleGetDatabaseStatus},
+		{archivePath: "api/release-security.json", requestPath: "/api/v1/system/release-security", label: "Release admission evidence", handler: HandleGetReleaseSecurity},
 		{archivePath: "api/openapi.json", requestPath: "/api/v1/openapi.json", label: "OpenAPI schema", handler: HandleGetOpenAPI},
 	}
 }

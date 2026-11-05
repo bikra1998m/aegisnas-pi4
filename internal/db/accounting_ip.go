@@ -279,7 +279,7 @@ func GetAccountingIPAssignmentSummary() (AccountingIPAssignmentSummary, error) {
 		COALESCE(SUM(CASE WHEN framed_route IS NOT NULL AND framed_route <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN framed_ipv6_route IS NOT NULL AND framed_ipv6_route <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN validation_status = 'invalid' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(event_time), ''),
+		COALESCE(CAST(MAX(event_time) AS TEXT), ''),
 		COALESCE((SELECT validation_status FROM radius_accounting_ip_assignments ORDER BY event_time DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT validation_error FROM radius_accounting_ip_assignments WHERE validation_error IS NOT NULL AND validation_error <> '' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_ip_assignments`).Scan(&summary.AssignmentRows, &summary.ActiveAssignments,

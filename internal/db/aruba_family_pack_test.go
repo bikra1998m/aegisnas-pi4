@@ -8,14 +8,14 @@ import (
 )
 
 func TestArubaFamilyPackEventLifecycle(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	defer Close()
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 
-	var tableCount int
-	require.NoError(t, DB.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='aruba_family_pack_events'").Scan(&tableCount))
-	assert.Equal(t, 1, tableCount)
+	tablePresent, tableErr := tableExists(DB, "aruba_family_pack_events")
+	require.NoError(t, tableErr)
+	assert.True(t, tablePresent)
 
 	eventID, err := RecordArubaFamilyPackEvent(ArubaFamilyPackEventInput{
 		Operation:                 "record",

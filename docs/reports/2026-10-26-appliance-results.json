@@ -1,0 +1,413 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-26T14:20:38.051014+00:00",
+  "head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "scope": "NAS-0116 appliance inventories and lab snap packaging continuation; no new production deployment",
+  "windows_python": {
+    "status": "PASS",
+    "passed": 66,
+    "skipped": 13,
+    "failed": 0,
+    "total": 79,
+    "test_seconds": 33.622
+  },
+  "ubuntu_python": {
+    "status": "PASS",
+    "passed": 79,
+    "skipped": 0,
+    "failed": 0,
+    "total": 79,
+    "test_seconds": 156.888
+  },
+  "yaml": {
+    "status": "PASS",
+    "parsed_yaml_files": 10,
+    "parser": "5.4.1"
+  },
+  "shell_helper_syntax": "PASS",
+  "actual_helper_build_retry": [
+    {
+      "target": "amd64",
+      "checks": [
+        {
+          "status": 200,
+          "seconds": 2.128184599976521,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.07205289998091757,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.3666142000001855,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.04337969998596236,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.07530730002326891,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.001809599983971566,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.10244560003047809,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.047293699986767024,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.03910979995271191,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.6315670000039972,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.30491489998530596,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.10796489997301251,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.010325899987947196,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.012550799991004169,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.0014953999780118465,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.001979699998628348,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.001713800011202693,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.7408465999760665,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.8151454000035301,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.21530340000754222,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.13151570002082735,
+          "passed": true
+        },
+        {
+          "passed": false,
+          "seconds": 17.750253600010183,
+          "error": "<urlopen error timed out>"
+        },
+        {
+          "status": 200,
+          "seconds": 2.6131069000111893,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.5697481999523006,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 1.454409800004214,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.7075797999859788,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 0.1912978999898769,
+          "passed": true
+        },
+        {
+          "status": 200,
+          "seconds": 2.06543870002497,
+          "passed": true
+        }
+      ],
+      "pid": 10656,
+      "exit_code": 1,
+      "seconds": 301.8369532999932,
+      "status": "FAIL",
+      "reason": "300-second build deadline exceeded"
+    }
+  ],
+  "first_actual_helper_build": {
+    "status": "FAIL",
+    "deadline_seconds": 900,
+    "target": "linux-amd64"
+  },
+  "full_snapcraft_packages": "BLOCKED: Snapcraft unavailable in VM; no package build certified",
+  "full_image": "BLOCKED: template identities, classic confinement, signing, coverage and hardware gaps",
+  "live_inventory": {
+    "status": "BLOCKED",
+    "bounded_report": {
+      "bytes_read": 33554432,
+      "created_at": "2026-10-26T13:27:53.430091+00:00",
+      "entries_observed": 1,
+      "feature_id": "NAS-0116",
+      "file_bytes_hashed": 0,
+      "kind": "appliance-file-inventory",
+      "payload_sha256": "83a300676222484749739cb2aec25cf4041d71d8893824ced7dbcd5fbfeff189",
+      "release_gate": {
+        "blockers": [
+          "Inventory is not a vulnerability assessment or signature verification",
+          "Nested snap package scans and artifact-to-image binding require separate evidence",
+          "Firmware vendor/version/advisory mapping and device EEPROM are not covered",
+          "Live filesystem enumeration is not an atomic or trusted full-image snapshot"
+        ],
+        "signature_verified": false,
+        "status": "BLOCKED"
+      },
+      "rootfs": "/",
+      "schema_version": 1,
+      "scope": "Files present in snap blob store, firmware directory and boot directory only",
+      "scopes": {
+        "boot": {
+          "entries": [],
+          "errors": [
+            "inventory time limit exceeded; partial evidence is not complete"
+          ],
+          "file_bytes": 0,
+          "file_count": 0,
+          "path": "boot",
+          "resolved_path": "boot",
+          "status": "BLOCKED"
+        },
+        "firmware": {
+          "entries": [],
+          "errors": [
+            "inventory time limit exceeded; partial evidence is not complete"
+          ],
+          "file_bytes": 0,
+          "file_count": 0,
+          "path": "lib/firmware",
+          "resolved_path": "usr/lib/firmware",
+          "status": "BLOCKED"
+        },
+        "snaps": {
+          "entries": [],
+          "errors": [
+            "inventory time limit exceeded; partial evidence is not complete"
+          ],
+          "file_bytes": 0,
+          "file_count": 0,
+          "path": "var/lib/snapd/snaps",
+          "resolved_path": "var/lib/snapd/snaps",
+          "status": "BLOCKED"
+        }
+      },
+      "seconds": 12.635629682001309,
+      "status": "BLOCKED",
+      "timeout_seconds": 10
+    },
+    "initial_attempt": "FAIL: stopped without a complete manifest"
+  },
+  "deployed_first": {
+    "status": "FAIL",
+    "passed": 16,
+    "failed": 5,
+    "total": 21
+  },
+  "deployed_retry": {
+    "status": "PASS",
+    "passed": 21,
+    "failed": 0,
+    "total": 21,
+    "readiness": {
+      "status": "blocked",
+      "ready": false,
+      "score": 0,
+      "blocking_count": 5,
+      "warning_count": 4,
+      "degraded_count": 17,
+      "passing_count": 68
+    }
+  },
+  "deployed_postbuild": {
+    "status": "PASS",
+    "passed": 21,
+    "failed": 0,
+    "total": 21,
+    "service_identities_stable_since_recovery": true
+  },
+  "service_continuity": {
+    "status": "FAIL",
+    "changed_services": [
+      {
+        "before": {
+          "service": "freeradius",
+          "exit_code": 0,
+          "properties": {
+            "MainPID": "7053",
+            "ActiveState": "active",
+            "ActiveEnterTimestamp": "Mon 2026-10-26 08:21:59 EDT"
+          }
+        },
+        "after": {
+          "service": "freeradius",
+          "exit_code": 0,
+          "properties": {
+            "MainPID": "8423",
+            "ActiveState": "active",
+            "ActiveEnterTimestamp": "Mon 2026-10-26 09:19:55 EDT"
+          }
+        }
+      }
+    ],
+    "other_service_identities_unchanged": 7,
+    "reason": "systemd watchdog and startup failures caused automatic FreeRADIUS restarts; earlier watchdog failure also observed before collection"
+  },
+  "os_input_identity": "PASS: unchanged; retained scan remains blocked",
+  "go_runtime_inputs_unchanged_from_recovery_run": 908,
+  "fresh_full_go_browser_pg_tests": "NOT TESTED: no Go/runtime/UI/database source changed; historical results linked separately",
+  "nas0116": "Partial",
+  "release_gate": "BLOCKED",
+  "roadmap": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "commit": "NOT CREATED",
+  "push": "NOT PERFORMED",
+  "prior_reports_preserved": 114,
+  "implementation_files": 22,
+  "attempts": {
+    "status": "FAILURES_PRESERVED",
+    "attempts": [
+      {
+        "name": "initial-windows-inventory-tests",
+        "status": "FAIL",
+        "tests": 19,
+        "passed": 11,
+        "failed": 2,
+        "errors": 3,
+        "skipped": 3,
+        "evidence": "windows-initial-tail.log",
+        "resolution": "Windows stat/fstat legacy ctime differences and short-path fixture aliases corrected; directory membership recheck added. Linux ctime checks remain strict."
+      },
+      {
+        "name": "initial-live-inventory",
+        "status": "FAIL",
+        "evidence": [
+          "live-inventory.stdout",
+          "live-inventory.stderr",
+          "live-inventory.json",
+          "vm-stop-inventory.stdout"
+        ],
+        "resolution": "Stopped only the owned collector after severe slowdown. No completed manifest was produced. Resource bounds, cancellation and a time budget were added and tested. The empty local JSON from the failed SFTP retrieval is preserved, not treated as a report."
+      },
+      {
+        "name": "disk-usage-probe",
+        "status": "FAIL",
+        "evidence": [
+          "vm-progress.stdout",
+          "vm-progress.stderr",
+          "vm-priority.stdout"
+        ],
+        "resolution": "Stopped the owned du process; its partial 4.0G snap and 1.2G firmware size output is not a full inventory."
+      },
+      {
+        "name": "first-stop-ssh-connection",
+        "status": "FAIL",
+        "reason": "Paramiko SSH banner timeout before a session could be established.",
+        "resolution": "Later connection succeeded and sent SIGINT only to the verified collector process. No reboot or service restart command was sent."
+      },
+      {
+        "name": "first-actual-payload-build",
+        "status": "FAIL",
+        "reason": "900-second timeout building the Linux AMD64 aegis-radius payload through Git Bash.",
+        "evidence": [
+          "payload-build-amd64.stdout",
+          "payload-build-amd64.stderr"
+        ],
+        "cleanup": "Verified owned go processes 21156 and 19752, matching the build command and start time; taskkill stopped process 19752 and compiler child 19552. Parent 21156 had exited by the second kill request. No PASS or ARM64 result is assigned to this attempt."
+      },
+      {
+        "name": "windows-regression-final-attempt",
+        "status": "FAIL",
+        "reason": "300-second harness timeout during slowdown, with a process-death fixture ERROR in the partial log.",
+        "evidence": [
+          "windows-regression-final.stdout",
+          "windows-regression-final.stderr"
+        ],
+        "resolution": "Full retry passed 66 tests with 12 skips before the final special-file manifest test; final v5 passed 66 with 13 skips."
+      },
+      {
+        "name": "deployed-smoke-first",
+        "status": "FAIL",
+        "passed": 16,
+        "failed": 5,
+        "evidence": "deployed-probes-final.stdout",
+        "resolution": "Later same 21-check deployed probe passed 21/21. Prior timeouts and watchdog restarts remain operational failures."
+      },
+      {
+        "name": "free-radius-watchdog",
+        "status": "FAIL",
+        "evidence": "service-lifecycle.stdout",
+        "resolution": "systemd automatically restarted FreeRADIUS after watchdog/startup failures. Seven other service identities remained unchanged. An earlier watchdog timeout preceded collection; exact cause is unestablished. No watchdog policy was weakened."
+      },
+      {
+        "name": "cmd-shell-report-read",
+        "status": "FAIL",
+        "reason": "A read-only Python one-liner failed quoting when attempted with cmd.exe.",
+        "resolution": "Returned to the established PowerShell runner; no repository or VM mutation occurred."
+      },
+      {
+        "name": "guarded-actual-payload-build",
+        "status": "FAIL",
+        "evidence": "payload-guarded-results.json",
+        "reason": "300-second build deadline exceeded",
+        "seconds": 301.8369532999932,
+        "health_pass": 27,
+        "health_fail": 1,
+        "cleanup": "Complete owned process tree stopped; ARM64 not attempted."
+      }
+    ]
+  }
+}

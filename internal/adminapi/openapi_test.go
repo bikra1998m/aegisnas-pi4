@@ -32,6 +32,9 @@ func TestHandleGetOpenAPI(t *testing.T) {
 
 	paths, ok := payload["paths"].(map[string]any)
 	require.True(t, ok)
+	rollbackPath := paths["/api/v1/system/upgrade-rollback-package"].(map[string]any)
+	rollbackResponses := rollbackPath["get"].(map[string]any)["responses"].(map[string]any)
+	assert.Contains(t, rollbackResponses, "409", "PostgreSQL's unsupported SQLite recovery response is part of the API contract")
 	aclPoliciesPath, ok := paths["/api/v1/acl-policies"].(map[string]any)
 	require.True(t, ok)
 	aclPoliciesGet, ok := aclPoliciesPath["get"].(map[string]any)

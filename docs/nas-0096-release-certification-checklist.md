@@ -1,5 +1,9 @@
 # NAS-0096 Release Certification Checklist
 
+Audit status (2026-10-15): **Partial**. The checked software evidence below covers
+configuration/report lifecycle; live WiMAX integration and its software tests
+remain. See [the audit](reports/2026-10-15-continuation.md).
+
 NAS-0096 software implementation is complete when code, database, APIs, UI, configuration, automated tests, documentation, and CI wiring pass. The items below are external release certification and do not block the next roadmap feature.
 
 ## Software Status

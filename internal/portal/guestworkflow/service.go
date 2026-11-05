@@ -341,8 +341,8 @@ func (s *Service) List(status string, limit int, tenantScopes ...string) ([]Regi
 		COALESCE(role, ''), COALESCE(approved_by, ''), COALESCE(rejection_reason, ''),
 		COALESCE(approval_delivery_status, ''), COALESCE(approval_delivery_error, ''),
 		COALESCE(invite_delivery_status, ''), COALESCE(invite_delivery_error, ''),
-		COALESCE(created_at, ''), COALESCE(updated_at, ''), COALESCE(approved_at, ''),
-		COALESCE(rejected_at, ''), COALESCE(completed_at, ''), COALESCE(expires_at, '')
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''), COALESCE(CAST(approved_at AS TEXT), ''),
+		COALESCE(CAST(rejected_at AS TEXT), ''), COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), '')
 		FROM guest_registrations`
 	args := []any{}
 	clauses := []string{}
@@ -578,7 +578,7 @@ func (s *Service) recordDeliveryFailure(id, deliveryType string, err error) {
 }
 
 func (s *Service) audit(user, action, details, result, ipAddress string) {
-	_, _ = db.DB.Exec(`INSERT INTO audit_logs (user, action, details, result, ip_address)
+	_, _ = db.DB.Exec(`INSERT INTO audit_logs ("user", action, details, result, ip_address)
 		VALUES (?, ?, ?, ?, ?)`, blankAs(user, "guest"), action, details, result, nullable(strings.TrimSpace(ipAddress)))
 }
 
@@ -594,8 +594,8 @@ func (s *Service) loadByColumn(column, value string) (*Registration, error) {
 		COALESCE(role, ''), COALESCE(approved_by, ''), COALESCE(rejection_reason, ''),
 		COALESCE(approval_delivery_status, ''), COALESCE(approval_delivery_error, ''),
 		COALESCE(invite_delivery_status, ''), COALESCE(invite_delivery_error, ''),
-		COALESCE(created_at, ''), COALESCE(updated_at, ''), COALESCE(approved_at, ''),
-		COALESCE(rejected_at, ''), COALESCE(completed_at, ''), COALESCE(expires_at, '')
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''), COALESCE(CAST(approved_at AS TEXT), ''),
+		COALESCE(CAST(rejected_at AS TEXT), ''), COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), '')
 		FROM guest_registrations WHERE %s = ?`, column), value)
 	return scanRegistration(row)
 }
@@ -608,8 +608,8 @@ func loadByIDTx(tx *sql.Tx, id string) (*Registration, error) {
 		COALESCE(role, ''), COALESCE(approved_by, ''), COALESCE(rejection_reason, ''),
 		COALESCE(approval_delivery_status, ''), COALESCE(approval_delivery_error, ''),
 		COALESCE(invite_delivery_status, ''), COALESCE(invite_delivery_error, ''),
-		COALESCE(created_at, ''), COALESCE(updated_at, ''), COALESCE(approved_at, ''),
-		COALESCE(rejected_at, ''), COALESCE(completed_at, ''), COALESCE(expires_at, '')
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''), COALESCE(CAST(approved_at AS TEXT), ''),
+		COALESCE(CAST(rejected_at AS TEXT), ''), COALESCE(CAST(completed_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), '')
 		FROM guest_registrations WHERE id = ?`, id)
 	return scanRegistration(row)
 }

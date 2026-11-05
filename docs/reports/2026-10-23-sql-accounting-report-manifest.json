@@ -1,0 +1,65 @@
+{
+  "time": "2026-10-26T11:07:42.878338+00:00",
+  "files": [
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-readiness.md",
+      "sha256": "52a67635de9126079a88c46d60d9ad60c4591c473eaf17450ee4c958abd7d27e"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-implementation.md",
+      "sha256": "c8873a957dacf1368dbc789b63ec6a9da3f93de029224f7e61a35ed14615c73a"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-windows.md",
+      "sha256": "a7750700be77ec7b68dbe7b68138785f2e4d1ac2f3270623dee522ebc9266d2a"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-ubuntu.md",
+      "sha256": "2973ec561ea1c8611718eee3b2a84973d42b274960b2a2a84d2d0eca935eeca7"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-postgresql.md",
+      "sha256": "b95bb857c6210818bc5e484bc029f204673a1e1b304176483f8634336a693a7b"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-live-services.md",
+      "sha256": "aad8eb47bebcc35c86bff3b9da98be74254e04d1ca3fb26e2d0f030bf48bca60"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-security.md",
+      "sha256": "4a55ec0063f11b76d7d6babc51ce26c98bcbac9fdcfcca9768eea981622c958b"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-nas0116.md",
+      "sha256": "33298c9f0e7c9fc8aa5cc9abfa9bd3537bd1d5815e4eec153875c08d670b7da0"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-history.md",
+      "sha256": "a531a41bf952294e31b4e8c57ce5d27678d229daaf5d68a5a1caf3f134a235fb"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-roadmap.md",
+      "sha256": "c4b11168a4fb9f95c08a3d5c71b7ff03ff6af7d5820c3fa20c02d1fd1144d0f1"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-milestones.csv",
+      "sha256": "5ee3ec1b4e02913796fe82109d19ba8a13f50daac80eb32ecf1c6f2920d76d82"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-changes.csv",
+      "sha256": "9dcf02b7316d6d401d277ef65ace9a21cd1aefecbfe2878962e3bf8590297135"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-results.json",
+      "sha256": "f71cbd2061f2149fa101cba39fd630a24b2397f4da53df4173f175da5965c628"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-source-state.json",
+      "sha256": "bbc41389a4751ec9f596d8913bd0da1fc507fb740b9f145982465620e40776d1"
+    },
+    {
+      "path": "docs/reports/2026-10-23-sql-accounting-evidence-manifest.json",
+      "sha256": "bee860a72b16363a0fdaa2863c696446a0dd442eff3e16364165877d35504a22"
+    }
+  ]
+}

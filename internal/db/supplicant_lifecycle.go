@@ -119,15 +119,15 @@ func RecordSupplicantLifecycleEvent(event SupplicantLifecycleEvent, eventRetenti
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		normalized.ObservedAt.UTC(), normalized.Protocol, normalized.Platform, normalized.Decision, normalized.Action,
 		normalized.Reason, normalized.UsernameHash, normalized.DeviceIDHash, normalized.Tenant, normalized.EAPMethod,
-		normalized.InnerMethod, normalized.IdentitySource, boolToSQLite(normalized.PasswordExpired), normalized.DaysUntilExpiry,
-		boolToSQLite(normalized.PasswordChangeRequested), boolToSQLite(normalized.PasswordChangeRequired),
-		boolToSQLite(normalized.PasswordChanged), boolToSQLite(normalized.OldPasswordVerified),
-		boolToSQLite(normalized.NewPasswordMeetsPolicy), boolToSQLite(normalized.MFAComplete),
-		boolToSQLite(normalized.TLSProtected), boolToSQLite(normalized.VerifierCompatible),
-		boolToSQLite(normalized.ProfileRequested), boolToSQLite(normalized.ProfileSigned),
-		boolToSQLite(normalized.SigningKeyAvailable), boolToSQLite(normalized.TrustAnchorPinned),
-		boolToSQLite(normalized.ServerNameMatched), boolToSQLite(normalized.DeliveryTokenValid),
-		boolToSQLite(normalized.DeviceManaged), boolToSQLite(normalized.CertificateLifecycleReady),
+		normalized.InnerMethod, normalized.IdentitySource, normalized.PasswordExpired, normalized.DaysUntilExpiry,
+		normalized.PasswordChangeRequested, normalized.PasswordChangeRequired,
+		normalized.PasswordChanged, normalized.OldPasswordVerified,
+		normalized.NewPasswordMeetsPolicy, normalized.MFAComplete,
+		normalized.TLSProtected, normalized.VerifierCompatible,
+		normalized.ProfileRequested, normalized.ProfileSigned,
+		normalized.SigningKeyAvailable, normalized.TrustAnchorPinned,
+		normalized.ServerNameMatched, normalized.DeliveryTokenValid,
+		normalized.DeviceManaged, normalized.CertificateLifecycleReady,
 		normalized.PolicyMode, normalized.LatencyMS, string(detailsJSON))
 	if err != nil {
 		return err
@@ -197,13 +197,13 @@ func ListSupplicantLifecycleEvents(filter SupplicantLifecycleEventFilter) ([]Sup
 	limit := boundedLimit(filter.Limit, 100, 5000)
 	query := `SELECT id, observed_at, protocol, platform, decision, action, reason, COALESCE(username_hash, ''),
 		COALESCE(device_id_hash, ''), COALESCE(tenant, ''), COALESCE(eap_method, ''), COALESCE(inner_method, ''),
-		COALESCE(identity_source, ''), COALESCE(password_expired, 0), COALESCE(days_until_expiry, 0),
-		COALESCE(password_change_requested, 0), COALESCE(password_change_required, 0), COALESCE(password_changed, 0),
-		COALESCE(old_password_verified, 0), COALESCE(new_password_meets_policy, 0), COALESCE(mfa_complete, 0),
-		COALESCE(tls_protected, 0), COALESCE(verifier_compatible, 0), COALESCE(profile_requested, 0),
-		COALESCE(profile_signed, 0), COALESCE(signing_key_available, 0), COALESCE(trust_anchor_pinned, 0),
-		COALESCE(server_name_matched, 0), COALESCE(delivery_token_valid, 0), COALESCE(device_managed, 0),
-		COALESCE(certificate_lifecycle_ready, 0), COALESCE(policy_mode, ''), COALESCE(latency_ms, 0),
+		COALESCE(identity_source, ''), (CASE WHEN password_expired THEN 1 ELSE 0 END), COALESCE(days_until_expiry, 0),
+		(CASE WHEN password_change_requested THEN 1 ELSE 0 END), (CASE WHEN password_change_required THEN 1 ELSE 0 END), (CASE WHEN password_changed THEN 1 ELSE 0 END),
+		(CASE WHEN old_password_verified THEN 1 ELSE 0 END), (CASE WHEN new_password_meets_policy THEN 1 ELSE 0 END), (CASE WHEN mfa_complete THEN 1 ELSE 0 END),
+		(CASE WHEN tls_protected THEN 1 ELSE 0 END), (CASE WHEN verifier_compatible THEN 1 ELSE 0 END), (CASE WHEN profile_requested THEN 1 ELSE 0 END),
+		(CASE WHEN profile_signed THEN 1 ELSE 0 END), (CASE WHEN signing_key_available THEN 1 ELSE 0 END), (CASE WHEN trust_anchor_pinned THEN 1 ELSE 0 END),
+		(CASE WHEN server_name_matched THEN 1 ELSE 0 END), (CASE WHEN delivery_token_valid THEN 1 ELSE 0 END), (CASE WHEN device_managed THEN 1 ELSE 0 END),
+		(CASE WHEN certificate_lifecycle_ready THEN 1 ELSE 0 END), COALESCE(policy_mode, ''), COALESCE(latency_ms, 0),
 		COALESCE(details_json, '{}')
 		FROM supplicant_lifecycle_events WHERE 1=1`
 	var args []any

@@ -15,7 +15,7 @@ func TestGetVoucherRedemptionAnalytics(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -52,7 +52,7 @@ func TestGetVoucherRedemptionAnalytics(t *testing.T) {
 		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		"s1", "voucher_V-001", "aa:bb:cc:00:00:01", "192.168.50.10", "voucher", "guest-basic", "2026-06-01T12:00:00Z", "2026-06-01T12:25:00Z", "2026-06-01T12:30:00Z", 100, 200, 1800,
 		"s2", "voucher_V-002", "aa:bb:cc:00:00:02", "192.168.50.11", "voucher", "guest-basic", "2026-06-01T10:00:00Z", "2026-06-01T10:10:00Z", "2026-06-01T10:20:00Z", 50, 75, 1200,
-		"s3", "voucher_V-002", "aa:bb:cc:00:00:03", "192.168.50.12", "voucher", "guest-basic", "2026-06-02T10:00:00Z", "2026-06-02T10:20:00Z", "", 0, 0, 0,
+		"s3", "voucher_V-002", "aa:bb:cc:00:00:03", "192.168.50.12", "voucher", "guest-basic", "2026-06-02T10:00:00Z", "2026-06-02T10:20:00Z", nil, 0, 0, 0,
 		"s4", "voucher_V-003", "aa:bb:cc:00:00:04", "192.168.50.13", "voucher", "guest-vip", "2026-06-01T16:00:00Z", "2026-06-01T16:03:00Z", "2026-06-01T16:05:00Z", 500, 700, 300,
 	)
 	require.NoError(t, err)

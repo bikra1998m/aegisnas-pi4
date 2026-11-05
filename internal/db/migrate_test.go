@@ -263,13 +263,12 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMigrateRepairsLegacyRadiusClientNASTypeColumn(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "test-legacy-radius-clients-*.db")
+	// This fixture checks schema repair, not filesystem durability. Keep the
+	// incomplete legacy schema in one isolated connection; repeated table
+	// repairs otherwise spend minutes synchronizing a disposable Windows file.
+	err := Init(":memory:")
 	require.NoError(t, err)
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	err = Init(tmpfile.Name())
-	require.NoError(t, err)
+	DB.SetMaxOpenConns(1)
 	defer Close()
 
 	_, err = DB.Exec(`CREATE TABLE schema_version (

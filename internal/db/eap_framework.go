@@ -97,9 +97,9 @@ func RecordEAPMethodEvent(event EAPMethodEvent, retentionLimit int) error {
 		emptyToNil(strings.TrimSpace(event.UserNameHash)),
 		emptyToNil(strings.TrimSpace(event.CallingStationHash)),
 		emptyToNil(strings.TrimSpace(event.IdentitySource)),
-		boolToSQLite(event.EAPMessagePresent),
-		boolToSQLite(event.MessageAuthenticatorPresent),
-		boolToSQLite(event.CertificatePresented),
+		event.EAPMessagePresent,
+		event.MessageAuthenticatorPresent,
+		event.CertificatePresented,
 		emptyToNil(strings.TrimSpace(event.TLSVersion)),
 		emptyToNil(strings.ToLower(strings.TrimSpace(event.PolicyMode))),
 		event.LatencyMS,
@@ -142,8 +142,8 @@ func ListEAPMethodEvents(filter EAPMethodEventFilter) ([]EAPMethodEvent, error) 
 	args = append(args, limit)
 	rows, err := DB.Query(`SELECT id, observed_at, method, COALESCE(inner_method, ''), decision, reason,
 			COALESCE(nas_identifier, ''), COALESCE(nas_type, ''), COALESCE(user_name_hash, ''), COALESCE(calling_station_hash, ''),
-			COALESCE(identity_source, ''), COALESCE(eap_message_present, 0), COALESCE(message_authenticator_present, 0),
-			COALESCE(certificate_presented, 0), COALESCE(tls_version, ''), COALESCE(policy_mode, ''),
+			COALESCE(identity_source, ''), (CASE WHEN eap_message_present THEN 1 ELSE 0 END), (CASE WHEN message_authenticator_present THEN 1 ELSE 0 END),
+			(CASE WHEN certificate_presented THEN 1 ELSE 0 END), COALESCE(tls_version, ''), COALESCE(policy_mode, ''),
 			COALESCE(latency_ms, 0), COALESCE(details_json, '{}'), created_at
 		FROM eap_method_events
 		WHERE `+strings.Join(clauses, " AND ")+`

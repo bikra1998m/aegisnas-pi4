@@ -22,15 +22,14 @@ apps:
 
 parts:
   aegis-portal:
-    plugin: go
+    plugin: nil
     source: ../../
     source-type: local
     build-snaps:
-      - go/1.22/stable
+      - go/1.26/stable
     override-build: |
-      craftctl default
-      cd ../../
-      go build -o $CRAFT_PART_INSTALL/bin/aegis-portal ./cmd/aegis-portal
+      cd "$CRAFT_PART_SRC"
+      bash scripts/build-snap-service.sh aegis-portal "$CRAFT_PART_INSTALL"
       # Also include static assets
       mkdir -p $CRAFT_PART_INSTALL/share/aegisnas/portal/static
       cp -r internal/portal/server/static/* $CRAFT_PART_INSTALL/share/aegisnas/portal/static/

@@ -76,6 +76,6 @@ func setupRadiusFallbackEventDB(t *testing.T) {
 		_ = Close()
 		_ = os.Remove(dbPath)
 	})
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	require.NoError(t, Migrate())
 }

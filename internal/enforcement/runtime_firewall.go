@@ -1104,7 +1104,7 @@ func CountPendingChanges() (int, error) {
 		return 0, nil
 	}
 	var count int
-	err := db.DB.QueryRow(`SELECT COUNT(*) FROM config_staging WHERE applied = 0`).Scan(&count)
+	err := db.DB.QueryRow(`SELECT COUNT(*) FROM config_staging WHERE applied = FALSE`).Scan(&count)
 	return count, err
 }
 
@@ -1113,7 +1113,7 @@ func CountUnacknowledgedAlerts() (int, error) {
 		return 0, nil
 	}
 	var count int
-	err := db.DB.QueryRow(`SELECT COUNT(*) FROM alerts WHERE acknowledged = 0`).Scan(&count)
+	err := db.DB.QueryRow(`SELECT COUNT(*) FROM alerts WHERE acknowledged = FALSE`).Scan(&count)
 	return count, err
 }
 
@@ -1131,7 +1131,7 @@ func CountEnabledRadiusClients() (int, error) {
 		return 0, nil
 	}
 	var count int
-	err := db.DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE enabled = 1`).Scan(&count)
+	err := db.DB.QueryRow(`SELECT COUNT(*) FROM radius_clients WHERE enabled = TRUE`).Scan(&count)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, nil

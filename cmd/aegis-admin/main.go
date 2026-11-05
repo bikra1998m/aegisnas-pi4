@@ -195,7 +195,7 @@ var inspectUpgradeRollbackPackageCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("load config: %w", err)
 		}
-		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		packageBytes, err := upgrade.ReadRecoveryFile(rollbackPackageIn, upgrade.MaxRollbackPackageBytes)
 		if err != nil {
 			return fmt.Errorf("read rollback package: %w", err)
 		}
@@ -220,7 +220,7 @@ var restoreUpgradeRollbackPackageCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("load config: %w", err)
 		}
-		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		packageBytes, err := upgrade.ReadRecoveryFile(rollbackPackageIn, upgrade.MaxRollbackPackageBytes)
 		if err != nil {
 			return fmt.Errorf("read rollback package: %w", err)
 		}
@@ -249,7 +249,7 @@ var extractUpgradeRollbackPackageCmd = &cobra.Command{
 		if rollbackExtractDir == "" {
 			return fmt.Errorf("--output-dir is required")
 		}
-		packageBytes, err := os.ReadFile(rollbackPackageIn)
+		packageBytes, err := upgrade.ReadRecoveryFile(rollbackPackageIn, upgrade.MaxRollbackPackageBytes)
 		if err != nil {
 			return fmt.Errorf("read rollback package: %w", err)
 		}

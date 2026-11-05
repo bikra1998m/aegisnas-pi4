@@ -18,10 +18,10 @@ func TestHandleListAuditHistory(t *testing.T) {
 	_ = prepareSupportBundleTestConfig(t)
 
 	now := time.Date(2026, 5, 21, 9, 0, 0, 0, time.UTC)
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now, "ops-admin", "download_support_bundle", "bundle", "downloaded", "192.168.50.10")
 	require.NoError(t, err)
-	_, err = db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err = db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(time.Minute), "guest-admin", "guest_registration_approved", "guest-1", "approved", "192.168.50.11")
 	require.NoError(t, err)
 
@@ -47,7 +47,7 @@ func TestHandleListAuditHistory(t *testing.T) {
 func TestHandleExportAuditHistoryCSV(t *testing.T) {
 	_ = prepareSupportBundleTestConfig(t)
 
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		time.Date(2026, 5, 21, 9, 0, 0, 0, time.UTC), "ops-admin", "apply_network_services", "config.yaml", "applied", "192.168.50.10")
 	require.NoError(t, err)
 

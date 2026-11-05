@@ -17,7 +17,7 @@ func Log(user, action, details, result string) {
 	)
 
 	if db.DB != nil {
-		_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result) VALUES (?, ?, ?, ?, ?)`,
+		_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result) VALUES (?, ?, ?, ?, ?)`,
 			time.Now(), user, action, details, result)
 		if err != nil {
 			logger.Error("failed to persist audit log", zap.Error(err))

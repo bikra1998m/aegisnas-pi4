@@ -1,0 +1,457 @@
+[
+  {
+    "path": ".tmp/reconcile-20261015/bin/aegis-admin-api.exe",
+    "bytes": 54573056,
+    "sha256": "a81e056d3f31f49642e09366dbd9c49f311f789afec9c33e9a62d9c9bd90574c"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/bin/aegis-admin.exe",
+    "bytes": 32003584,
+    "sha256": "7b984ecf29a9bf3379631adf38f80f158934370b56255075ceb808907c87c962"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/check_workflow.py",
+    "bytes": 1194,
+    "sha256": "0d3dc6185ee8ce9778e30b12fbf444e18692d18c8ff2f163571cdce37c3211a7"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/current-candidate-gate.json",
+    "bytes": 1011,
+    "sha256": "4fd58a3841ebd1f1a415d3c47d4f52a5f58879818a05a13a93599d94da54d6f1"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/diff.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/entry-file-hashes.json",
+    "bytes": 142193,
+    "sha256": "27967bf8066d62d16a1f6cce4e3fe35b762ce2ad3293cd0f4609906c10b62933"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/final-diff-check.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/final-qa.json",
+    "bytes": 732,
+    "sha256": "812e2a9509603890d31300f11bcd90512553804a9cd2e278e382f1861d12c935"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/final_qa.py",
+    "bytes": 5343,
+    "sha256": "1f6601b708447cba9534cbd9cead688c4f6a606f654013a46ec743185166e85c"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/generate_reports.py",
+    "bytes": 21677,
+    "sha256": "2caf0193b47153c82d9453300f4d079e2244f0a4c8584747de63f26a7521ccf5"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/git-status-entry.txt",
+    "bytes": 5892,
+    "sha256": "614e3c1ec9433d8dbbe55344aa8e611aab22c773c3a8d9b15a726e21af9ac4b3"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/go-exposure/amd64-imports.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/go-exposure/amd64-imports.txt",
+    "bytes": 11079,
+    "sha256": "2a1299fe4e3fa1ba8e34adc1d13a42c91b990141a8c69976c2ed7bdd69eb6499"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/go-exposure/arm64-imports.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/go-exposure/arm64-imports.txt",
+    "bytes": 11051,
+    "sha256": "08f95304e62eb2333c81fd79a9ab3212154916d7cf97ce177423d938dffd5ade"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/go-exposure/exposure.json",
+    "bytes": 5990,
+    "sha256": "39a18e7ca1e1e755757aaf0bb75878fa12451d6ff98f13d282b9687445f3dc5f"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/historical-evidence-check.json",
+    "bytes": 119,
+    "sha256": "06431f9461ef1ce3358a1813670e5e34663f6506b7f6cf62d41654dd701c4a50"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/history-index.json",
+    "bytes": 2918,
+    "sha256": "8935bcdd2de9f0d997f94e514196838ed3ecd7df95815aa90aa78a104bdfd9d3"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/history-messages.jsonl",
+    "bytes": 1288949,
+    "sha256": "b62f838432db3bae929e66547acedb6a33c1744404a775757b12569b131fac42"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/api.log",
+    "bytes": 14967,
+    "sha256": "b7267f270522674e4b840a77e3a572d6b4513cf650f64301a7219bc32af08141"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/migrate.log",
+    "bytes": 44,
+    "sha256": "1fbb872f8bd4397bf03c48fada420075b046f333a52693dc25791722bcd82e57"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/release-security.json",
+    "bytes": 483,
+    "sha256": "cc2ce863c7781f6a4abf8a34389bac61c113cb1a4f15bb363fba0302a7d2c5e8"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/result.json",
+    "bytes": 2631,
+    "sha256": "c1897fc272943cd18dfde6254b32a60ae2e83c1bb3a020299fa20118c17a7725"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/seed.log",
+    "bytes": 31,
+    "sha256": "4eab688fb94603d7d0e4425ec8660683fc3dfcd3416aa3123064cd7077962946"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/state/config.yaml",
+    "bytes": 119305,
+    "sha256": "abcad264b4479057214619ebb0bd489873fa0ce501e03b4b366bd1f5ebb6e612"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/state/data.db",
+    "bytes": 3977216,
+    "sha256": "25e219ff6f10f83f07d225e008938b2fc0f1b9269abafc4168bf8c99f807bb74"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/support-bundle-members.json",
+    "bytes": 6427,
+    "sha256": "d6b6568c920c8fcd9b0f661cc27a7a09b16de9bf9e84e0099c592b390879ecc0"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/live-api/validate-config.log",
+    "bytes": 25,
+    "sha256": "3db4a4a7f90ecce0a34f1fc9c83898bcaf1d87bb695efa44d9e725792b20435a"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/native-build.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-after/result.json",
+    "bytes": 267,
+    "sha256": "c1c292e5f2fa2f3f6ea850859e6ca0d07823dd951bfa1f9a8c7b9906082bd2ca"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-after/server.log",
+    "bytes": 1837,
+    "sha256": "a406d0a99f7928322b33618baeb3a73a55bcca360b4b8b554d274c1675af3d71"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-after/start.log",
+    "bytes": 54,
+    "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-after/stop.log",
+    "bytes": 58,
+    "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-after/test.log",
+    "bytes": 1006,
+    "sha256": "5cb151554cd2f4395e4a12f27ae028f0183a282b99be7bd83ecefe99dd2d88cc"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-before/result.json",
+    "bytes": 267,
+    "sha256": "ee294e61775dd3e5914cf29564e45c7ada132899cd841aac698ac426b77898ef"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-before/server.log",
+    "bytes": 3114,
+    "sha256": "9ad7b4607cb131e9a6c04e006b1507da5369ba2888cd2fa35829a91cbd9c0779"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-before/start.log",
+    "bytes": 54,
+    "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-before/stop.log",
+    "bytes": 58,
+    "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-before/test.log",
+    "bytes": 1735,
+    "sha256": "a31120c65b98c8e76a1f305a2a8e164f83012e98b474b063e8bcf782c00fe229"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-final/result.json",
+    "bytes": 268,
+    "sha256": "36a4d68a3ddacf1b17868058469f861bb98fb0d23dcc594a50f36a1a55afb422"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-final/server.log",
+    "bytes": 1240,
+    "sha256": "a176f30751ef57ded8904a9cb96e15c79cc8912353f03b83339f3c1eeb0959fe"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-final/start.log",
+    "bytes": 54,
+    "sha256": "46038efb813fbca18a92272496901190638dea3f97b51f7af0daa1ca2eb13818"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-final/stop.log",
+    "bytes": 58,
+    "sha256": "3589d2bd01f8295cc7c9ec3f5e07625fcd347ccb6f33f2d80edafe5f5217c1fb"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg-final/test.log",
+    "bytes": 633,
+    "sha256": "093097b06a8afbb36849f7f2c11a7181a8beb4c2627c5d5d86fa733423ba3fa0"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/pg_retry.py",
+    "bytes": 1457,
+    "sha256": "6e208260b7facb97cc0dcc4ed0a420f7a4c8a5ada2f73737ed4183f02f61c474"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/stream_history.py",
+    "bytes": 4022,
+    "sha256": "af6f5e8b3eabe547085f294214fa15c1ab4698ad9dadf72959059485328def56"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/ui.tar.gz",
+    "bytes": 257332,
+    "sha256": "d056bfbc9d0d3225748e158c27bf9647d95988cbe8918fda712a3ff9f5aefbe7"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vet.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-api.log",
+    "bytes": 15625,
+    "sha256": "e1f09a22873cc6cdbbf3352c54158f2098fd5530f7a3605ba54bce50d668a456"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-driver.json",
+    "bytes": 268,
+    "sha256": "23303ad9effacb4252a770643f99b0406c51de374a120f5aa635dfcb64b34115"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-migrate.log",
+    "bytes": 43,
+    "sha256": "23b6bab5d8350d4781adbd62591db9767c0e1a10401e0c67d8333014fd8204bb"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-release-security.json",
+    "bytes": 472,
+    "sha256": "260f9a96cc53f1425e90abe5d57fdbdbf3fdc73ee10f027cc0e6e5b3874ac699"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-result.json",
+    "bytes": 2516,
+    "sha256": "807904414e06cf65b39141e9d24b02ffd4965a9d6a9302652d962eb426562ba5"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-seed.log",
+    "bytes": 30,
+    "sha256": "7aff71f41000f97881311401e73fb9a74a67ff3a8669dbbfd2b1dc776d50d840"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-smoke.log",
+    "bytes": 2517,
+    "sha256": "2b3c1af027de4f07b7be1fe05ebbea93688565b6e05a4c35d01af842724622fb"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-support-bundle-members.json",
+    "bytes": 6249,
+    "sha256": "9ca1fb4d09549df218673e7f55b64af21edcc4d50aada40318f1b72a845f27ea"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-api-validate-config.log",
+    "bytes": 24,
+    "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-build-admin.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-build-api.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-build-linux-amd64.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-build-linux-arm64.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-postgres-initdb.log",
+    "bytes": 985,
+    "sha256": "9bc67fe7d5badf9cb491226670b611f78b7a10f5046deb69883206a0e4b03432"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-postgres-live.log",
+    "bytes": 4260,
+    "sha256": "072bfc6143a5914a2fb241bba81a5c22a2404d6972aad29d73002dcdc79daa5f"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-postgres-start.log",
+    "bytes": 52,
+    "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-postgres-stop.log",
+    "bytes": 56,
+    "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-postgres-version.log",
+    "bytes": 60,
+    "sha256": "18f27a70ba178535f44f2f435ba490cdbc4c905351a9ea9342d0f4868a74199d"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-python-security.log",
+    "bytes": 3196,
+    "sha256": "cc8299d15220ac968efb0c9ccaee40e61d39220029df72f0cb4b9813b3120296"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-readonly-final.json",
+    "bytes": 1964,
+    "sha256": "fe13a603bddda1eb93d8e6fa6c3ecb939679e748b23d5f888c75ece8365f9271"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-readonly-final.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-readonly.json",
+    "bytes": 1964,
+    "sha256": "8b38d16afc6bb43f915500573979ac081873ae6324084b2fbb01a8f8c317ab0f"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-readonly.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-regression.log",
+    "bytes": 414061,
+    "sha256": "3e875d8362c644bf71c698e4fae655fd2ea84c8399d38c2505e62abbd8b8d5c3"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-results.json",
+    "bytes": 2852,
+    "sha256": "4e75091b49e3afe73a0abec6a9b0cb0ac0d4eb6962714311c0679b1a1f5aabdd"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-server.log",
+    "bytes": 1006,
+    "sha256": "8c2e9130b9c92fa7432445e829798f1049f79426e3404401fcb27e34058a2071"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-source.tar.gz",
+    "bytes": 2333735,
+    "sha256": "d6ba958c384d962904ac838346e2dc469ccdb2b07480c0374b1a9c8a9289d089"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm-vet.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_api.py",
+    "bytes": 920,
+    "sha256": "b0434765a33889e32ca1e9a4b35192b451d5bfa1fda8e684998d6334d988092a"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_api_control.py",
+    "bytes": 1468,
+    "sha256": "bb3a5a1cf11a28023d16e43585123ad109e17119a3b71fb6b60dd20ece870c0a"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_control.py",
+    "bytes": 1696,
+    "sha256": "fd3f84edf1d01641dca0cb98fe89b2cd89baa29191a8dac67c442de07ab07e68"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_readonly.py",
+    "bytes": 2290,
+    "sha256": "0e50a96556280e59debdc2a463dd127afb843068d015163c5e6475830cb3a384"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_readonly_final.py",
+    "bytes": 2331,
+    "sha256": "e95776c6390ae1927e995f0f0469f4c65820eb27c215df40cbefb4681ca85a92"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_run.py",
+    "bytes": 2415,
+    "sha256": "3c271be857f6e22dbeb9dbb14470ecf313776eaa92448df02f08fd5da56d5ec9"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/vm_workflow_control.py",
+    "bytes": 984,
+    "sha256": "fb537fa7eb87b4f6003e25775040c98cdac2ffacddd74c07a3aaf12707919f06"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows-checks-initial-error.txt",
+    "bytes": 210,
+    "sha256": "ea4afe0e895b2fae0f7feb5312dd477f7afd147d3cb4c15a65ebb9cc03c222f6"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows-checks.json",
+    "bytes": 523,
+    "sha256": "4516f041ae7d15e7751b4305d30601fddfbc19a2a81f6f86622ca04900a97690"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows-live-api.log",
+    "bytes": 5268,
+    "sha256": "1d8c8aea7227ee166aef6c8c371b059dafc5fc637e809a51ee1b770a085a42af"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows-python-tests.log",
+    "bytes": 10292,
+    "sha256": "33d1d469893ef0a9af1f380fcf343b4fea725b755926e6311c159d5e86a5c5c4"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows-regression.jsonl",
+    "bytes": 824400,
+    "sha256": "289d50de763cfe424f37b7d8198535f95db48bd5b396a5c47ebe296e3387de72"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/windows_checks.py",
+    "bytes": 764,
+    "sha256": "fba0f48684fb513091dc1514c145a572abbfd5979935893d5646687d16b4c9d0"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/workflow.json",
+    "bytes": 357,
+    "sha256": "1bc2e91795935540e412978efcec6f27c12351dbc9f3a21fdf6365304f705082"
+  },
+  {
+    "path": ".tmp/reconcile-20261015/workflow.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

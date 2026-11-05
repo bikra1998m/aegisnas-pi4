@@ -20,7 +20,7 @@ func TestRadiusPacketHardeningEventsPersistAndTrim(t *testing.T) {
 		_ = os.Remove(file.Name())
 	})
 
-	require.NoError(t, Init(file.Name()))
+	require.NoError(t, initRuntimeTestDB(t, file.Name()))
 	require.NoError(t, Migrate())
 
 	now := time.Now().UTC()

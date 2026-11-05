@@ -420,7 +420,7 @@ func broadbandL2TPWholesaleBindingSelectSQL() string {
 		access_method, tunnel_profile, tunnel_mode, COALESCE(proxy_route, ''), COALESCE(accounting_route, ''),
 		COALESCE(address_pool, ''), COALESCE(qos_profile, ''), COALESCE(product, ''), status,
 		compiled_attributes_json, COALESCE(failover_policy, ''), COALESCE(source_event_id, ''),
-		plan_fingerprint, COALESCE(installed_at, ''), COALESCE(withdrawn_at, ''), last_seen_at, created_at, updated_at
+		plan_fingerprint, COALESCE(CAST(installed_at AS TEXT), ''), COALESCE(CAST(withdrawn_at AS TEXT), ''), last_seen_at, created_at, updated_at
 		FROM broadband_l2tp_wholesale_bindings`
 }
 

@@ -104,7 +104,7 @@ func TestFreeRADIUSAccountingReconcileLifecycle(t *testing.T) {
 
 func setupFreeRADIUSAccountingTestDB(t *testing.T) {
 	t.Helper()
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {

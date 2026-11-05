@@ -15,18 +15,18 @@ func TestAuditHistoryRoundTripAndStats(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	require.NoError(t, tmpfile.Close())
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
 	now := time.Date(2026, 5, 21, 8, 0, 0, 0, time.UTC)
-	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now, "ops-admin", "download_support_bundle", "bundle-1", "downloaded", "192.168.50.10")
 	require.NoError(t, err)
-	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(time.Minute), "ops-admin", "apply_network_services", "config.yaml", "applied", "192.168.50.10")
 	require.NoError(t, err)
-	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err = DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		now.Add(2*time.Minute), "guest-admin", "guest_registration_approved", "guest-1", "approved", "192.168.50.11")
 	require.NoError(t, err)
 

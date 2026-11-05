@@ -126,7 +126,7 @@ func TestExtractRollbackPackageBytes(t *testing.T) {
 	payload, _, manifest, err := CreateRollbackPackage(cfg, configPath)
 	require.NoError(t, err)
 
-	outputDir := filepath.Join(t.TempDir(), "rollback-extracted")
+	outputDir := filepath.Join(privateRecoveryTestDir(t), "rollback-extracted")
 	extraction, err := ExtractRollbackPackageBytes(payload, outputDir)
 	require.NoError(t, err)
 

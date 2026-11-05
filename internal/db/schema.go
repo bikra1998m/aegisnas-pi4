@@ -99,7 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_nas_client_events_radius_client ON nas_client_eve
 INSERT OR IGNORE INTO nas_client_capability_templates
 	(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
 VALUES
-	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1);
+	('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', TRUE);
 `
 
 func MigrateHandle(handle *sql.DB) error {
@@ -226,6 +226,8 @@ func MigrateHandle(handle *sql.DB) error {
 		{99, schemaV99},
 		{100, schemaV100},
 		{101, schemaV101},
+		{102, schemaV102},
+		{103, schemaV103},
 	}
 
 	pending := make([]struct {
@@ -253,6 +255,15 @@ func MigrateHandle(handle *sql.DB) error {
 		for _, m := range pending {
 			if _, err := tx.Exec(SQLForDialect(m.sql, dialect)); err != nil {
 				return fmt.Errorf("apply migration v%d: %w", m.version, err)
+			}
+			if m.version == 102 && dialect == DialectPostgreSQL {
+				var schemas []string
+				for _, migration := range migrations {
+					schemas = append(schemas, migration.sql)
+				}
+				if err := widenPostgreSQLIntegers(tx, schemas); err != nil {
+					return fmt.Errorf("repair PostgreSQL integer widths: %w", err)
+				}
 			}
 			if _, err := tx.Exec("INSERT INTO schema_version (version) VALUES (?)", m.version); err != nil {
 				return fmt.Errorf("record migration v%d: %w", m.version, err)
@@ -344,6 +355,20 @@ func MigrateHandle(handle *sql.DB) error {
 	}
 	if err := ensureFreeRADIUSSQLAccountingTables(handle); err != nil {
 		return fmt.Errorf("repair FreeRADIUS SQL accounting schema: %w", err)
+	}
+	for _, column := range []struct{ name, sql string }{
+		{"aegis_ingest_revision", "ALTER TABLE radacct ADD COLUMN aegis_ingest_revision BIGINT NOT NULL DEFAULT 0"},
+		{"aegis_packet_source", "ALTER TABLE radacct ADD COLUMN aegis_packet_source TEXT NOT NULL DEFAULT ''"},
+	} {
+		has, err := tableHasColumn(handle, "radacct", column.name)
+		if err != nil {
+			return err
+		}
+		if !has {
+			if _, err := handle.Exec(column.sql); err != nil {
+				return fmt.Errorf("repair SQL accounting ingestion schema: %w", err)
+			}
+		}
 	}
 	if err := ensureAccountingEventLedgerTables(handle); err != nil {
 		return fmt.Errorf("repair accounting event ledger schema: %w", err)
@@ -1757,7 +1782,7 @@ func ensureDynamicNASClientTables(handle *sql.DB) error {
 	if enrollmentsExist && templatesExist && eventsExist {
 		_, err = handle.Exec(SQLForDialect(`INSERT OR IGNORE INTO nas_client_capability_templates
 			(name, description, nas_type, required_capabilities_json, allowed_vendors_json, default_capabilities_json, enabled)
-			VALUES ('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', 1)`, DialectForHandle(handle)))
+			VALUES ('default', 'Default dynamic NAS capability gate for RADIUS authentication and accounting clients.', 'other', '[]', '[]', '{"radius":{"authentication":true,"accounting":true},"policy":{"role":true,"vlan":true}}', TRUE)`, DialectForHandle(handle)))
 		return err
 	}
 

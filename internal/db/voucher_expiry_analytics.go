@@ -76,7 +76,7 @@ func GetVoucherExpiryAnalytics(query VoucherExpiryQuery) (VoucherExpirySummary, 
 		bucketDuration = 24 * time.Hour
 	}
 
-	rows, err := DB.Query(`SELECT COALESCE(role, ''), usage_limit, used_count, COALESCE(expires_at, '') FROM vouchers ORDER BY datetime(expires_at) ASC, datetime(created_at) DESC`)
+	rows, err := DB.Query(`SELECT COALESCE(role, ''), usage_limit, used_count, COALESCE(CAST(expires_at AS TEXT), '') FROM vouchers ORDER BY datetime(expires_at) ASC, datetime(created_at) DESC`)
 	if err != nil {
 		return VoucherExpirySummary{}, err
 	}

@@ -275,7 +275,7 @@ func GetMobilePolicyControlSummary() (MobilePolicyControlSummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'reconciled' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), ''),
+		COALESCE(CAST(MAX(created_at) AS TEXT), ''),
 		COALESCE((SELECT plan_fingerprint FROM mobile_policy_control_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT policy_profile_count FROM mobile_policy_control_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),
 		COALESCE((SELECT qos_class_count FROM mobile_policy_control_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),

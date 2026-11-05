@@ -60,7 +60,7 @@ func (c postgresRewriteConn) ExecContext(ctx context.Context, query string, args
 
 func (c postgresRewriteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if queryer, ok := c.Conn.(driver.QueryerContext); ok {
-		return queryer.QueryContext(ctx, rewritePostgreSQLQuery(query), args)
+		return utcPostgreSQLRows(queryer.QueryContext(ctx, rewritePostgreSQLQuery(query), args))
 	}
 	return nil, driver.ErrSkip
 }
@@ -113,9 +113,13 @@ func (s postgresRewriteStmt) ExecContext(ctx context.Context, args []driver.Name
 
 func (s postgresRewriteStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	if queryer, ok := s.Stmt.(driver.StmtQueryContext); ok {
-		return queryer.QueryContext(ctx, args)
+		return utcPostgreSQLRows(queryer.QueryContext(ctx, args))
 	}
 	return nil, driver.ErrSkip
+}
+
+func (s postgresRewriteStmt) Query(args []driver.Value) (driver.Rows, error) {
+	return utcPostgreSQLRows(s.Stmt.Query(args))
 }
 
 func (s postgresRewriteStmt) ColumnConverter(idx int) driver.ValueConverter {
@@ -129,23 +133,6 @@ func rewritePostgreSQLQuery(query string) string {
 	query = rewriteSQLiteTimeFunctions(query)
 	query = rewriteInsertOrIgnore(query)
 	return rebindQuestionPlaceholders(query)
-}
-
-var sqliteRelativeNowRE = regexp.MustCompile(`(?i)datetime\(\s*'now'\s*,\s*'-([0-9]+)\s+(second|seconds|minute|minutes|hour|hours|day|days)'\s*\)`)
-
-func rewriteSQLiteTimeFunctions(query string) string {
-	query = sqliteRelativeNowRE.ReplaceAllString(query, `(CURRENT_TIMESTAMP - INTERVAL '$1 $2')`)
-	replacements := []struct {
-		from string
-		to   string
-	}{
-		{"datetime('now')", "CURRENT_TIMESTAMP"},
-		{"datetime( 'now' )", "CURRENT_TIMESTAMP"},
-	}
-	for _, replacement := range replacements {
-		query = strings.ReplaceAll(query, replacement.from, replacement.to)
-	}
-	return query
 }
 
 func rewriteInsertOrIgnore(query string) string {
@@ -252,7 +239,12 @@ func rebindQuestionPlaceholders(query string) string {
 }
 
 func skipSingleQuoted(query string, start int) int {
+	escaped := start > 0 && (query[start-1] == 'E' || query[start-1] == 'e') && (start < 2 || !isSQLWordByte(query[start-2]))
 	for i := start + 1; i < len(query); i++ {
+		if escaped && query[i] == '\\' {
+			i++
+			continue
+		}
 		if query[i] == '\'' {
 			if i+1 < len(query) && query[i+1] == '\'' {
 				i++
@@ -303,9 +295,19 @@ func skipLineComment(query string, start int) int {
 }
 
 func skipBlockComment(query string, start int) int {
+	depth := 1
 	for i := start + 2; i+1 < len(query); i++ {
+		if query[i] == '/' && query[i+1] == '*' {
+			depth++
+			i++
+			continue
+		}
 		if query[i] == '*' && query[i+1] == '/' {
-			return i + 1
+			depth--
+			if depth == 0 {
+				return i + 1
+			}
+			i++
 		}
 	}
 	return len(query) - 1

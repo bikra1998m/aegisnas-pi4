@@ -209,7 +209,7 @@ func ClaimAccountingIngestSpool(batchSize int, ownerNode string, now time.Time, 
 		WHERE status IN (?, ?)
 		  AND datetime(next_attempt_at) <= datetime(?)
 		  AND datetime(expires_at) > datetime(?)
-		  AND (locked_until IS NULL OR locked_until = '' OR datetime(locked_until) <= datetime(?))
+		  AND (locked_until IS NULL OR CAST(locked_until AS TEXT) = '' OR datetime(locked_until) <= datetime(?))
 		ORDER BY datetime(next_attempt_at), id
 		LIMIT ?`, AccountingIngestSpoolStatusQueued, AccountingIngestSpoolStatusRetrying,
 		formatSpoolTime(now), formatSpoolTime(now), formatSpoolTime(now), batchSize)
@@ -284,7 +284,7 @@ func CompleteAccountingIngestSpoolAttempt(record AccountingIngestSpoolRecord, up
 		return fmt.Errorf("invalid accounting ingest spool attempt result %q", update.Result)
 	}
 	attemptNumber := record.AttemptCount + 1
-	nextAttempt := ""
+	var nextAttempt any
 	if !update.NextAttemptAt.IsZero() {
 		nextAttempt = formatSpoolTime(update.NextAttemptAt)
 	}
@@ -379,7 +379,7 @@ func ListAccountingIngestSpoolAttempts(recordID string, limit int) ([]Accounting
 	args := []any{}
 	query := `SELECT id, spool_id, COALESCE(record_id, ''), COALESCE(attempt_number, 0),
 		COALESCE(result, ''), COALESCE(error, ''), COALESCE(event_id, ''),
-		COALESCE(latency_ms, 0), COALESCE(attempted_at, ''), COALESCE(next_attempt_at, '')
+		COALESCE(latency_ms, 0), COALESCE(CAST(attempted_at AS TEXT), ''), COALESCE(CAST(next_attempt_at AS TEXT), '')
 		FROM radius_accounting_ingest_spool_attempts`
 	if recordID != "" {
 		query += ` WHERE record_id = ?`
@@ -423,11 +423,11 @@ func GetAccountingIngestSpoolSummary(maxQueueRecords, lossSLOSeconds int) (Accou
 		COALESCE(SUM(CASE WHEN status IN ('queued', 'retrying') AND datetime(next_attempt_at) <= datetime(?) THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(attempt_count), 0),
 		COALESCE(SUM(CASE WHEN status IN ('queued', 'retrying') AND datetime(created_at) < datetime(?) THEN 1 ELSE 0 END), 0),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END), ''),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END), ''),
-		COALESCE(MAX(applied_at), ''),
-		COALESCE(MAX(CASE WHEN status = 'poison' THEN updated_at END), ''),
-		COALESCE(MAX(last_attempt_at), ''),
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END) AS TEXT), ''),
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(applied_at) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status = 'poison' THEN updated_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(last_attempt_at) AS TEXT), ''),
 		COALESCE((SELECT last_error FROM radius_accounting_ingest_spool WHERE last_error IS NOT NULL AND last_error <> '' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_ingest_spool`, nowText, lossCutoff).Scan(
 		&summary.TotalRecords, &summary.QueuedCount, &summary.RetryingCount, &summary.AppliedCount,
@@ -493,9 +493,9 @@ func accountingIngestSpoolSelectSQL() string {
 		COALESCE(acct_status_type, ''), COALESCE(username_hash, ''), COALESCE(nas_ip_address, ''),
 		COALESCE(payload_json, ''), COALESCE(payload_sha256, ''), COALESCE(attempt_count, 0),
 		COALESCE(max_attempts, 0), COALESCE(last_error, ''), COALESCE(last_event_id, ''),
-		COALESCE(last_attempt_at, ''), COALESCE(next_attempt_at, ''), COALESCE(expires_at, ''),
-		COALESCE(owner_node, ''), COALESCE(locked_until, ''), COALESCE(applied_at, ''),
-		COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(CAST(last_attempt_at AS TEXT), ''), COALESCE(CAST(next_attempt_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), ''),
+		COALESCE(owner_node, ''), COALESCE(CAST(locked_until AS TEXT), ''), COALESCE(CAST(applied_at AS TEXT), ''),
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM radius_accounting_ingest_spool`
 }
 

@@ -423,7 +423,7 @@ func upsertBroadbandServiceActivationTransaction(tx *sql.Tx, input BroadbandServ
 		input.RouteAttributesJSON,
 		input.MulticastAttributesJSON,
 		input.RadiusAttributesJSON,
-		boolToInt(input.RollbackRequired),
+		input.RollbackRequired,
 		nullString(strings.TrimSpace(input.SourceEventID)),
 		strings.TrimSpace(input.PlanFingerprint),
 		nullString(strings.TrimSpace(input.InstalledAt)),
@@ -451,7 +451,7 @@ func broadbandServiceActivationTransactionSelectSQL() string {
 		COALESCE(qos_profile, ''), COALESCE(accounting_class, ''), status,
 		vendor_packs_json, route_attributes_json, multicast_attributes_json, radius_attributes_json,
 		rollback_required, COALESCE(source_event_id, ''), plan_fingerprint,
-		COALESCE(installed_at, ''), COALESCE(withdrawn_at, ''), last_seen_at, created_at, updated_at
+		COALESCE(CAST(installed_at AS TEXT), ''), COALESCE(CAST(withdrawn_at AS TEXT), ''), last_seen_at, created_at, updated_at
 		FROM broadband_service_activation_transactions`
 }
 

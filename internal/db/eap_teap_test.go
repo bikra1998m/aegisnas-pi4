@@ -15,7 +15,7 @@ func TestTEAPChainEventsRecordFilterSummarizeAndTrim(t *testing.T) {
 	path := tmp.Name()
 	require.NoError(t, tmp.Close())
 	t.Cleanup(func() { _ = os.Remove(path) })
-	require.NoError(t, Init(path))
+	require.NoError(t, initRuntimeTestDB(t, path))
 	t.Cleanup(func() { _ = Close() })
 	require.NoError(t, Migrate())
 

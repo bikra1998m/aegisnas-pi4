@@ -240,7 +240,7 @@ func SyncNASSessionOwnershipFromSessions(ownerNode string, ttl time.Duration, li
 		COALESCE(rc.nas_type, 'other'), COALESCE(rc.transport, 'udp'),
 		COALESCE(rc.capabilities_json, '{}')
 		FROM sessions s
-		LEFT JOIN radius_clients rc ON rc.enabled = 1 AND (
+		LEFT JOIN radius_clients rc ON rc.enabled = TRUE AND (
 			LOWER(rc.shortname) = LOWER(COALESCE(s.nas_identifier, '')) OR
 			rc.ipaddr = COALESCE(s.nas_identifier, '')
 		)
@@ -324,7 +324,7 @@ func LookupNASCapabilityClient(address, nasIdentifier, shortName string) (NASCap
 	nasIdentifier = strings.TrimSpace(nasIdentifier)
 	shortName = strings.TrimSpace(shortName)
 	row := DB.QueryRow(nasCapabilityClientSelectSQL()+`
-		WHERE enabled = 1 AND (
+		WHERE enabled = TRUE AND (
 			(? <> '' AND ipaddr = ?) OR
 			(? <> '' AND LOWER(shortname) = LOWER(?)) OR
 			(? <> '' AND LOWER(shortname) = LOWER(?))
@@ -341,8 +341,8 @@ func GetNASCapabilityOwnershipSummary() (NASCapabilityOwnershipSummary, error) {
 	var summary NASCapabilityOwnershipSummary
 	summary.SchemaVersion = 1
 	if err := DB.QueryRow(`SELECT
-		COALESCE((SELECT COUNT(*) FROM radius_clients WHERE enabled = 1), 0),
-		COALESCE((SELECT COUNT(*) FROM radius_clients WHERE enabled = 1 AND COALESCE(capabilities_json, '{}') <> '{}'), 0),
+		COALESCE((SELECT COUNT(*) FROM radius_clients WHERE enabled = TRUE), 0),
+		COALESCE((SELECT COUNT(*) FROM radius_clients WHERE enabled = TRUE AND COALESCE(capabilities_json, '{}') <> '{}'), 0),
 		COALESCE((SELECT COUNT(*) FROM sessions WHERE end_time IS NULL), 0),
 		COALESCE((SELECT COUNT(*) FROM nas_session_ownership WHERE owner_status = 'active'), 0),
 		COALESCE((SELECT COUNT(*) FROM nas_session_ownership WHERE owner_status = 'stale'), 0),
@@ -431,7 +431,7 @@ func nasCapabilityClientSelectSQL() string {
 	return `SELECT id, shortname, ipaddr, COALESCE(nas_type, 'other'), COALESCE(transport, 'udp'),
 		COALESCE(vendor, ''), COALESCE(model, ''), COALESCE(firmware_version, ''),
 		COALESCE(owner_tenant, ''), COALESCE(template_name, ''), COALESCE(dynamic_source, 'static'),
-		COALESCE(lifecycle_status, 'approved'), COALESCE(last_seen_at, ''), enabled,
+		COALESCE(lifecycle_status, 'approved'), COALESCE(CAST(last_seen_at AS TEXT), ''), enabled,
 		(secret != '' OR COALESCE(secret_ref, '') != ''), COALESCE(capabilities_json, '{}')
 		FROM radius_clients`
 }

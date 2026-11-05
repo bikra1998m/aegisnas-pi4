@@ -556,6 +556,6 @@ func auditSSOEvent(user, action, details, result, remoteAddr string) {
 	if db.DB == nil {
 		return
 	}
-	_, _ = db.DB.Exec(`INSERT INTO audit_logs (user, action, details, result, ip_address)
+	_, _ = db.DB.Exec(`INSERT INTO audit_logs ("user", action, details, result, ip_address)
 		VALUES (?, ?, ?, ?, ?)`, user, action, details, result, remoteAddr)
 }

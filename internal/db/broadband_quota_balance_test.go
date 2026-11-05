@@ -9,7 +9,7 @@ import (
 
 func TestBroadbandQuotaBalanceEventLedger(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {
@@ -105,7 +105,7 @@ func TestBroadbandQuotaBalanceEventLedger(t *testing.T) {
 
 func TestBroadbandQuotaBalanceEventValidation(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {

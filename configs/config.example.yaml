@@ -825,6 +825,15 @@ radius:
         status_check: "status-server"
         servers:
           - "secondary-aaa"
+      - name: "wholesale-retail"
+        description: "Retail partner authentication and accounting delegation"
+        enabled: true
+        realm: "retail.example.net"
+        default: false
+        strip_realm: true
+        pool_strategy: "fail-over"
+        status_check: "status-server"
+        servers: ["primary-aaa", "secondary-aaa"]
     transport_policy:
       enabled: true
       mode: "monitor" # monitor during migration; use enforce for production sign-off.
@@ -983,12 +992,12 @@ broadband:
       - name: "residential"
         enabled: false
         role: "residential"
-        address_pool: "pppoe-v4"
-        ipv6_pool: "pppoe-v6"
-        delegated_ipv6_pool: "pppoe-pd"
-        route_policy: "residential"
+        address_pool: "branch-v4"
+        ipv6_pool: "branch-v6"
+        delegated_ipv6_pool: "branch-pd"
+        route_policy: "branch-vpn"
         qos_profile: "silver"
-        translation_pool: "cgnat-pool"
+        translation_pool: "cgnat-public"
         service_chain: "retail-internet"
         rate_limit: "100m"
         vendor_packs: ["mikrotik", "alcatel-lucent-service-router", "huawei"]
@@ -1025,12 +1034,12 @@ broadband:
         enabled: false
         role: "residential"
         service_chain: "retail-internet"
-        address_pool: "pppoe-v4"
-        ipv6_pool: "pppoe-v6"
-        delegated_ipv6_pool: "pppoe-pd"
-        route_policy: "residential"
+        address_pool: "branch-v4"
+        ipv6_pool: "branch-v6"
+        delegated_ipv6_pool: "branch-pd"
+        route_policy: "branch-vpn"
         qos_profile: "silver"
-        translation_pool: "cgnat-pool"
+        translation_pool: "cgnat-public"
         quota_profile: "monthly-500g"
         max_sessions: 4
         session_timeout_seconds: 86400
@@ -1045,9 +1054,9 @@ broadband:
         required_state: "service_active"
         next_state: "accounting_started"
         accounting_class: "internet"
-        route_policy: "residential"
+        route_policy: "branch-vpn"
         qos_profile: "silver"
-        translation_pool: "cgnat-pool"
+        translation_pool: "cgnat-public"
         vendor_packs: ["standard", "aegisnas", "mikrotik"]
       - name: "quota-policy-update"
         enabled: false
@@ -1108,12 +1117,12 @@ broadband:
         upstream_kbps: 25000
         quota_profile: "unlimited"
         service_chain: "retail-internet"
-        address_pool: "pppoe-v4"
-        ipv6_pool: "pppoe-v6"
-        delegated_ipv6_pool: "pppoe-pd"
-        route_policy: "residential"
+        address_pool: "branch-v4"
+        ipv6_pool: "branch-v6"
+        delegated_ipv6_pool: "branch-pd"
+        route_policy: "branch-vpn"
         qos_profile: "silver"
-        translation_pool: "cgnat-pool"
+        translation_pool: "cgnat-public"
         session_timeout_seconds: 86400
         idle_timeout_seconds: 3600
         vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei", "alcatel-lucent-service-router"]
@@ -1242,30 +1251,30 @@ broadband:
     stale_after_seconds: 600
     event_retention_limit: 10000
     pools:
-      - name: "pppoe-v4"
+      - name: "branch-v4"
         family: "ipv4"
-        cidr: "100.64.0.0/24"
-        start: "100.64.0.10"
-        end: "100.64.0.250"
-        gateway: "100.64.0.1"
+        cidr: "198.51.100.0/24"
+        start: "198.51.100.10"
+        end: "198.51.100.200"
+        gateway: "198.51.100.1"
         product: "residential-fiber"
         role: "residential"
         owner: "bng-ops"
         dynamic: true
         sticky: true
         vendor_packs: ["standard", "aegisnas", "mikrotik", "huawei"]
-      - name: "pppoe-v6"
+      - name: "branch-v6"
         family: "ipv6"
-        cidr: "2001:db8:100::/48"
+        cidr: "2001:db8:10::/120"
         product: "residential-fiber"
         role: "residential"
         owner: "bng-ops"
         dynamic: true
         sticky: true
         vendor_packs: ["standard", "aegisnas", "huawei"]
-      - name: "pppoe-pd"
+      - name: "branch-pd"
         family: "delegated-prefix"
-        cidr: "2001:db8:200::/40"
+        cidr: "2001:db8:100::/48"
         delegated_prefix_length: 56
         product: "residential-fiber"
         role: "residential"
@@ -1279,10 +1288,10 @@ broadband:
         username: "lab-cpe-01@example.net"
         product: "residential-fiber"
         role: "residential"
-        pool: "pppoe-v4"
+        pool: "branch-v4"
         family: "ipv4"
         assignment_type: "address"
-        address: "100.64.0.20"
+        address: "198.51.100.20"
         reason: "Lab CPE smoke-test reservation."
   qos_service_flows:
     enabled: false # Enable after subscriber state, commercial catalog, accounting services, CoA, and rate compiler previews pass.
@@ -1397,8 +1406,8 @@ broadband:
         match_realms: ["retail.example.net"]
         access_method: "pppoe"
         tunnel_profile: "lns-primary"
-        proxy_route: "wholesale-retail-auth"
-        accounting_route: "wholesale-retail-acct"
+        proxy_route: "wholesale-retail"
+        accounting_route: "wholesale-retail"
         address_pool: "wholesale-v4"
         qos_profile: "silver"
         product: "residential-fiber"
@@ -1557,7 +1566,7 @@ broadband:
         service_chain: "retail-internet"
         route_policy: "retail-bgp"
         multicast_profile: "iptv-basic"
-        address_pool: "pppoe-v4"
+        address_pool: "branch-v4"
         qos_profile: "silver"
         accounting_class: "internet"
         vendor_packs: ["standard", "aegisnas", "erx", "huawei", "h3c", "nokia", "zte"]
@@ -1648,7 +1657,7 @@ broadband:
         requires_auth: true
         requires_mfa: true
         requires_approval: true
-        allowed_products: ["residential-fiber"]
+        allowed_products: ["fiber-100m"] # Commercial catalog plan names.
         allowed_tenants: ["retail"]
         rate_limit_per_hour: 4
         max_pending_requests: 2
@@ -2983,7 +2992,7 @@ wireless:
       enabled: false
       ssid: "AegisOSU"
       server_uri: "https://osu.example.test/signup"
-      method_list: ["oma-dm"]
+      method_list: [0] # Numeric OSU method ID: OMA-DM.
       icons: []
       friendly_names:
         - lang: eng

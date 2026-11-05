@@ -1,0 +1,1192 @@
+{
+  "time": "2026-10-23T06:45:45.664403+00:00",
+  "head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "windows": {
+    "pass": 1414,
+    "fail": 0,
+    "skip": 3
+  },
+  "commands": [
+    {
+      "name": "windows-go",
+      "exit_code": 0,
+      "seconds": 841.1576132000046,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "test",
+        "./...",
+        "-count=1",
+        "-json",
+        "-timeout=30m"
+      ],
+      "finished": "2026-10-23T06:25:48.727641+00:00"
+    },
+    {
+      "name": "windows-build",
+      "exit_code": 0,
+      "seconds": 24.863553700008197,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "build",
+        "./..."
+      ],
+      "finished": "2026-10-23T06:26:13.592109+00:00"
+    },
+    {
+      "name": "linux-build",
+      "exit_code": 0,
+      "seconds": 24.07066539999505,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "build",
+        "./..."
+      ],
+      "finished": "2026-10-23T06:26:37.663301+00:00"
+    },
+    {
+      "name": "arm64-build",
+      "exit_code": 0,
+      "seconds": 66.71266020000621,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "build",
+        "./..."
+      ],
+      "finished": "2026-10-23T06:27:44.376505+00:00"
+    },
+    {
+      "name": "linux-adminapi-test-build",
+      "exit_code": 0,
+      "seconds": 73.56685970000399,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "test",
+        "-c",
+        "./internal/adminapi",
+        "-o",
+        "F:\\random_project\\Pookie\\aegisnas-pi4\\.tmp\\production-20261023\\regression\\adminapi.test"
+      ],
+      "finished": "2026-10-23T06:28:57.943944+00:00"
+    },
+    {
+      "name": "vet",
+      "exit_code": 0,
+      "seconds": 73.85861739999382,
+      "command": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "vet",
+        "./..."
+      ],
+      "finished": "2026-10-23T06:30:11.803159+00:00"
+    },
+    {
+      "name": "python",
+      "exit_code": 0,
+      "seconds": 5.775588299991796,
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "finished": "2026-10-23T06:30:17.579335+00:00"
+    }
+  ],
+  "ubuntu": [
+    {
+      "package": "radius",
+      "exit_code": 0,
+      "binary_sha256": "a4c4708da6a0f9f0da3fe1da625ee7c4820e004f772bc7c64fb245f7960ee23e",
+      "tests": {
+        "pass": 377,
+        "fail": 0,
+        "skip": 1
+      },
+      "time": "2026-10-23T06:25:01.650043+00:00"
+    },
+    {
+      "package": "adminapi",
+      "exit_code": 0,
+      "binary_sha256": "95e911a543291387813756c4a9ef395f73feb2a8961b6ea9a0d386d5e12d402b",
+      "tests": {
+        "pass": 328,
+        "fail": 0,
+        "skip": 0
+      },
+      "time": "2026-10-23T06:29:34.791878+00:00"
+    }
+  ],
+  "fixture": {
+    "started": "2026-10-23T06:11:59.022461+00:00",
+    "scope": "Isolated generated SQL module, TLS, real RADIUS packet/query, and PostgreSQL reconnect; not production accounting certification",
+    "checks": [
+      {
+        "name": "initdb",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 2.2773285789999136
+      },
+      {
+        "name": "server-certificate",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.2159117740000056
+      },
+      {
+        "name": "untrusted-certificate",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.10018479699999716
+      },
+      {
+        "name": "postgres-start",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.11248190099991007
+      },
+      {
+        "name": "fixture-role",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.10921118199996727
+      },
+      {
+        "name": "postgres-reload-auth",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.002906002000031549
+      },
+      {
+        "name": "valid-generate",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.8063210159999699
+      },
+      {
+        "name": "radius-start-valid-tls",
+        "status": "PASS"
+      },
+      {
+        "name": "valid-tls-packet",
+        "status": "PASS",
+        "exit_code": 0,
+        "response": "Received Access-Accept"
+      },
+      {
+        "name": "valid-tls-packet-sql-policy",
+        "status": "PASS"
+      },
+      {
+        "name": "postgres-outage",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.10280440500002896
+      },
+      {
+        "name": "database-outage-reject",
+        "status": "PASS",
+        "exit_code": 1,
+        "response": "Received Access-Reject"
+      },
+      {
+        "name": "postgres-recovery",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.11139189600010013
+      },
+      {
+        "name": "database-reconnected",
+        "status": "PASS",
+        "exit_code": 0,
+        "response": "Received Access-Accept"
+      },
+      {
+        "name": "database-reconnected-sql-policy",
+        "status": "PASS"
+      },
+      {
+        "name": "wrong-root-generate",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.798576384999933
+      },
+      {
+        "name": "wrong-root-startup-rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "wrong-root-reason",
+        "status": "PASS"
+      },
+      {
+        "name": "wrong-host-generate",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.826579713000001
+      },
+      {
+        "name": "wrong-host-startup-rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "wrong-host-reason",
+        "status": "PASS"
+      },
+      {
+        "name": "postgres-stop",
+        "status": "PASS",
+        "exit_code": 0,
+        "seconds": 0.10240210100005243
+      }
+    ],
+    "status": "PASS",
+    "postgres_port": 60611,
+    "radius_port": 51216,
+    "ended": "2026-10-23T06:12:08.535437+00:00"
+  },
+  "deployed": {
+    "scope": "Existing deployed lab services, not the uncommitted candidate",
+    "time": "2026-10-23T06:12:54.470921+00:00",
+    "checks": [
+      {
+        "name": "aegis-gateway",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-radius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-portal",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-session",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-policy",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-admin-api",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "freeradius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "dnsmasq",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "health-8080",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.24009331499996733
+      },
+      {
+        "name": "health-8081",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.23901935499998217
+      },
+      {
+        "name": "health-8082",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.19884326600003988
+      },
+      {
+        "name": "health-8083",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.18186543100000563
+      },
+      {
+        "name": "health-8085",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.13205837900000006
+      },
+      {
+        "name": "health-8087",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.28302583400000003
+      },
+      {
+        "name": "unauthenticated-roles",
+        "passed": true,
+        "http_status": 401
+      },
+      {
+        "name": "authenticated-roles",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.12088122099999055
+      },
+      {
+        "name": "authenticated-database",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.04971636400000534
+      },
+      {
+        "name": "authenticated-readiness",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 14.489888939000025
+      },
+      {
+        "name": "authenticated-system-status",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 3.1750999530000854
+      },
+      {
+        "name": "freeradius-config",
+        "passed": true,
+        "exit_code": 0
+      },
+      {
+        "name": "radius-negative-pap",
+        "passed": true,
+        "exit_code": 1,
+        "response": "Access-Reject"
+      }
+    ],
+    "deployment_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+    "readiness_summary": {
+      "status": "blocked",
+      "ready": false,
+      "score": 0,
+      "blocking_count": 5,
+      "warning_count": 4,
+      "degraded_count": 17,
+      "passing_count": 68
+    },
+    "readiness_checks": [
+      {
+        "key": "config_validation",
+        "status": "passed",
+        "category": "configuration",
+        "label": "Configuration Validation"
+      },
+      {
+        "key": "hardware_scaling",
+        "status": "warned",
+        "category": "deployment",
+        "label": "Hardware Scaling"
+      },
+      {
+        "key": "vendor_identity",
+        "status": "warned",
+        "category": "vendor",
+        "label": "AegisNAS Vendor Identity"
+      },
+      {
+        "key": "attribute_registry",
+        "status": "passed",
+        "category": "radius",
+        "label": "Typed Attribute Registry"
+      },
+      {
+        "key": "vsa_codec",
+        "status": "passed",
+        "category": "radius",
+        "label": "VSA Codec"
+      },
+      {
+        "key": "opaque_passthrough",
+        "status": "passed",
+        "category": "radius",
+        "label": "Opaque Attribute Pass-through"
+      },
+      {
+        "key": "radius_packet_hardening",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Packet Hardening"
+      },
+      {
+        "key": "dynamic_nas_clients",
+        "status": "degraded",
+        "category": "radius",
+        "label": "Dynamic NAS Clients And Capability Discovery"
+      },
+      {
+        "key": "radius_outbound_dac_client",
+        "status": "blocked",
+        "category": "radius",
+        "label": "Outbound CoA And Disconnect Client"
+      },
+      {
+        "key": "nas_capability_ownership",
+        "status": "degraded",
+        "category": "radius",
+        "label": "NAS Capability And Session Ownership Registry"
+      },
+      {
+        "key": "radius_dac_handoff",
+        "status": "passed",
+        "category": "radius",
+        "label": "HA-Aware CoA Cluster Handoff"
+      },
+      {
+        "key": "radius_proxy_routes",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Proxy Route Table"
+      },
+      {
+        "key": "radius_transport_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Transport Downgrade Policy"
+      },
+      {
+        "key": "radius_proxy_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "RADIUS Proxy Loop And Attribute Policy"
+      },
+      {
+        "key": "radius_accounting_spool",
+        "status": "passed",
+        "category": "radius",
+        "label": "Durable RADIUS Accounting Spool"
+      },
+      {
+        "key": "radius_accounting_ingest_spool",
+        "status": "passed",
+        "category": "radius",
+        "label": "Durable Local Accounting Ingest Spool"
+      },
+      {
+        "key": "radius_accounting_charging",
+        "status": "passed",
+        "category": "radius",
+        "label": "Charging Records, Rating, And Export Integrity"
+      },
+      {
+        "key": "radius_sql_accounting",
+        "status": "passed",
+        "category": "radius",
+        "label": "FreeRADIUS SQL Accounting Reconciliation"
+      },
+      {
+        "key": "radius_accounting_ordering",
+        "status": "passed",
+        "category": "radius",
+        "label": "Accounting Idempotency And Ordering"
+      },
+      {
+        "key": "radius_accounting_counters",
+        "status": "passed",
+        "category": "radius",
+        "label": "64-bit Accounting Counters And Gigawords"
+      },
+      {
+        "key": "radius_accounting_ip",
+        "status": "passed",
+        "category": "radius",
+        "label": "IPv6, Prefix, And Route Accounting"
+      },
+      {
+        "key": "radius_accounting_services",
+        "status": "blocked",
+        "category": "radius",
+        "label": "Multi-Service Accounting Correlation"
+      },
+      {
+        "key": "radius_fallback_policy",
+        "status": "passed",
+        "category": "radius",
+        "label": "Upstream Outage Fallback Policy"
+      },
+      {
+        "key": "identity_source_failover",
+        "status": "blocked",
+        "category": "authentication",
+        "label": "Identity Source HA And Deterministic Failover"
+      },
+      {
+        "key": "mfa_challenge_otp",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "OTP And RADIUS Challenge MFA"
+      },
+      {
+        "key": "eap_method_framework",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "Extensible EAP Method Framework"
+      },
+      {
+        "key": "teap_method_chaining",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "TEAP Method Chaining"
+      },
+      {
+        "key": "eap_machine_user_correlation",
+        "status": "blocked",
+        "category": "authentication",
+        "label": "Machine And User Authentication Correlation"
+      },
+      {
+        "key": "eap_fast_pwd_methods",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "EAP-FAST And EAP-PWD"
+      },
+      {
+        "key": "eap_sim_aka_methods",
+        "status": "degraded",
+        "category": "authentication",
+        "label": "EAP-SIM, EAP-AKA, And EAP-AKA-prime"
+      },
+      {
+        "key": "typed_policy_engine",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Typed Policy Expression Engine"
+      },
+      {
+        "key": "acl_ast",
+        "status": "passed",
+        "category": "policy",
+        "label": "Lossless Vendor-Neutral ACL AST"
+      },
+      {
+        "key": "acl_compilers",
+        "status": "passed",
+        "category": "policy",
+        "label": "Certified Vendor ACL Compilers And Decompilers"
+      },
+      {
+        "key": "stateful_local_firewall",
+        "status": "passed",
+        "category": "policy",
+        "label": "Stateful Per-Session Local Firewall Policy"
+      },
+      {
+        "key": "hierarchical_qos_scheduler",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Hierarchical QoS And Scheduler Model"
+      },
+      {
+        "key": "dynamic_vlan_lifecycle",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dynamic VLAN Bridge And Subinterface Lifecycle"
+      },
+      {
+        "key": "hostapd_dynamic_vlan_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0074 Hostapd Dynamic VLAN Lifecycle"
+      },
+      {
+        "key": "wireless_roaming_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0075 802.11r/k/v Roaming And Key Lifecycle"
+      },
+      {
+        "key": "passpoint_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0076 Passpoint And Hotspot 2.0 Lifecycle"
+      },
+      {
+        "key": "ppsk_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0077 DPSK/PPSK Lifecycle"
+      },
+      {
+        "key": "controller_estate_lifecycle",
+        "status": "passed",
+        "category": "integrations",
+        "label": "NAS-0078 Controller Estate And Object Lifecycle"
+      },
+      {
+        "key": "rf_planning_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0079 RF, RRM, Mesh, And Radio Planning"
+      },
+      {
+        "key": "wireless_security_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0080 Rogue, WIPS, Spectrum, Location, And Multicast"
+      },
+      {
+        "key": "cwa_portal_lifecycle",
+        "status": "passed",
+        "category": "wireless",
+        "label": "NAS-0081 Controller CWA And Safe Per-session Portal"
+      },
+      {
+        "key": "pppoe_access_lifecycle",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0082 PPPoE Access Concentrator"
+      },
+      {
+        "key": "broadband_subscriber_state",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0083 Broadband Subscriber State Machine"
+      },
+      {
+        "key": "broadband_commercial_catalog",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0084 Broadband Commercial Plans, Bundles, And Concurrency"
+      },
+      {
+        "key": "broadband_quota_balance",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0085 Broadband Quota, Balance, Top-Up, Prepaid, And Postpaid"
+      },
+      {
+        "key": "broadband_address_leases",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0086 Broadband Address Pools and Lease Lifecycle"
+      },
+      {
+        "key": "broadband_qos_service_flows",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0087 BNG Hierarchical QoS And Service Flows"
+      },
+      {
+        "key": "broadband_l2tp_wholesale",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0088 L2TP And Wholesale Realm Separation"
+      },
+      {
+        "key": "broadband_dhcp_security",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0089 DHCP Relay, Snooping, Option 82, And IP Source Guard"
+      },
+      {
+        "key": "broadband_service_activation",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0090 Service Activation, BNG Route Lifecycle, And Multicast"
+      },
+      {
+        "key": "broadband_governance_self_service",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0091 Lawful-Intercept Governance And Subscriber Self-Service"
+      },
+      {
+        "key": "mobile_grouped_avps",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0092 Grouped Telecom Attribute And AVP Framework"
+      },
+      {
+        "key": "mobile_session_state",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0093 Mobile Session, APN/PDP/Bearer State"
+      },
+      {
+        "key": "mobile_charging_correlation",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0094 Online/Offline Charging Correlation"
+      },
+      {
+        "key": "mobile_policy_control",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0095 PCRF/PCF Policy, QoS, and Roaming"
+      },
+      {
+        "key": "wimax_service_flows",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0096 WiMAX Subscriber and Service Flows"
+      },
+      {
+        "key": "docsis_policy_charging",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0097 CableLabs DOCSIS Policy and Charging"
+      },
+      {
+        "key": "dynamic_subscriber_route_export",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dynamic Routing Integration For Subscriber Routes"
+      },
+      {
+        "key": "atomic_enforcement_transactions",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Atomic Enforcement Transactions And Drift Rollback"
+      },
+      {
+        "key": "tagged_vlan_qinq_policy",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Tagged Voice/Data VLAN, QinQ, Pool, And Fallback Policy"
+      },
+      {
+        "key": "per_session_route_vrf_policy",
+        "status": "passed",
+        "category": "policy",
+        "label": "Per-Session Route Injection And VRF Ownership"
+      },
+      {
+        "key": "ipv4_ipv6_pool_dhcpv6_ra_pd",
+        "status": "passed",
+        "category": "policy",
+        "label": "IPv4/IPv6 Pools, DHCPv6, RA, And Prefix Delegation"
+      },
+      {
+        "key": "cgnat_nat64_deterministic_translation",
+        "status": "passed",
+        "category": "policy",
+        "label": "CGNAT, NAT64, And Deterministic Subscriber Translation"
+      },
+      {
+        "key": "vendor_rate_compiler",
+        "status": "passed",
+        "category": "policy",
+        "label": "Dual-stack Shaping And Vendor Rate Compiler"
+      },
+      {
+        "key": "policy_set_governance",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Nested Policy Sets And Versioned Approvals"
+      },
+      {
+        "key": "policy_simulation_analysis",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Policy Simulation Conflict And Shadow Analysis"
+      },
+      {
+        "key": "subscriber_service_chains",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Per-Service Authorization And Subscriber Chains"
+      },
+      {
+        "key": "tacacs_command_authorization",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Command Authorization And TACACS+"
+      },
+      {
+        "key": "tenant_isolation",
+        "status": "degraded",
+        "category": "policy",
+        "label": "Hard Tenant Isolation And Delegated Policy Trees"
+      },
+      {
+        "key": "secret_providers",
+        "status": "blocked",
+        "category": "security",
+        "label": "Secret Providers"
+      },
+      {
+        "key": "database_data_plane",
+        "status": "degraded",
+        "category": "architecture",
+        "label": "Database Data Plane"
+      },
+      {
+        "key": "dictionary_release_profile",
+        "status": "passed",
+        "category": "radius",
+        "label": "Dictionary Release Profile"
+      },
+      {
+        "key": "compatibility_evidence",
+        "status": "passed",
+        "category": "radius",
+        "label": "Compatibility Evidence Model"
+      },
+      {
+        "key": "vendor_mapping_certification",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0060 Vendor Mapping Certification"
+      },
+      {
+        "key": "cisco_family_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0061 Cisco Family Pack"
+      },
+      {
+        "key": "aruba_family_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0062 Aruba/HPE Family Pack"
+      },
+      {
+        "key": "juniper_extreme_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0063 Juniper/ERX/Extreme/Mist Pack"
+      },
+      {
+        "key": "ruckus_icx_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0064 Ruckus/ICX Pack"
+      },
+      {
+        "key": "fortinet_paloalto_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0065 Fortinet/Palo Alto Pack"
+      },
+      {
+        "key": "cloud_controller_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0066 Meraki/UniFi/OpenWiFi Cloud Pack"
+      },
+      {
+        "key": "access_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0067 Cambium/TP-Link/D-Link Access Pack"
+      },
+      {
+        "key": "broadband_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0068 Huawei/H3C/ZTE Broadband Pack"
+      },
+      {
+        "key": "nokia_alu_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0069 Nokia/Alcatel-Lucent Service Router Pack"
+      },
+      {
+        "key": "mikrotik_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0070 MikroTik RouterOS Pack"
+      },
+      {
+        "key": "switching_vendor_pack",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0071 Enterprise Switching Vendor Pack"
+      },
+      {
+        "key": "long_tail_namespace_program",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0072 Long-Tail Namespace Program"
+      },
+      {
+        "key": "external_vendor_intake",
+        "status": "passed",
+        "category": "radius",
+        "label": "NAS-0073 Out-Of-Corpus Vendor Intake"
+      },
+      {
+        "key": "vendor_packs",
+        "status": "passed",
+        "category": "vendor",
+        "label": "Vendor Compatibility Packs"
+      },
+      {
+        "key": "nas_profile_coverage",
+        "status": "warned",
+        "category": "vendor",
+        "label": "NAS Profile Coverage"
+      },
+      {
+        "key": "feature_capabilities",
+        "status": "passed",
+        "category": "features",
+        "label": "Feature Capability Gates"
+      },
+      {
+        "key": "vendor_runtime_evidence",
+        "status": "warned",
+        "category": "observability",
+        "label": "Vendor Runtime Evidence"
+      }
+    ]
+  },
+  "os_summary": {
+    "status": "blocked",
+    "package_components": 1732,
+    "blocking_occurrences": 9380,
+    "blocking_unique_ids": 964,
+    "inputs_unchanged": true,
+    "time": "2026-10-23T06:11:16.226903+00:00"
+  },
+  "dependency_gate": {
+    "blockers": [
+      "candidate requires a clean committed source tree",
+      "2 dependency vulnerability findings violate policy"
+    ],
+    "feature_id": "NAS-0116",
+    "findings": [
+      {
+        "ecosystem": "Go",
+        "fixed_version": "",
+        "id": "GO-2026-5932",
+        "target": {
+          "CGO_ENABLED": "0",
+          "GOARCH": "amd64",
+          "GOOS": "linux"
+        },
+        "trace": [
+          {
+            "module": "golang.org/x/crypto",
+            "version": "v0.58.0"
+          }
+        ]
+      },
+      {
+        "ecosystem": "Go",
+        "fixed_version": "",
+        "id": "GO-2026-5932",
+        "target": {
+          "CGO_ENABLED": "0",
+          "GOARCH": "arm64",
+          "GOOS": "linux"
+        },
+        "trace": [
+          {
+            "module": "golang.org/x/crypto",
+            "version": "v0.58.0"
+          }
+        ]
+      }
+    ],
+    "schema_version": 1,
+    "signature_verified": false,
+    "status": "blocked"
+  },
+  "dependency_commands": [
+    {
+      "name": "scan",
+      "exit_code": 1,
+      "seconds": 857.4029927999945,
+      "finished_at": "2026-10-23T06:44:39.550612+00:00"
+    },
+    {
+      "name": "exposure",
+      "exit_code": 0,
+      "seconds": 4.605257100003655,
+      "finished_at": "2026-10-23T06:44:44.156389+00:00"
+    }
+  ],
+  "exposure": {
+    "created_at": "2026-10-23T06:44:44.146624+00:00",
+    "original_gate": {
+      "blockers": [
+        "2 dependency vulnerability findings violate policy"
+      ],
+      "feature_id": "NAS-0116",
+      "findings": [
+        {
+          "ecosystem": "Go",
+          "fixed_version": "",
+          "id": "GO-2026-5932",
+          "target": {
+            "CGO_ENABLED": "0",
+            "GOARCH": "amd64",
+            "GOOS": "linux"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ]
+        },
+        {
+          "ecosystem": "Go",
+          "fixed_version": "",
+          "id": "GO-2026-5932",
+          "target": {
+            "CGO_ENABLED": "0",
+            "GOARCH": "arm64",
+            "GOOS": "linux"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "signature_verified": false,
+      "status": "blocked"
+    },
+    "policy_waived": false,
+    "same_dependency_inputs": true,
+    "same_source_snapshot": true,
+    "scanner_created_at": "2026-10-23T06:30:23.456310+00:00",
+    "scanner_evidence_sha256": "2c3441a6d0d4b99c8c04c834a25f877addd675b4619ced7d784303bc78c4fefe",
+    "scanner_source": {
+      "commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "dirty": true,
+      "inputs": {
+        "go.mod": "4cb7caf0179ceee1bb614aba2298a01876cfb73d97bda62f9fafe7e525b5608a",
+        "go.sum": "6568e891020df0472c359fbe9c8e1bdc101346a7aeb575eefef427397ac2baa5",
+        "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+        "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+        "web/admin-ui/package-lock.json": "f0b0d7a215d249f330cdf8c6878f47d769bc906219321d3c73d8d95f31eb931a",
+        "web/admin-ui/package.json": "a4df4bb857fafaa1ab0be00d9629472bf412c19c8661dd93cf9c6152ee1f44f0"
+      },
+      "tree_sha256": "542497d6067be83e0f4ca6bc3930b420122e52cd0d5e8e0b3585111eb24693d8"
+    },
+    "schema_version": 1,
+    "scope": "All ./cmd/... imports, Linux AMD64/ARM64, CGO disabled; no tests. Package absence is not a replacement vulnerability scan or signed-binary proof.",
+    "source": {
+      "commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "dirty": true,
+      "inputs": {
+        "go.mod": "4cb7caf0179ceee1bb614aba2298a01876cfb73d97bda62f9fafe7e525b5608a",
+        "go.sum": "6568e891020df0472c359fbe9c8e1bdc101346a7aeb575eefef427397ac2baa5",
+        "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+        "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+        "web/admin-ui/package-lock.json": "f0b0d7a215d249f330cdf8c6878f47d769bc906219321d3c73d8d95f31eb931a",
+        "web/admin-ui/package.json": "a4df4bb857fafaa1ab0be00d9629472bf412c19c8661dd93cf9c6152ee1f44f0"
+      },
+      "tree_sha256": "542497d6067be83e0f4ca6bc3930b420122e52cd0d5e8e0b3585111eb24693d8"
+    },
+    "targets": {
+      "amd64": {
+        "argv": [
+          "go",
+          "list",
+          "-deps",
+          "-f",
+          "{{.ImportPath}}",
+          "./cmd/..."
+        ],
+        "env": {
+          "CGO_ENABLED": "0",
+          "GOARCH": "amd64",
+          "GOOS": "linux"
+        },
+        "exit_code": 0,
+        "findings": [
+          {
+            "affected_packages": [
+              "golang.org/x/crypto/openpgp",
+              "golang.org/x/crypto/openpgp/armor",
+              "golang.org/x/crypto/openpgp/clearsign",
+              "golang.org/x/crypto/openpgp/elgamal",
+              "golang.org/x/crypto/openpgp/errors",
+              "golang.org/x/crypto/openpgp/packet",
+              "golang.org/x/crypto/openpgp/s2k"
+            ],
+            "classification": "affected_packages_not_imported",
+            "id": "GO-2026-5932",
+            "policy_waived": false,
+            "scanner_scope": "module",
+            "scanner_trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ],
+            "shipped_affected_imports": [],
+            "symbol_reachability": "not_tested"
+          }
+        ],
+        "graph_sha256": "2a1299fe4e3fa1ba8e34adc1d13a42c91b990141a8c69976c2ed7bdd69eb6499",
+        "package_count": 413,
+        "scanner_sha256": "695cb99d736331955da0a619eacbeebecdf97267948ed3ed515db06dd58f60df",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "arm64": {
+        "argv": [
+          "go",
+          "list",
+          "-deps",
+          "-f",
+          "{{.ImportPath}}",
+          "./cmd/..."
+        ],
+        "env": {
+          "CGO_ENABLED": "0",
+          "GOARCH": "arm64",
+          "GOOS": "linux"
+        },
+        "exit_code": 0,
+        "findings": [
+          {
+            "affected_packages": [
+              "golang.org/x/crypto/openpgp",
+              "golang.org/x/crypto/openpgp/armor",
+              "golang.org/x/crypto/openpgp/clearsign",
+              "golang.org/x/crypto/openpgp/elgamal",
+              "golang.org/x/crypto/openpgp/errors",
+              "golang.org/x/crypto/openpgp/packet",
+              "golang.org/x/crypto/openpgp/s2k"
+            ],
+            "classification": "affected_packages_not_imported",
+            "id": "GO-2026-5932",
+            "policy_waived": false,
+            "scanner_scope": "module",
+            "scanner_trace": [
+              {
+                "module": "golang.org/x/crypto",
+                "version": "v0.58.0"
+              }
+            ],
+            "shipped_affected_imports": [],
+            "symbol_reachability": "not_tested"
+          }
+        ],
+        "graph_sha256": "08f95304e62eb2333c81fd79a9ab3212154916d7cf97ce177423d938dffd5ade",
+        "package_count": 412,
+        "scanner_sha256": "eb5735632d10d83241562c053d28e6ae622f07a1d0e81219b695b140f6888d2b",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "source_unchanged_since_tests": true,
+  "historical_checks_pass": 874,
+  "release": "BLOCKED",
+  "production_activation": "BLOCKED",
+  "commit_or_push_performed": false
+}

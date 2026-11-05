@@ -9,7 +9,7 @@ import (
 )
 
 func TestTranslationPolicyEventSummaryOwnershipAndWithdrawal(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	defer Close()
 	require.NoError(t, Migrate())
@@ -76,7 +76,7 @@ func TestTranslationPolicyEventSummaryOwnershipAndWithdrawal(t *testing.T) {
 }
 
 func TestTranslationPolicyEventValidation(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	defer Close()
 	require.NoError(t, Migrate())

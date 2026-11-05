@@ -31,6 +31,10 @@ func HandleDownloadHAReplicationPackage(w http.ResponseWriter, r *http.Request) 
 	}
 	packageBytes, manifest, err := createReplicationPackageFn(cfg)
 	if err != nil {
+		if errors.Is(err, ha.ErrSQLiteReplicationOnly) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

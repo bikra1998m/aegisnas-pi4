@@ -15,7 +15,7 @@ func TestMABEndpointAndEventLifecycle(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	require.NoError(t, tmpfile.Close())
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 

@@ -190,7 +190,7 @@ func GetLongTailNamespaceSummary() (LongTailNamespaceDBSummary, error) {
 			COALESCE(SUM(CASE WHEN status = 'recorded' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
-			COALESCE(MAX(created_at), '')
+			COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM long_tail_namespace_events`).Scan(
 		&summary.TotalEvents,
 		&summary.RecordedCount,

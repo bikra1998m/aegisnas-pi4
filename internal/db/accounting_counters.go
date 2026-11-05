@@ -119,7 +119,7 @@ func GetAccountingCounterSummary() (AccountingCounterSummary, error) {
 		COUNT(*),
 		COALESCE(SUM(CASE WHEN counter_rollover_detected THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN counter_reset_detected THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(event_time), ''),
+		COALESCE(CAST(MAX(event_time) AS TEXT), ''),
 		COALESCE((SELECT counter_status FROM radius_accounting_events ORDER BY event_time DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT counter_error FROM radius_accounting_events WHERE counter_error IS NOT NULL AND counter_error <> '' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_events`).Scan(&summary.EventRows, &summary.RolloverEvents,

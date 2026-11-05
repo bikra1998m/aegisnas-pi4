@@ -302,7 +302,7 @@ func loadCiscoISEResources(cfg *config.Config) ([]ciscoISEResource, []string, er
 	aclNames := map[string]string{}
 	var resources []ciscoISEResource
 	var warnings []string
-	rows, err := db.DB.Query(`SELECT name, COALESCE(description, ''), rules_json FROM acl_policies WHERE enabled = 1 ORDER BY name`)
+	rows, err := db.DB.Query(`SELECT name, COALESCE(description, ''), rules_json FROM acl_policies WHERE enabled = TRUE ORDER BY name`)
 	if err != nil {
 		return nil, nil, err
 	}

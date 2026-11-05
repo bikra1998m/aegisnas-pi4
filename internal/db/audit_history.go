@@ -37,18 +37,22 @@ func ListAuditHistory(userFilter, actionPrefix string, limit int) ([]AuditHistor
 	userFilter = strings.TrimSpace(userFilter)
 	actionPrefix = strings.TrimSpace(actionPrefix)
 
-	query := `SELECT id, CAST(timestamp AS TEXT), COALESCE(user, ''), action, COALESCE(details, ''), COALESCE(result, ''), COALESCE(ip_address, '')
+	query := `SELECT id, CAST(timestamp AS TEXT), COALESCE("user", ''), action, COALESCE(details, ''), COALESCE(result, ''), COALESCE(ip_address, '')
 		FROM audit_logs WHERE 1=1`
 	args := []any{}
 	if userFilter != "" {
-		query += ` AND user = ?`
+		query += ` AND "user" = ?`
 		args = append(args, userFilter)
 	}
 	if actionPrefix != "" {
 		query += ` AND action LIKE ?`
 		args = append(args, actionPrefix+"%")
 	}
-	query += ` ORDER BY datetime(timestamp) DESC, id DESC LIMIT ?`
+	if DialectForHandle(DB) == DialectPostgreSQL {
+		query += ` ORDER BY timestamp DESC, id DESC LIMIT ?`
+	} else {
+		query += ` ORDER BY datetime(timestamp) DESC, id DESC LIMIT ?`
+	}
 	args = append(args, limit)
 
 	rows, err := DB.Query(query, args...)
@@ -78,7 +82,7 @@ func GetAuditHistoryStats() (AuditHistoryStats, error) {
 	var stats AuditHistoryStats
 	err := DB.QueryRow(`SELECT
 		COUNT(*),
-		COUNT(DISTINCT NULLIF(TRIM(COALESCE(user, '')), '')),
+		COUNT(DISTINCT NULLIF(TRIM(COALESCE("user", '')), '')),
 		COALESCE(SUM(CASE WHEN action LIKE 'download_%' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN action LIKE 'stage_%' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN action LIKE '%network%' OR action LIKE '%hostapd%' OR action LIKE '%radius%' THEN 1 ELSE 0 END), 0),

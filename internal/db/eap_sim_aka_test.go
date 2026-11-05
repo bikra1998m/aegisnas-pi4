@@ -15,7 +15,7 @@ func TestSIMAKAEventsRecordListAndSummarize(t *testing.T) {
 	dbPath := tmpfile.Name()
 	require.NoError(t, tmpfile.Close())
 	defer os.Remove(dbPath)
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -81,7 +81,7 @@ func TestSIMAKAEventsRetention(t *testing.T) {
 	dbPath := tmpfile.Name()
 	require.NoError(t, tmpfile.Close())
 	defer os.Remove(dbPath)
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	defer Close()
 	require.NoError(t, Migrate())
 

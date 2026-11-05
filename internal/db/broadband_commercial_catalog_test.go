@@ -9,7 +9,7 @@ import (
 
 func TestBroadbandCommercialCatalogEventLedger(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {
@@ -89,7 +89,7 @@ func TestBroadbandCommercialCatalogEventLedger(t *testing.T) {
 
 func TestBroadbandCommercialCatalogEventValidation(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {

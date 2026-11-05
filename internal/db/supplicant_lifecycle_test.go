@@ -96,7 +96,7 @@ func tempSupplicantLifecycleDB(t *testing.T) string {
 	require.NoError(t, err)
 	path := file.Name()
 	require.NoError(t, file.Close())
-	require.NoError(t, Init(path))
+	require.NoError(t, initRuntimeTestDB(t, path))
 	require.NoError(t, Migrate())
 	return path
 }

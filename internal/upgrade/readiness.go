@@ -2,7 +2,6 @@ package upgrade
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,6 +56,11 @@ func AssessReadiness(cfg *config.Config, configPath string) (ReadinessReport, er
 		report.Recommendations = append(report.Recommendations, "Fix configuration validation errors before attempting an appliance upgrade.")
 	} else {
 		report.ConfigValid = true
+	}
+	if err := requireSQLiteRollback(cfg); err != nil {
+		report.Rehearsal.Error = "PostgreSQL upgrade rehearsal requires an isolated PostgreSQL backup and restore; a local SQLite rehearsal is not applicable."
+		report.Recommendations = append(report.Recommendations, report.Rehearsal.Error)
+		return report, nil
 	}
 
 	info, err := os.Stat(cfg.Database.Path)
@@ -116,8 +120,16 @@ func rehearseMigration(databasePath string) (MigrationRehearsal, error) {
 	defer os.RemoveAll(tempDir)
 
 	tempDBPath := filepath.Join(tempDir, filepath.Base(sourcePath))
-	if err := copyFile(sourcePath, tempDBPath); err != nil {
-		return result, fmt.Errorf("copy database into rehearsal workspace: %w", err)
+	source, err := db.Open(sourcePath)
+	if err != nil {
+		return result, fmt.Errorf("open database for rehearsal snapshot: %w", err)
+	}
+	// A filesystem copy omits committed pages still in SQLite's WAL. Use the
+	// same consistent online snapshot primitive as recovery packaging.
+	copyErr := vacuumInto(source, tempDBPath)
+	_ = source.Close()
+	if copyErr != nil {
+		return result, fmt.Errorf("snapshot database into rehearsal workspace: %w", copyErr)
 	}
 
 	handle, err := db.Open(tempDBPath)
@@ -150,26 +162,4 @@ func rehearseMigration(databasePath string) (MigrationRehearsal, error) {
 	result.Succeeded = true
 	result.ResultSchemaVersion = finalVersion
 	return result, nil
-}
-
-func copyFile(source, target string) error {
-	input, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-		return err
-	}
-	output, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer output.Close()
-
-	if _, err := io.Copy(output, input); err != nil {
-		return err
-	}
-	return output.Close()
 }

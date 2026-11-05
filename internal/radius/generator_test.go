@@ -219,11 +219,10 @@ func TestGeneratorRendersPostgreSQLSQLModule(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, generated.ModsSQL, `dialect = "postgresql"`)
 	assert.Contains(t, generated.ModsSQL, `driver = "rlm_sql_postgresql"`)
-	assert.Contains(t, generated.ModsSQL, `server = "db.example.test"`)
-	assert.Contains(t, generated.ModsSQL, `port = 15432`)
-	assert.Contains(t, generated.ModsSQL, `login = "radius"`)
-	assert.Contains(t, generated.ModsSQL, `password = "sqlpass"`)
-	assert.Contains(t, generated.ModsSQL, `radius_db = "aegisnas"`)
+	assert.Contains(t, generated.ModsSQL, `server = ""`)
+	assert.Contains(t, generated.ModsSQL, `port = 0`)
+	assert.Contains(t, generated.ModsSQL, `radius_db = "postgres://radius:sqlpass@db.example.test:15432/aegisnas?`)
+	assert.Contains(t, generated.ModsSQL, `sslmode=verify-full`)
 	assert.NotContains(t, generated.ModsSQL, `rlm_sql_sqlite`)
 }
 

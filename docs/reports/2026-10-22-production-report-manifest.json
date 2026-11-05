@@ -1,0 +1,103 @@
+{
+  "created_at": "2026-10-22T13:26:01.555649+00:00",
+  "commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "release_decision": "BLOCKED",
+  "reports": [
+    {
+      "path": "docs/reports/2026-10-22-production-changes.csv",
+      "bytes": 54706,
+      "sha256": "fb1115ddbe7352f14becf0ef84271eb3ca958e3ed747ff4fe093bde99a5dc5c2"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-evidence-manifest.json",
+      "bytes": 244796,
+      "sha256": "cdff6ddbac2ff4ed2e224a34ef10753d8110e76efa9e606fd57e9d689853f55f"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-history-verification.json",
+      "bytes": 4841,
+      "sha256": "3b1bc14cc3eea2eac48889db866fd6cc7763267a0d35432ecb9ee8945621d59c"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-history.md",
+      "bytes": 1979,
+      "sha256": "8139c7e784b8e7ea287fd2320039c28c956d8ea30aec120d21bfcb75e0c2522b"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-implementation.md",
+      "bytes": 2725,
+      "sha256": "4d5159a32b5758611ab16a4ee98f005771d64ace6a39f2abba0b69aedf310366"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-ledger-summary.json",
+      "bytes": 294,
+      "sha256": "be0fde89b698df95e320e08536ca0fdb0ecdff63395667e8684ed2f0e7da58d6"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-live-services.md",
+      "bytes": 2704,
+      "sha256": "bd7e4103dfbe7445dc66aa4201bd8ac8cb317733238092db6d1e9f09f047bca2"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-milestones.csv",
+      "bytes": 78310,
+      "sha256": "31ac91fe729d8f76788b31ea477dae24b1142a4c99751bc87f975b8ad11dba4f"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-nas0116.md",
+      "bytes": 1785,
+      "sha256": "2041916a551d1540b1d243b64eefa24407ea0986b24ba5d40968cf5fecd5ed53"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-os-remediation.csv",
+      "bytes": 4860,
+      "sha256": "13e8cb17a191d2d3e7d7ad974672ebcdb418e0510dfc24ab962e6d949e18fd31"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-patched-source-verification.json",
+      "bytes": 172,
+      "sha256": "1c3992097cca607cd42fdde710014ee98d35c1c73842b9efe6be10633d3353f7"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-postgresql.md",
+      "bytes": 2258,
+      "sha256": "6a6bf97deefdb4b14b9d21e4c25847fd79a14cb96babcc298d5a3dd5711264ce"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-readiness.md",
+      "bytes": 3130,
+      "sha256": "7d316250ffb2bb62174b91603e97e1afc4130a11ad7d5cb00802a20ad49c23a8"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-results.json",
+      "bytes": 398278,
+      "sha256": "7e61fabb6704332e7f0064bfbff7cf44b6aede5ab6e6633070c9c013a552cb14"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-roadmap.md",
+      "bytes": 1492,
+      "sha256": "67e367171698ea84df20a6c168284ea614caaf9110439ba2b0ac26b138e76ec2"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-security.md",
+      "bytes": 4223,
+      "sha256": "c565fd0bbc25ce4f5246c881fc87d94701633b82b562130c4ae10e383a94c6f1"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-source-state.json",
+      "bytes": 158338,
+      "sha256": "a8c402fd5d4b9e38e8d44b0d02dcb90add54d0b8620375e918153ddc6f8e19bc"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-ubuntu.md",
+      "bytes": 2836,
+      "sha256": "81b345c25d69454e0f33e7604c6c448bb410a2a550f8727e1ea42e0a3f705fad"
+    },
+    {
+      "path": "docs/reports/2026-10-22-production-windows.md",
+      "bytes": 2759,
+      "sha256": "343476bbe08c2b5763f824953f8bda4a07491814c2fa3666ec77e9d3bb352b72"
+    }
+  ],
+  "raw_evidence_manifest": "docs/reports/2026-10-22-production-evidence-manifest.json"
+}

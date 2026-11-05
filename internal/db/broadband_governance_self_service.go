@@ -349,7 +349,7 @@ func GetBroadbandGovernanceSelfServiceSummary() (BroadbandGovernanceSelfServiceS
 		COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), ''),
+		COALESCE(CAST(MAX(created_at) AS TEXT), ''),
 		COALESCE((SELECT plan_fingerprint FROM broadband_governance_self_service_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT case_count FROM broadband_governance_self_service_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),
 		COALESCE((SELECT self_service_action_count FROM broadband_governance_self_service_events ORDER BY datetime(created_at) DESC, id DESC LIMIT 1), 0),
@@ -471,8 +471,8 @@ func upsertBroadbandSelfServiceRequest(tx *sql.Tx, input BroadbandSelfServiceReq
 		nullString(strings.TrimSpace(input.Action)),
 		nullString(strings.TrimSpace(input.Name)),
 		normalizeBroadbandGovernanceRecordStatus(input.Status),
-		boolToInt(input.RequiresApproval),
-		boolToInt(input.RequiresMFA),
+		input.RequiresApproval,
+		input.RequiresMFA,
 		input.AttributesJSON,
 		nullString(strings.TrimSpace(input.SourceEventID)),
 		strings.TrimSpace(input.PlanFingerprint),
@@ -567,7 +567,7 @@ func scanBroadbandSelfServiceRequest(scanner interface {
 	Scan(dest ...any) error
 }) (BroadbandSelfServiceRequestRecord, error) {
 	var record BroadbandSelfServiceRequestRecord
-	var requiresApproval, requiresMFA int
+	var requiresApproval, requiresMFA bool
 	err := scanner.Scan(
 		&record.ID,
 		&record.RequestKey,
@@ -583,8 +583,8 @@ func scanBroadbandSelfServiceRequest(scanner interface {
 		&record.CreatedAt,
 		&record.UpdatedAt,
 	)
-	record.RequiresApproval = requiresApproval != 0
-	record.RequiresMFA = requiresMFA != 0
+	record.RequiresApproval = requiresApproval
+	record.RequiresMFA = requiresMFA
 	return record, err
 }
 

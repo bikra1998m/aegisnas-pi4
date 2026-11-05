@@ -64,8 +64,8 @@ func RecordRadiusPacketHardeningEvent(event RadiusPacketHardeningEvent, retentio
 		strings.TrimSpace(event.ObservedAt), strings.TrimSpace(event.SourceIP), strings.TrimSpace(event.Direction),
 		strings.TrimSpace(event.PacketCode), event.PacketIdentifier, strings.TrimSpace(event.Decision),
 		strings.TrimSpace(event.Reason), strings.TrimSpace(event.Message), event.PacketLength, event.AttributeCount,
-		event.ProxyStateCount, event.ProxyStateBytes, boolToSQLite(event.MessageAuthenticatorPresent),
-		boolToSQLite(event.ReplayDetected), boolToSQLite(event.RateLimited), details)
+		event.ProxyStateCount, event.ProxyStateBytes, event.MessageAuthenticatorPresent,
+		event.ReplayDetected, event.RateLimited, details)
 	if err != nil {
 		return fmt.Errorf("insert radius packet hardening event: %w", err)
 	}
@@ -79,11 +79,11 @@ func ListRadiusPacketHardeningEvents(limit int) ([]RadiusPacketHardeningEvent, e
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := DB.Query(`SELECT id, COALESCE(observed_at, ''), COALESCE(source_ip, ''), COALESCE(direction, ''),
+	rows, err := DB.Query(`SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(source_ip, ''), COALESCE(direction, ''),
 		COALESCE(packet_code, ''), COALESCE(packet_identifier, 0), COALESCE(decision, ''), COALESCE(reason, ''),
 		COALESCE(message, ''), COALESCE(packet_length, 0), COALESCE(attribute_count, 0),
-		COALESCE(proxy_state_count, 0), COALESCE(proxy_state_bytes, 0), COALESCE(message_authenticator_present, 0),
-		COALESCE(replay_detected, 0), COALESCE(rate_limited, 0), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(proxy_state_count, 0), COALESCE(proxy_state_bytes, 0), (CASE WHEN message_authenticator_present THEN 1 ELSE 0 END),
+		(CASE WHEN replay_detected THEN 1 ELSE 0 END), (CASE WHEN rate_limited THEN 1 ELSE 0 END), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM radius_packet_hardening_events ORDER BY datetime(observed_at) DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list radius packet hardening events: %w", err)
@@ -125,12 +125,12 @@ func GetRadiusPacketHardeningStats() (RadiusPacketHardeningStats, error) {
 		COUNT(*),
 		COALESCE(SUM(CASE WHEN decision = 'accepted' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'rejected' THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN replay_detected = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN rate_limited = 1 THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN replay_detected = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN rate_limited = TRUE THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN reason IN ('missing_message_authenticator', 'invalid_message_authenticator') THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN reason = 'unknown_source' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN reason LIKE 'malformed_%' OR reason IN ('invalid_packet_length', 'short_packet', 'oversized_packet') THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM radius_packet_hardening_events`).Scan(&stats.TotalEvents, &stats.AcceptedCount, &stats.RejectedCount,
 		&stats.ReplayRejectCount, &stats.RateLimitedRejectCount, &stats.MessageAuthenticatorRejects,
 		&stats.UnknownSourceRejects, &stats.MalformedRejects, &stats.LastEventAt)

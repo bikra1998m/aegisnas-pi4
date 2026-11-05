@@ -1,0 +1,15 @@
+{
+  "reports": {
+    "2026-10-27-reverification-readiness.md": "cfa795aeb43f63d13939d0c3ebc8673d5817a1210ffe9a71b53e2de2f757fd26",
+    "2026-10-27-reverification-implementation.md": "c30a793ff5af380533c0257ae5b8b06947e14420dcc088d70acb717623c1445d",
+    "2026-10-27-reverification-tests.md": "43b5e9e35273fede5ecdffdd93d83bf63308f557223e3dc2f11d280d6ac050f3",
+    "2026-10-27-reverification-live-services.md": "73d0c5ce55fc95242f299f317a3d7d52bc4a932d48f5dafb358ae11163f904cb",
+    "2026-10-27-reverification-security.md": "8f15ba7324451abd51456a329da827f0297358f4e58dd66919ddc1881e4353f3",
+    "2026-10-27-reverification-roadmap-history.md": "07f7f57f141500861c9771951dadf6812ee36eeba83fa34db6bd8eb6224d9e8a",
+    "2026-10-27-reverification-changes.csv": "fd2fc0623a16fa5e31f76c5e788a46ff658a247a3e4c25044595c4e1a9b68fd1",
+    "2026-10-27-reverification-milestones.csv": "45abbe4108c5c76c6e11ff3ea1c63e0650d14f36010bfe0a9ad00db8febdc642",
+    "2026-10-27-reverification-results.json": "cee52735871eeea84ebd3c4fabae3e64a7fc76fc873b7bfdb3d5822882370587",
+    "2026-10-27-reverification-source-state.json": "747c33150a97ef905c711c73d6902cc50ad2a2807e4a0f37aa846f033cc7b82e",
+    "2026-10-27-reverification-evidence-manifest.json": "ca5769c8965ac0375dcdc4f3b4af527f6388c6b559b6b4dcee70e110ba0e6873"
+  }
+}

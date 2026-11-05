@@ -15,7 +15,7 @@ func TestGetGuestDeliveryAnalytics(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -41,27 +41,27 @@ func TestGetGuestDeliveryAnalytics(t *testing.T) {
 		"guest-1", "pending", "tenant-a", "Alice Guest", "alice@example.test", "1111111111", "LabCo",
 		"Sam Sponsor", "sam@example.test", "", "guest-basic",
 		"hash-1", "pending", "queued",
-		"2026-05-25T11:30:00Z", "", "", "", "2026-05-26T11:30:00Z",
+		"2026-05-25T11:30:00Z", nil, nil, nil, "2026-05-26T11:30:00Z",
 
 		"guest-2", "approved", "tenant-a", "Bob Visitor", "bob@example.test", "2222222222", "LabCo",
 		"Taylor Sponsor", "taylor@example.test", "", "guest-basic",
 		"hash-2", "sent", "sent",
-		"2026-05-25T10:05:00Z", "2026-05-25T10:25:00Z", "", "", "2026-05-26T10:05:00Z",
+		"2026-05-25T10:05:00Z", "2026-05-25T10:25:00Z", nil, nil, "2026-05-26T10:05:00Z",
 
 		"guest-3", "rejected", "tenant-b", "Carla Declined", "carla@example.test", "3333333333", "Visitors Inc",
 		"Jordan Sponsor", "jordan@example.test", "", "guest-standard",
 		"hash-3", "failed", "not_requested",
-		"2026-05-25T09:10:00Z", "", "2026-05-25T09:20:00Z", "", "2026-05-26T09:10:00Z",
+		"2026-05-25T09:10:00Z", nil, "2026-05-25T09:20:00Z", nil, "2026-05-26T09:10:00Z",
 
 		"guest-4", "completed", "tenant-a", "Dylan Complete", "dylan@example.test", "4444444444", "Guests United",
 		"", "", "", "guest-vip",
 		"hash-4", "not_required", "sent",
-		"2026-05-25T08:15:00Z", "2026-05-25T08:25:00Z", "", "2026-05-25T08:55:00Z", "2026-05-26T08:15:00Z",
+		"2026-05-25T08:15:00Z", "2026-05-25T08:25:00Z", nil, "2026-05-25T08:55:00Z", "2026-05-26T08:15:00Z",
 
 		"guest-5", "approved", "tenant-a", "Eli Invite", "eli@example.test", "5555555555", "LabCo",
 		"Sam Sponsor", "sam@example.test", "", "guest-standard",
 		"hash-5", "sent", "failed",
-		"2026-05-25T11:00:00Z", "2026-05-25T11:10:00Z", "", "", "2026-05-26T11:00:00Z",
+		"2026-05-25T11:00:00Z", "2026-05-25T11:10:00Z", nil, nil, "2026-05-26T11:00:00Z",
 	)
 	require.NoError(t, err)
 

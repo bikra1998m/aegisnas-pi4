@@ -1,5 +1,9 @@
 # NAS-0094 Release Certification Checklist
 
+Audit status (2026-10-15): **Partial**. The checked software evidence below covers
+configuration/report lifecycle; live charging integration and its software tests
+remain. See [the audit](reports/2026-10-15-continuation.md).
+
 NAS-0094 software engineering is complete when the code, schema, APIs, UI,
 configuration, documentation, automation, and automated tests pass. The items
 below require external systems, real hardware, third-party environments, or

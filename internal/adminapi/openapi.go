@@ -131,6 +131,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}))
 	addOperation(paths, "/api/v1/system/upgrade-rollback-package", "get", securedOperation("Download upgrade rollback package", "Upgrade", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/zip", "Version-aware rollback package containing config and SQLite snapshot."),
+		"409": responseText("SQLite recovery packages do not support the configured database backend."),
 	}))
 	addOperation(paths, "/api/v1/system/upgrade-rollback-package/inspect", "post", securedOperationWithBody("Inspect upgrade rollback package", "Upgrade", []string{"ops_admin", "super_admin"}, multipartRequestBody(
 		map[string]any{
@@ -1077,6 +1078,7 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}))
 	addOperation(paths, "/api/v1/system/ha/replication-package", "get", securedOperation("Download HA replication package", "HA", []string{"ops_admin", "super_admin"}, map[string]any{
 		"200": responseBinary("application/octet-stream", "HA replication package for a standby node."),
+		"409": responseText("SQLite package replication is unavailable for a PostgreSQL data plane."),
 	}))
 	addOperation(paths, "/api/v1/system/ha/replication-package", "post", securedOperationWithBody("Stage HA replication package on this node", "HA", []string{"ops_admin", "super_admin"}, multipartRequestBody(
 		map[string]any{
@@ -2247,6 +2249,9 @@ func buildOpenAPISpec(r *http.Request, cfg *config.Config) map[string]any {
 	}))
 	addOperation(paths, "/api/v1/system/database", "get", securedOperation("Read database data-plane readiness", "System", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
 		"200": responseJSON("Redacted database backend, schema, pool, TLS, and HA readiness status."),
+	}))
+	addOperation(paths, "/api/v1/system/release-security", "get", securedOperation("Read release admission evidence", "Security", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, map[string]any{
+		"200": responseJSON("Root-managed admission record and current API binary checksum. Does not reverify signatures or certify other services or OS images."),
 	}))
 	addOperation(paths, "/api/v1/system/attribute-registry", "get", securedOperationWithParameters("Read the generated typed attribute registry", "RADIUS", []string{"read_only", "guest_admin", "ops_admin", "super_admin"}, []map[string]any{
 		queryStringParameter("release", "Optional dictionary release profile ID; defaults to the active embedded profile.", false),

@@ -145,7 +145,7 @@ func clientDefinitionsFromDB() ([]config.RadiusClient, error) {
 	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(secret_ref, ''), COALESCE(NULLIF(TRIM(nas_type), ''), 'other'),
 		COALESCE(NULLIF(TRIM(transport), ''), 'udp'), COALESCE(radsec_certificate_cn, ''),
 		COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, '')
-		FROM radius_clients WHERE enabled = 1`)
+		FROM radius_clients WHERE enabled = TRUE`)
 	if isMissingRadiusClientSecretRefColumn(err) {
 		return clientDefinitionsWithoutSecretRefFromDB()
 	}
@@ -175,7 +175,7 @@ func clientDefinitionsWithoutSecretRefFromDB() ([]config.RadiusClient, error) {
 	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(NULLIF(TRIM(nas_type), ''), 'other'),
 		COALESCE(NULLIF(TRIM(transport), ''), 'udp'), COALESCE(radsec_certificate_cn, ''),
 		COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, '')
-		FROM radius_clients WHERE enabled = 1`)
+		FROM radius_clients WHERE enabled = TRUE`)
 	if isMissingRadiusClientRadSecColumn(err) {
 		return clientDefinitionsWithoutRadSecFromDB()
 	}
@@ -199,7 +199,7 @@ func clientDefinitionsWithoutSecretRefFromDB() ([]config.RadiusClient, error) {
 }
 
 func clientDefinitionsWithoutRadSecFromDB() ([]config.RadiusClient, error) {
-	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(NULLIF(TRIM(nas_type), ''), 'other') FROM radius_clients WHERE enabled = 1`)
+	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret, COALESCE(NULLIF(TRIM(nas_type), ''), 'other') FROM radius_clients WHERE enabled = TRUE`)
 	if isMissingRadiusClientNASTypeColumn(err) {
 		return legacyClientDefinitionsFromDB()
 	}
@@ -220,7 +220,7 @@ func clientDefinitionsWithoutRadSecFromDB() ([]config.RadiusClient, error) {
 }
 
 func legacyClientDefinitionsFromDB() ([]config.RadiusClient, error) {
-	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret FROM radius_clients WHERE enabled = 1`)
+	rows, err := db.DB.Query(`SELECT shortname, ipaddr, secret FROM radius_clients WHERE enabled = TRUE`)
 	if err != nil {
 		return nil, err
 	}
@@ -838,15 +838,24 @@ sql {
 }
 
 func (g *Generator) renderModsPostgreSQL() (string, error) {
-	dsn := strings.TrimSpace(g.cfg.Database.DSN)
-	if ref := strings.TrimSpace(g.cfg.Database.DSNRef); ref != "" {
-		resolved, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), "database.dsn", "", ref)
-		if err != nil {
-			return "", err
-		}
-		dsn = strings.TrimSpace(resolved)
+	dsn, err := secrets.ResolveConfiguredSecret(context.Background(), secrets.NewResolver(secrets.OptionsFromConfig(g.cfg)), "database.dsn", g.cfg.Database.DSN, g.cfg.Database.DSNRef)
+	if err != nil {
+		return "", err
 	}
-	parsed, err := parsePostgreSQLURLDSN(dsn)
+	dsn = strings.TrimSpace(dsn)
+	_, err = parsePostgreSQLURLDSN(dsn)
+	if err != nil {
+		return "", err
+	}
+	// Reuse the application's authoritative TLS and timeout policy. The driver
+	// consumes libpq connection strings; individual fields lose URL TLS options.
+	databaseConfig := g.cfg.Database
+	databaseConfig.DSN, databaseConfig.DSNRef = dsn, ""
+	plan, err := db.BuildConnectionPlan(context.Background(), databaseConfig, nil)
+	if err != nil {
+		return "", err
+	}
+	connectionURI, err := freeRADIUSPostgreSQLURI(plan.DataSourceName)
 	if err != nil {
 		return "", err
 	}
@@ -855,25 +864,32 @@ func (g *Generator) renderModsPostgreSQL() (string, error) {
 sql {
 	dialect = "postgresql"
 	driver = "rlm_sql_postgresql"
-	server = "{{ .Host }}"
-	port = {{ .Port }}
-	login = "{{ .User }}"
-	password = "{{ .Password }}"
-	radius_db = "{{ .Database }}"
-
-	accounting {
-		reference = "%{tolower:type.%{Acct-Status-Type}}"
+	# Empty legacy fields prevent the driver appending keyword options to the URI.
+	server = ""
+	port = 0
+	login = ""
+	password = ""
+	radius_db = "{{ .URI }}"
+	postgresql {
+		send_application_name = no
 	}
 
-	postauth {
-		reference = ".query"
-	}
+{{ .Queries }}
 }
 `
 	var buf bytes.Buffer
 	t := template.Must(template.New("sql-postgresql").Parse(tmpl))
-	err = t.Execute(&buf, parsed)
+	queries := "\t# radius.sql_accounting is disabled; no SQL writes are configured."
+	if g.cfg.Radius.SQLAccounting.Enabled {
+		queries = postgresAccountingQueries()
+	}
+	err = t.Execute(&buf, map[string]string{"URI": connectionURI, "Queries": queries})
 	return buf.String(), err
+}
+
+func (g *Generator) postgresSQLAccountingEnabled() bool {
+	backend := strings.ToLower(strings.TrimSpace(g.cfg.Database.Backend))
+	return g.cfg.Radius.SQLAccounting.Enabled && (backend == "postgres" || backend == "postgresql")
 }
 
 type postgreSQLSQLModuleDSN struct {
@@ -890,7 +906,19 @@ func parsePostgreSQLURLDSN(raw string) (postgreSQLSQLModuleDSN, error) {
 		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN must use a postgres:// URL for FreeRADIUS SQL generation")
 	}
 	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
-		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN scheme %q is not supported", parsed.Scheme)
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN scheme is not supported")
+	}
+	if parsed.Fragment != "" || strings.ContainsAny(raw, "\r\n\x00") {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN contains a fragment or control character")
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN query is invalid")
+	}
+	for _, values := range query {
+		if len(values) != 1 {
+			return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN query contains duplicate parameters")
+		}
 	}
 	port := 5432
 	if parsed.Port() != "" {
@@ -907,6 +935,9 @@ func parsePostgreSQLURLDSN(raw string) (postgreSQLSQLModuleDSN, error) {
 		password, _ = parsed.User.Password()
 	}
 	databaseName := strings.Trim(strings.TrimSpace(parsed.Path), "/")
+	if strings.ContainsAny(parsed.Hostname()+user+password+parsed.Path, "\r\n\x00") {
+		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN contains an encoded control character")
+	}
 	if parsed.Hostname() == "" || user == "" || databaseName == "" {
 		return postgreSQLSQLModuleDSN{}, fmt.Errorf("database PostgreSQL DSN must include host, user, and database name")
 	}
@@ -917,6 +948,50 @@ func parsePostgreSQLURLDSN(raw string) (postgreSQLSQLModuleDSN, error) {
 		Password: password,
 		Database: databaseName,
 	}, nil
+}
+
+// Encode URI data, rather than interpolate credentials into FreeRADIUS or libpq
+// keyword syntax. In particular, dollars must not become config expansions and
+// spaces must be percent-encoded: libpq does not use form-style '+' decoding.
+func freeRADIUSPostgreSQLURI(dsn string) (string, error) {
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return "", fmt.Errorf("invalid PostgreSQL connection URI")
+	}
+	q := u.Query()
+	allowed := map[string]bool{}
+	for _, key := range strings.Fields("sslmode sslrootcert sslcert sslkey sslpassword sslcrl sslcrldir sslsni ssl_min_protocol_version ssl_max_protocol_version channel_binding gssencmode krbsrvname gsslib options connect_timeout application_name fallback_application_name keepalives keepalives_idle keepalives_interval keepalives_count tcp_user_timeout target_session_attrs passfile requirepeer hostaddr TimeZone statement_timeout") {
+		allowed[key] = true
+	}
+	for key, values := range q {
+		if !allowed[key] {
+			return "", fmt.Errorf("PostgreSQL DSN contains a parameter unsupported by FreeRADIUS generation")
+		}
+		for _, value := range values {
+			if strings.ContainsAny(value, "\r\n\x00") {
+				return "", fmt.Errorf("PostgreSQL DSN parameter contains a control character")
+			}
+		}
+	}
+	options := q.Get("options") + " -c TimeZone=UTC"
+	if timeout := q.Get("statement_timeout"); timeout != "" {
+		value, err := strconv.Atoi(timeout)
+		if err != nil || value < 0 {
+			return "", fmt.Errorf("invalid PostgreSQL statement timeout")
+		}
+		options += " -c statement_timeout=" + strconv.Itoa(value)
+	}
+	q.Del("TimeZone")
+	q.Del("statement_timeout")
+	q.Set("options", strings.TrimSpace(options))
+	if q.Get("connect_timeout") == "" {
+		q.Set("connect_timeout", "10")
+	}
+	if timeout, err := strconv.Atoi(q.Get("connect_timeout")); err != nil || timeout < 1 {
+		return "", fmt.Errorf("FreeRADIUS PostgreSQL requires a positive connect timeout")
+	}
+	u.RawQuery = strings.ReplaceAll(q.Encode(), "+", "%20")
+	return strings.NewReplacer("$", "%24", "{", "%7B", "}", "%7D", "\\", "%5C", "\"", "%22", "'", "%27").Replace(u.String()), nil
 }
 
 func (g *Generator) renderProxyConf() (string, error) {
@@ -1326,7 +1401,11 @@ server default {
 	accounting {
 		detail
 		unix
+		{{- if .PostgreSQLAccounting }}
+{{ .SQLAccounting }}
+		{{- else if .Radius.SQLAccounting.Enabled }}
 		sql
+		{{- end }}
 		exec
 	}
 
@@ -1335,6 +1414,9 @@ server default {
 	}
 
 	post-auth {
+		{{- if .PostgreSQLAccounting }}
+{{ .SQLPostAuth }}
+		{{- end }}
 		exec
 		reply_log
 	}
@@ -1360,16 +1442,22 @@ server default {
 	}
 	data := struct {
 		*config.Config
-		ProxyDefaultRealm   string
-		ProxyRequestPolicy  string
-		ProxyResponsePolicy string
-		LDAPModuleEnabled   bool
+		ProxyDefaultRealm    string
+		ProxyRequestPolicy   string
+		ProxyResponsePolicy  string
+		LDAPModuleEnabled    bool
+		PostgreSQLAccounting bool
+		SQLAccounting        string
+		SQLPostAuth          string
 	}{
-		Config:              g.cfg,
-		ProxyDefaultRealm:   DefaultProxyRealm(g.cfg),
-		ProxyRequestPolicy:  proxyRequestPolicy,
-		ProxyResponsePolicy: proxyResponsePolicy,
-		LDAPModuleEnabled:   g.ldapModuleEnabled(),
+		Config:               g.cfg,
+		ProxyDefaultRealm:    DefaultProxyRealm(g.cfg),
+		ProxyRequestPolicy:   proxyRequestPolicy,
+		ProxyResponsePolicy:  proxyResponsePolicy,
+		LDAPModuleEnabled:    g.ldapModuleEnabled(),
+		PostgreSQLAccounting: g.postgresSQLAccountingEnabled(),
+		SQLAccounting:        postgresAccountingUnlang,
+		SQLPostAuth:          postgresPostAuthUnlang,
 	}
 	err = t.Execute(&buf, data)
 	return buf.String(), err

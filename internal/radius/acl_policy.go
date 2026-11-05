@@ -34,7 +34,7 @@ func LoadACLPolicy(name string) (StoredACLPolicy, bool, error) {
 	var rulesJSON, astJSON, diagnosticsJSON, fingerprint string
 	err := db.DB.QueryRow(`SELECT name, COALESCE(description, ''), COALESCE(inbound_acl, ''), COALESCE(outbound_acl, ''), rules_json,
 			COALESCE(ast_json, '{}'), COALESCE(ast_fingerprint, ''), COALESCE(ast_diagnostics_json, '[]')
-		FROM acl_policies WHERE name = ? AND enabled = 1`, name).Scan(
+		FROM acl_policies WHERE name = ? AND enabled = TRUE`, name).Scan(
 		&policy.Name, &policy.Description, &policy.InboundACL, &policy.OutboundACL, &rulesJSON,
 		&astJSON, &fingerprint, &diagnosticsJSON,
 	)

@@ -182,21 +182,21 @@ func Seed() error {
 
 	// Identity source
 	_, err = tx.Exec(`INSERT OR IGNORE INTO identity_sources (name, type, enabled, priority, config)
-		VALUES ('local', 'local', 1, 10, '{}')`)
+		VALUES ('local', 'local', TRUE, 10, '{}')`)
 	if err != nil {
 		return fmt.Errorf("seed identity source: %w", err)
 	}
 
 	// Seed LDAP identity source (disabled by default) with example group-role mapping
 	_, err = tx.Exec(`INSERT OR IGNORE INTO identity_sources (name, type, enabled, priority, config)
-		VALUES ('ldap-primary', 'ldap', 0, 20, '{"group_roles": {"engineering": "corp-standard", "marketing": "guest-premium"}}')`)
+		VALUES ('ldap-primary', 'ldap', FALSE, 20, '{"group_roles": {"engineering": "corp-standard", "marketing": "guest-premium"}}')`)
 	if err != nil {
 		return fmt.Errorf("seed ldap identity source: %w", err)
 	}
 
 	// Seed upstream RADIUS mapping source for Filter-Id / VLAN driven session shaping.
 	_, err = tx.Exec(`INSERT OR IGNORE INTO identity_sources (name, type, enabled, priority, config)
-		VALUES ('radius-upstream', 'radius', 0, 30, '{"filter_id_roles": {"admins": "admin", "employees": "corp-standard"}, "filter_id_bandwidth_profiles": {"premium": "100m-down-50m-up"}, "vlan_roles": {"30": "corp-standard", "40": "admin"}}')`)
+		VALUES ('radius-upstream', 'radius', FALSE, 30, '{"filter_id_roles": {"admins": "admin", "employees": "corp-standard"}, "filter_id_bandwidth_profiles": {"premium": "100m-down-50m-up"}, "vlan_roles": {"30": "corp-standard", "40": "admin"}}')`)
 	if err != nil {
 		return fmt.Errorf("seed radius identity source: %w", err)
 	}
@@ -208,7 +208,7 @@ func Seed() error {
 	}
 
 	var tokenCount int
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM api_tokens WHERE enabled = 1`).Scan(&tokenCount); err != nil {
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM api_tokens WHERE enabled = TRUE`).Scan(&tokenCount); err != nil {
 		return fmt.Errorf("count api tokens: %w", err)
 	}
 	bootstrapToken := ""

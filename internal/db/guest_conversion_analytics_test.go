@@ -15,7 +15,7 @@ func TestGetGuestConversionAnalytics(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -41,27 +41,27 @@ func TestGetGuestConversionAnalytics(t *testing.T) {
 		"guest-1", "approved", "tenant-a", "Alice Queue", "alice@example.test", "LabCo",
 		"Sam Sponsor", "sam@example.test", "guest-basic", "hash-1",
 		"sent", "queued", "",
-		"2026-05-25T11:00:00Z", "2026-05-25T11:12:00Z", "2026-05-25T11:10:00Z", "", "", "2026-05-26T11:00:00Z",
+		"2026-05-25T11:00:00Z", "2026-05-25T11:12:00Z", "2026-05-25T11:10:00Z", nil, nil, "2026-05-26T11:00:00Z",
 
 		"guest-2", "approved", "tenant-a", "Bob Sent", "bob@example.test", "Visitors Inc",
 		"Taylor Sponsor", "taylor@example.test", "guest-basic", "hash-2",
 		"sent", "sent", "",
-		"2026-05-25T10:00:00Z", "2026-05-25T10:35:00Z", "2026-05-25T10:20:00Z", "", "", "2026-05-26T10:00:00Z",
+		"2026-05-25T10:00:00Z", "2026-05-25T10:35:00Z", "2026-05-25T10:20:00Z", nil, nil, "2026-05-26T10:00:00Z",
 
 		"guest-3", "completed", "tenant-b", "Carla Done", "carla@example.test", "LabCo",
 		"Sam Sponsor", "sam@example.test", "guest-vip", "hash-3",
 		"sent", "sent", "",
-		"2026-05-25T09:00:00Z", "2026-05-25T09:25:00Z", "2026-05-25T09:10:00Z", "", "2026-05-25T10:00:00Z", "2026-05-26T09:00:00Z",
+		"2026-05-25T09:00:00Z", "2026-05-25T09:25:00Z", "2026-05-25T09:10:00Z", nil, "2026-05-25T10:00:00Z", "2026-05-26T09:00:00Z",
 
 		"guest-4", "approved", "tenant-b", "Dylan Failed", "dylan@example.test", "Visitors Inc",
 		"Jordan Sponsor", "jordan@example.test", "guest-standard", "hash-4",
 		"sent", "failed", "smtp timeout",
-		"2026-05-25T08:00:00Z", "2026-05-25T08:40:00Z", "2026-05-25T08:15:00Z", "", "", "2026-05-26T08:00:00Z",
+		"2026-05-25T08:00:00Z", "2026-05-25T08:40:00Z", "2026-05-25T08:15:00Z", nil, nil, "2026-05-26T08:00:00Z",
 
 		"guest-5", "rejected", "tenant-b", "Eva Skip", "eva@example.test", "Other Co",
 		"Jordan Sponsor", "jordan@example.test", "guest-standard", "hash-5",
 		"failed", "not_requested", "",
-		"2026-05-25T07:30:00Z", "2026-05-25T07:40:00Z", "", "2026-05-25T07:40:00Z", "", "2026-05-26T07:30:00Z",
+		"2026-05-25T07:30:00Z", "2026-05-25T07:40:00Z", nil, "2026-05-25T07:40:00Z", nil, "2026-05-26T07:30:00Z",
 	)
 	require.NoError(t, err)
 

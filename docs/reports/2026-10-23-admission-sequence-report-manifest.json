@@ -1,0 +1,80 @@
+{
+  "time": "2026-10-23T07:20:46.803970+00:00",
+  "reports": [
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-changes.csv",
+      "bytes": 1538,
+      "sha256": "442c8ad20d2e7c8e2e000ffc0701acd75a45d61c056f49143d52067cd5083367"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-evidence-manifest.json",
+      "bytes": 13597,
+      "sha256": "5f4a0762f2ba96bba08f2df149766ea2b3da9e2b044a80e7ee9454d0bbe62fd4"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-history.md",
+      "bytes": 2134,
+      "sha256": "2a6a5fe0784a3c9ed979f666433a355e6af6811f801b938c803e2ae8c351a009"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-implementation.md",
+      "bytes": 4230,
+      "sha256": "2a297c0cbff1bf73708cfa7b6adcfde73a5a437599d8d9a9c08f3c2b06025232"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-live-services.md",
+      "bytes": 1777,
+      "sha256": "05f60cc78114ef56422ecec079887bd7758dc3a88ca44e1bd49c93aec9b95d1c"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-milestones.csv",
+      "bytes": 89263,
+      "sha256": "87893f621a7345fdda16cd5095825d19bde7fcf4b0d6cd6e77612ef00e7d94e5"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-nas0116.md",
+      "bytes": 2465,
+      "sha256": "3b9714cd8c4185564019d241f8c6e7091a270d50f8c9eb2ae23cd011cc4453f7"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-postgresql.md",
+      "bytes": 1601,
+      "sha256": "852312621bb61297be819517aa114dbd9e57d41bb70de8f85d81800a7013ab42"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-readiness.md",
+      "bytes": 4009,
+      "sha256": "a4bf31fb868472f8a757d8c55a2720f023ad30b1f471507ad4251123fd1c9e44"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-results.json",
+      "bytes": 3512,
+      "sha256": "4e2e95445e20647886b114390e0ccf2c2b7573cae753fc43a6e940a74c065717"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-roadmap.md",
+      "bytes": 2159,
+      "sha256": "b290ed9959d5de2fa2b86a0915c4bf006a367be101848647f7c1e8bc12edc9c0"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-security.md",
+      "bytes": 3261,
+      "sha256": "7fb0f9e7d5058cb6d85464dd7968da9edc8a665a975363c566f4626527390698"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-source-state.json",
+      "bytes": 20684,
+      "sha256": "c55276c32f03acd8d8f6d808f7cd5e21c9cd04ea657c3c1be66acd66aa1073f0"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-ubuntu.md",
+      "bytes": 1849,
+      "sha256": "1fa00c30f9c6213ea40349ca022cad66618265a2a6a698192037f7bc9b05c04a"
+    },
+    {
+      "path": "docs/reports/2026-10-23-admission-sequence-windows.md",
+      "bytes": 1515,
+      "sha256": "7d2f283cf603c949689f63205b78a9591491bca6a9e15e899ef3625dbea9900b"
+    }
+  ]
+}

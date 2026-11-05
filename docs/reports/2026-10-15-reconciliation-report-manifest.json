@@ -1,0 +1,183 @@
+{
+  "scope": "Current reports and source ledger; this manifest excludes its own hash. Checksums establish consistency, not signatures.",
+  "reports": [
+    {
+      "path": "docs/reports/2026-10-15-history-index.json",
+      "bytes": 2920,
+      "sha256": "f8c2f3699b3befa879f410c54c97ae2e4b324cbacce8e40adedf7b0c39248221"
+    },
+    {
+      "path": "docs/reports/2026-10-15-history-reconciliation.md",
+      "bytes": 8069,
+      "sha256": "47b6879ba35d621ea8648fc3ed07b3ae9624ca593f9859e3bc214598288a221d"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-changes-since-entry.csv",
+      "bytes": 2251,
+      "sha256": "c439dc7e99732033977282398ac21f1ab2dae9ad5b3291b493163932ccbad789"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-evidence-manifest.json",
+      "bytes": 15749,
+      "sha256": "81c1172515a8c64891cf6400354fb78f8763b423ebd0668ec9bf5515450aec46"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-implementation.md",
+      "bytes": 5514,
+      "sha256": "aa1e09657f81ae50389bc110dfcb7be68f59fb6d59b828cdbf3bb1c3fa225864"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-live-services.md",
+      "bytes": 3119,
+      "sha256": "dd6edba047500f04cef8a8adfdadd337809f53366372876917c41d25da45f5fb"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-milestones.csv",
+      "bytes": 143227,
+      "sha256": "4eb774e1a20947e54d7913a62542d51b1cd31b81ba5ea561224a7d57e94e14a6"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-nas0116.md",
+      "bytes": 6536,
+      "sha256": "dbd757f583847fbceb9d435660f7592e4bc6f6434fa3365bbd3c3f8ea8b82fc1"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-postgresql.md",
+      "bytes": 3877,
+      "sha256": "f9ccdb48aaadb8cdc98a5d24a43a3612bfa6b4ca6591e29e7a78a2a103f26782"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-readiness.md",
+      "bytes": 5794,
+      "sha256": "d99022d91521c631f5e00a4b09bcd185eb37aa3a2d001873b2c9c0240fefb59f"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-remaining-roadmap.csv",
+      "bytes": 11199,
+      "sha256": "36202949d7d39b4128b5c2b0fed8bd35d2926bfc423fa05e24f040d554a4ed43"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-results.json",
+      "bytes": 21240,
+      "sha256": "dd6905beeb55fe4ea52e5e1b896e4d8107a2d550e095b9e7143ce2b04cc221a8"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-roadmap.md",
+      "bytes": 2351,
+      "sha256": "de3a0ada2602be1bca0879d3d4193d93793e9ac912c8c917d100e3b79acb4957"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-security.md",
+      "bytes": 4629,
+      "sha256": "cc41f8e92580afff7afa54a59dce588199774a6144fc94e87f4c176ec45e1797"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-ubuntu.md",
+      "bytes": 2674,
+      "sha256": "d369a90d321f50816e91ec5d9e5a91104bd3b030229af0cd66019944d9354113"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-windows.md",
+      "bytes": 2626,
+      "sha256": "ca9c7b5fa1bbb92b108f1e863be3c3961534a565112911ba92c350ddce15a6c9"
+    },
+    {
+      "path": "docs/reports/2026-10-15-reconciliation-working-tree.csv",
+      "bytes": 6923,
+      "sha256": "4083c3cb2d4d7b8edf79e558a65e0dd0260c2ac00af3ea9add30967ca74d5802"
+    }
+  ],
+  "source_changes": [
+    {
+      "git_status": " M",
+      "path": "README.md",
+      "sha256": "d41cf36cab8d07943d2842ec39749ca50be17b87ad6523edec710ba6f14482ff",
+      "entry_sha256": "51e5bd4243acd547b6c1b1615105ff640228970e9e5f650c5c43bf91d5701728",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "docs/development.md",
+      "sha256": "ff3bcd821c86875115fb313331a7ab9d6c3aa679451a514b89d0b169bf534013",
+      "entry_sha256": "6b9cc97a30e122bd1571004998343bd4a474fae527dda2f46442037fcbd395c1",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "docs/enterprise-nas-engineering-backlog.csv",
+      "sha256": "f3c549008e481ce1bed7a5f0fc388ae2c738090f6496bd3c5ecc470981eec697",
+      "entry_sha256": "d87658f7d5be619929d4388854a5a36d69cd0ab4fce4a457a28793e66b500f4f",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "docs/enterprise-nas-master-implementation-roadmap.md",
+      "sha256": "da626772cb1ca7c1e97dcfe66cb7cab4cc6e2acb4c9a47fd47d2601734150644",
+      "entry_sha256": "3e71839c2f6afa43c2cc801518779f9b4bab7f69da9c0f24de186797dc3242ea",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "docs/nas-0008-release-certification-checklist.md",
+      "sha256": "420a4d813d8d806d7905f3682757cf15c7c34ae0fe5f7d802cbf6a54e7303f97",
+      "entry_sha256": "36e2fe091c630343a21438a38949cff20b0f45d829e5b87002ce8dd399f9be3d",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "internal/db/nas_clients.go",
+      "sha256": "456496c0061fe56beea0da2c4f856071ce1a0dd552d3395a669c3df4bafb890e",
+      "entry_sha256": "839ec250f5eec6bc86f5583ad4337875cec7e11c405a29cd46349a115966c4cc",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": " M",
+      "path": "internal/db/nas_clients_test.go",
+      "sha256": "c1e2c16647c280e4c0fbe79ed1899139c095f6cf581e5f4c1c49d6875ef31bcd",
+      "entry_sha256": "5392013e3c4ded6cc8b3bfbd5ff87fd109ec703cdf4fdbbb4066109a12e299f3",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": "??",
+      "path": ".github/workflows/release-candidate.yml",
+      "sha256": "c9ceda358ff1b80aaf2dbe6d271865fd7403255bb58c835f7456ece0cb238b73",
+      "entry_sha256": "c4d6d22b7b40a8df417bbd4efecc79521b7918992bed4e9817e7577bda55e97c",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": "??",
+      "path": "docs/nas-0116-release-certification-checklist.md",
+      "sha256": "0e81e9e7b53c59ffe8aaa94f852b683290c414b6bc22d04cc6bcd0dee3b93249",
+      "entry_sha256": "780f8c22080b3ba47c428d3bc6484e10029802a3c6b3f6ed0f63002ded8f427f",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": "??",
+      "path": "docs/supply-chain-release-security.md",
+      "sha256": "f9a62475839892d8aafe5df885066cea155a0c9d577dc7eab0fd9d152456092c",
+      "entry_sha256": "632b78932bf24e96b18ef5cd39e0e2e3ea07f4d646967c2551e5f6e1f734ddca",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": "??",
+      "path": "internal/db/postgres_integration_test.go",
+      "sha256": "a23185fa3732ce741b7d9bb130e1b41425ac621234f2991dc8d3f6149217033d",
+      "entry_sha256": "17ae066707d675ba4b2db1b9553045bbbc341ed3c8f5ece570821f0a8f8ffb1f",
+      "change_since_entry": "modified"
+    },
+    {
+      "git_status": "??",
+      "path": "scripts/analyze_go_exposure.py",
+      "sha256": "f94fc85e8d3cb75a1b8bb88958e386454442bcd90ec66528f5d975ec9431f48f",
+      "entry_sha256": "",
+      "change_since_entry": "added"
+    },
+    {
+      "git_status": "??",
+      "path": "scripts/test_analyze_go_exposure.py",
+      "sha256": "a00a9feac3dccb2515d93a94963dc796f411571055d5b434263fbbda6b3280a3",
+      "entry_sha256": "",
+      "change_since_entry": "added"
+    }
+  ]
+}

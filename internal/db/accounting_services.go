@@ -351,7 +351,7 @@ func GetAccountingServiceCorrelationSummary() (AccountingServiceCorrelationSumma
 		COALESCE(SUM(CASE WHEN acct_multi_session_id IS NOT NULL AND acct_multi_session_id <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN call_id IS NOT NULL AND call_id <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN bearer_id IS NOT NULL AND bearer_id <> '' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(last_seen_at), ''),
+		COALESCE(CAST(MAX(last_seen_at) AS TEXT), ''),
 		COALESCE((SELECT correlation_status FROM radius_accounting_service_correlations ORDER BY last_seen_at DESC, id DESC LIMIT 1), ''),
 		COALESCE((SELECT correlation_error FROM radius_accounting_service_correlations WHERE correlation_error IS NOT NULL AND correlation_error <> '' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_service_correlations`).Scan(
@@ -520,12 +520,12 @@ func updateSubscriberServiceAccountingFromCorrelationWithHandle(ctx context.Cont
 		interimIncrement = 1
 	}
 	_, err := handle.ExecContext(ctx, `UPDATE subscriber_service_accounting
-		SET status = ?, last_interim_at = COALESCE(NULLIF(?, ''), last_interim_at),
-			stopped_at = COALESCE(NULLIF(?, ''), stopped_at),
+		SET status = ?, last_interim_at = COALESCE(?, last_interim_at),
+			stopped_at = COALESCE(?, stopped_at),
 			input_octets = ?, output_octets = ?,
 			interim_count = interim_count + ?, updated_at = ?
 		WHERE chain_id = ? AND service_key = ?`,
-		status, nullableInterimTime(event.StatusType, eventTime), nullableStopTime(event.StatusType, eventTime),
+		status, nullString(nullableInterimTime(event.StatusType, eventTime)), nullString(nullableStopTime(event.StatusType, eventTime)),
 		boundedUint64ToInt64(accountingEventInputTotal64(event)), boundedUint64ToInt64(accountingEventOutputTotal64(event)),
 		interimIncrement, formatAccountingTime(time.Now().UTC()), fields.LinkedChainID, fields.LinkedServiceKey)
 	if err != nil && tableMissing(err) {

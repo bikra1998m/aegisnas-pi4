@@ -1,0 +1,64 @@
+{
+  "reports": [
+    {
+      "path": "docs/reports/2026-10-26-recovery-readiness.md",
+      "sha256": "cd5d33f172457d544b29f7eb9dadcec1b8c7304f3676826fedfa9812c76a4398"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-implementation.md",
+      "sha256": "3ebce468f72180411621d23df2bb4326bd4ae231dbf6306ab5a6d8a563d050d4"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-windows.md",
+      "sha256": "493e2e351d7ab6d687c066b0d3c1b954470b0ae8db09b539d0b9b592922daaf8"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-ubuntu.md",
+      "sha256": "e2652a7f71a9395f96f107ded103613d9d2ba5443befb290fbbcca0d91c452c6"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-postgresql.md",
+      "sha256": "8be97610c06398009140082ef1ddcff6f7ee5c9516e98dac757c4a987c91b88f"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-live-services.md",
+      "sha256": "46d6a59dda676ef4cf0860370e19c2260d1b3f070442be47486c517428460cb6"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-security.md",
+      "sha256": "0078f353a0660166e2ffaf157116412683abd0700b8c9c04040675c0275ec6b1"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-nas0116.md",
+      "sha256": "aed170d73ab830d736b71871cabf4cdfededd9605ecee8a9c8c9b1b3e9026015"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-history.md",
+      "sha256": "4f7da3c54e7b498c8b65895d71797f050a8131b41d8d35bdb403d6f29b3a6d0a"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-roadmap.md",
+      "sha256": "a2ddcfb056885ae38e52db70f43b61d55fa024ca4173a47e51e76c64262b0b2f"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-changes.csv",
+      "sha256": "58d82805f20837f8188480ec93200385749ea66997f7cd95eb899b3ac6015441"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-milestones.csv",
+      "sha256": "c3e0a3c4535ead52d04efd18c76783758462a230935f43a524068c3da44afc7c"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-results.json",
+      "sha256": "3c374f1558736de89569fc516418374a4f91b3fb9229b84158263ec619e01f2d"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-source-state.json",
+      "sha256": "f346dba291df3acb01229869091513271739bc612001c80fe291795a1515eacf"
+    },
+    {
+      "path": "docs/reports/2026-10-26-recovery-evidence-manifest.json",
+      "sha256": "f97b9657b3c23db5c937dff7d8b566e0d07e59bc83653f9a301b40a4ccc9e3f8"
+    }
+  ]
+}

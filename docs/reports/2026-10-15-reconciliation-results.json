@@ -1,0 +1,798 @@
+{
+  "generated_at": "2026-10-15T11:40:51.708656+00:00",
+  "baseline_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "git": {
+    "branch": "main",
+    "source_files_changed_from_HEAD": 68,
+    "source_files_changed_this_continuation": 13,
+    "commit_created": false,
+    "pushed": false
+  },
+  "current_session": {
+    "windows_regression": {
+      "raw": ".tmp/reconcile-20261015/windows-regression.jsonl",
+      "tests": {
+        "pass": 471,
+        "skip": 1
+      },
+      "packages": [
+        {
+          "Package": "github.com/yourorg/aegisnas-pi4/internal/db",
+          "Action": "pass",
+          "Elapsed": 641.782
+        },
+        {
+          "Package": "github.com/yourorg/aegisnas-pi4/internal/adminapi",
+          "Action": "pass",
+          "Elapsed": 859.588
+        }
+      ],
+      "skips": [
+        "TestPostgreSQLLiveMigrationsAndRollback"
+      ],
+      "status": "PASS"
+    },
+    "ubuntu_regression": {
+      "raw": ".tmp/reconcile-20261015/vm-regression.log",
+      "tests": {
+        "pass": 471,
+        "skip": 1
+      },
+      "packages": [
+        {
+          "Package": "github.com/yourorg/aegisnas-pi4/internal/db",
+          "Action": "pass",
+          "Elapsed": 193.682
+        },
+        {
+          "Package": "github.com/yourorg/aegisnas-pi4/internal/adminapi",
+          "Action": "pass",
+          "Elapsed": 326.909
+        }
+      ],
+      "skips": [
+        "TestPostgreSQLLiveMigrationsAndRollback"
+      ],
+      "status": "PASS"
+    },
+    "windows_checks": [
+      {
+        "name": "native-build",
+        "argv": [
+          "go",
+          "build",
+          "./cmd/..."
+        ],
+        "exit_code": 0,
+        "seconds": 42.486
+      },
+      {
+        "name": "vet",
+        "argv": [
+          "go",
+          "vet",
+          "./internal/db",
+          "./internal/adminapi"
+        ],
+        "exit_code": 0,
+        "seconds": 48.233
+      },
+      {
+        "name": "diff",
+        "argv": [
+          "git",
+          "-c",
+          "core.safecrlf=false",
+          "diff",
+          "--check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.079
+      }
+    ],
+    "python": {
+      "windows": {
+        "status": "PASS",
+        "tests": 33,
+        "seconds": 2.026
+      },
+      "ubuntu": {
+        "status": "PASS",
+        "tests": 33,
+        "seconds": 0.417
+      }
+    },
+    "ubuntu_commands": [
+      {
+        "name": "postgres-version",
+        "argv": [
+          "/home/bikram/aegisnas-validation-20261015-0116/optional-results/postgres-root/usr/lib/postgresql/14/bin/postgres",
+          "--version"
+        ],
+        "exit_code": 0,
+        "seconds": 2.179
+      },
+      {
+        "name": "postgres-initdb",
+        "argv": [
+          "/home/bikram/aegisnas-validation-20261015-0116/optional-results/postgres-root/usr/lib/postgresql/14/bin/initdb",
+          "-D",
+          "/home/bikram/aegisnas-reconciliation-20261015/results/pgdata",
+          "-L",
+          "/home/bikram/aegisnas-validation-20261015-0116/optional-results/postgres-root/usr/share/postgresql/14",
+          "-U",
+          "aegis_test",
+          "--auth=trust",
+          "--no-locale",
+          "-E",
+          "UTF8"
+        ],
+        "exit_code": 0,
+        "seconds": 35.241
+      },
+      {
+        "name": "postgres-start",
+        "argv": [
+          "/home/bikram/aegisnas-validation-20261015-0116/optional-results/postgres-root/usr/lib/postgresql/14/bin/pg_ctl",
+          "-D",
+          "/home/bikram/aegisnas-reconciliation-20261015/results/pgdata",
+          "-l",
+          "/home/bikram/aegisnas-reconciliation-20261015/results/server.log",
+          "-o",
+          "-h 127.0.0.1 -p 59255 -k /home/bikram/aegisnas-reconciliation-20261015/results/pgsocket",
+          "-w",
+          "start"
+        ],
+        "exit_code": 0,
+        "seconds": 1.196
+      },
+      {
+        "name": "postgres-live",
+        "argv": [
+          "go",
+          "test",
+          "-json",
+          "-count=1",
+          "-timeout=5m",
+          "./internal/db",
+          "-run",
+          "^TestPostgreSQLLiveMigrationsAndRollback$"
+        ],
+        "exit_code": 0,
+        "seconds": 142.404
+      },
+      {
+        "name": "postgres-stop",
+        "argv": [
+          "/home/bikram/aegisnas-validation-20261015-0116/optional-results/postgres-root/usr/lib/postgresql/14/bin/pg_ctl",
+          "-D",
+          "/home/bikram/aegisnas-reconciliation-20261015/results/pgdata",
+          "-m",
+          "fast",
+          "-w",
+          "stop"
+        ],
+        "exit_code": 0,
+        "seconds": 0.281
+      },
+      {
+        "name": "regression",
+        "argv": [
+          "go",
+          "test",
+          "-json",
+          "-count=1",
+          "-timeout=15m",
+          "./internal/db",
+          "./internal/adminapi"
+        ],
+        "exit_code": 0,
+        "seconds": 528.249
+      },
+      {
+        "name": "python-security",
+        "argv": [
+          "python3",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "scripts",
+          "-p",
+          "test_*.py",
+          "-v"
+        ],
+        "exit_code": 0,
+        "seconds": 2.8
+      },
+      {
+        "name": "build-linux-amd64",
+        "argv": [
+          "go",
+          "build",
+          "./cmd/..."
+        ],
+        "exit_code": 0,
+        "seconds": 21.98
+      },
+      {
+        "name": "build-linux-arm64",
+        "argv": [
+          "go",
+          "build",
+          "./cmd/..."
+        ],
+        "exit_code": 0,
+        "seconds": 171.018
+      },
+      {
+        "name": "vet",
+        "argv": [
+          "go",
+          "vet",
+          "./internal/db",
+          "./internal/adminapi"
+        ],
+        "exit_code": 0,
+        "seconds": 8.613
+      }
+    ],
+    "windows_postgres_commands": [
+      {
+        "name": "start",
+        "exit_code": 0,
+        "seconds": 0.2723414999927627
+      },
+      {
+        "name": "test",
+        "exit_code": 0,
+        "seconds": 8.721165299997665
+      },
+      {
+        "name": "stop",
+        "exit_code": 0,
+        "seconds": 0.46898249999503605
+      }
+    ],
+    "ubuntu_postgres": {
+      "raw": ".tmp/reconcile-20261015/vm-postgres-live.log",
+      "tests": {
+        "pass": 4
+      },
+      "packages": [
+        {
+          "Package": "github.com/yourorg/aegisnas-pi4/internal/db",
+          "Action": "pass",
+          "Elapsed": 11.747
+        }
+      ],
+      "skips": [],
+      "status": "PASS"
+    },
+    "windows_live_api": {
+      "status": "PASS",
+      "scope": "Real isolated API + SQLite + built UI; no external NAS or production deployment.",
+      "checks": [
+        {
+          "check": "validate-config",
+          "exit_code": 0,
+          "seconds": 1.6685915999987628
+        },
+        {
+          "check": "migrate",
+          "exit_code": 0,
+          "seconds": 0.5023726999934297
+        },
+        {
+          "check": "seed",
+          "exit_code": 0,
+          "seconds": 0.19067720000748523
+        },
+        {
+          "check": "health",
+          "status": 200,
+          "expected": 200,
+          "seconds": 2.844677099987166,
+          "bytes": 16
+        },
+        {
+          "check": "authentication-required",
+          "status": 401,
+          "expected": 401,
+          "seconds": 0.012209300009999424,
+          "bytes": 29
+        },
+        {
+          "check": "release-security",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.019914900010917336,
+          "bytes": 432
+        },
+        {
+          "check": "database",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.026416500011691824,
+          "bytes": 1044
+        },
+        {
+          "check": "docsis-policy",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.02289980000932701,
+          "bytes": 14233
+        },
+        {
+          "check": "upgrade-readiness",
+          "status": 200,
+          "expected": 200,
+          "seconds": 1.3124069000186864,
+          "bytes": 693
+        },
+        {
+          "check": "support-bundle/summary",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.015776600019307807,
+          "bytes": 13313
+        },
+        {
+          "check": "roles",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.011992799991276115,
+          "bytes": 767
+        },
+        {
+          "check": "docsis-preview",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.025352299999212846,
+          "bytes": 13833
+        },
+        {
+          "check": "built-ui",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.8439933000190649,
+          "bytes": 472
+        },
+        {
+          "check": "openapi",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.056800999998813495,
+          "bytes": 710422
+        },
+        {
+          "check": "support-bundle",
+          "status": 200,
+          "expected": 200,
+          "seconds": 2.8186863000155427,
+          "bytes": 593770
+        }
+      ],
+      "performance": {
+        "endpoint": "/api/v1/system/release-security",
+        "requests": 100,
+        "concurrency": 1,
+        "unit": "ms",
+        "median": 15.062899998156354,
+        "p95": 16.369300021324307,
+        "max": 25.851500016869977,
+        "scope": "Loopback HTTP latency for missing admission; not NAS forwarding throughput."
+      }
+    },
+    "ubuntu_live_api": {
+      "status": "PASS",
+      "scope": "Real isolated API + SQLite + built UI; no external NAS or production deployment.",
+      "checks": [
+        {
+          "check": "validate-config",
+          "exit_code": 0,
+          "seconds": 1.6529472570000507
+        },
+        {
+          "check": "migrate",
+          "exit_code": 0,
+          "seconds": 0.8236643959999128
+        },
+        {
+          "check": "seed",
+          "exit_code": 0,
+          "seconds": 0.24056177900001785
+        },
+        {
+          "check": "health",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.002887751999878674,
+          "bytes": 16
+        },
+        {
+          "check": "authentication-required",
+          "status": 401,
+          "expected": 401,
+          "seconds": 0.000587323999752698,
+          "bytes": 29
+        },
+        {
+          "check": "release-security",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.02139634700051829,
+          "bytes": 432
+        },
+        {
+          "check": "database",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.0033259130004807957,
+          "bytes": 1039
+        },
+        {
+          "check": "docsis-policy",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.06962208799996006,
+          "bytes": 14233
+        },
+        {
+          "check": "upgrade-readiness",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.17913581100037845,
+          "bytes": 667
+        },
+        {
+          "check": "support-bundle/summary",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.003948102999856928,
+          "bytes": 13289
+        },
+        {
+          "check": "roles",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.003167238000060024,
+          "bytes": 767
+        },
+        {
+          "check": "docsis-preview",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.015565046999654442,
+          "bytes": 13833
+        },
+        {
+          "check": "built-ui",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.1171122080004352,
+          "bytes": 472
+        },
+        {
+          "check": "openapi",
+          "status": 200,
+          "expected": 200,
+          "seconds": 0.0893898470003478,
+          "bytes": 710422
+        },
+        {
+          "check": "support-bundle",
+          "status": 200,
+          "expected": 200,
+          "seconds": 39.5424831349992,
+          "bytes": 626284
+        }
+      ],
+      "performance": {
+        "endpoint": "/api/v1/system/release-security",
+        "requests": 100,
+        "concurrency": 1,
+        "unit": "ms",
+        "median": 0.6248505005714833,
+        "p95": 3.499349999401602,
+        "max": 42.827143000067736,
+        "scope": "Loopback HTTP latency for missing admission; not NAS forwarding throughput."
+      }
+    },
+    "vm_readonly": {
+      "time": "2026-10-15T11:39:54.643046+00:00",
+      "checks": [
+        {
+          "name": "aegis-gateway",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-radius",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-portal",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-session",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-policy",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-admin-api",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "freeradius",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "dnsmasq",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "health-8080",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8081",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8082",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8083",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8085",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8087",
+          "status": "PASS",
+          "http_status": 200
+        }
+      ],
+      "scope": "Read-only deployed baseline, no service or configuration changes",
+      "deployment_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "os_inputs": {
+        "etc/os-release": "594d5ddd35aedb47f00d9c34d140017907a5b9f93c975aba125fc924daac5c07",
+        "var/lib/dpkg/status": "fcacb7e871a0fc3504c8f7a56aa53f92fb9ddbcaa3cf820f652065e97e848e03"
+      },
+      "kernel": "6.8.0-138-generic",
+      "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda3        39G   34G  3.5G  91% /",
+      "boot_id": "7a80fdc6-9719-47a3-9b96-15c169d458bf"
+    },
+    "vm_readonly_initial": {
+      "time": "2026-10-15T11:17:57.895119+00:00",
+      "checks": [
+        {
+          "name": "aegis-gateway",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-radius",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-portal",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-session",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-policy",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "aegis-admin-api",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "freeradius",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "dnsmasq",
+          "status": "PASS",
+          "state": "active"
+        },
+        {
+          "name": "health-8080",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8081",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8082",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8083",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8085",
+          "status": "PASS",
+          "http_status": 200
+        },
+        {
+          "name": "health-8087",
+          "status": "PASS",
+          "http_status": 200
+        }
+      ],
+      "scope": "Read-only deployed baseline, no service or configuration changes",
+      "deployment_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+      "os_inputs": {
+        "etc/os-release": "594d5ddd35aedb47f00d9c34d140017907a5b9f93c975aba125fc924daac5c07",
+        "var/lib/dpkg/status": "fcacb7e871a0fc3504c8f7a56aa53f92fb9ddbcaa3cf820f652065e97e848e03"
+      },
+      "kernel": "6.8.0-138-generic",
+      "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda3        39G   33G  4.1G  89% /",
+      "boot_id": "7a80fdc6-9719-47a3-9b96-15c169d458bf"
+    },
+    "workflow_static": {
+      "status": "PASS",
+      "pinned_actions": 10,
+      "compiled_python_blocks": 2,
+      "shell": [
+        {
+          "name": "build-release-candidate.sh",
+          "exit_code": 0
+        },
+        {
+          "name": "ubuntu-vm-bootstrap.sh",
+          "exit_code": 0
+        },
+        {
+          "name": "ubuntu-upgrade-rollback-restore.sh",
+          "exit_code": 0
+        }
+      ],
+      "scope": "Static syntax and trusted-job wiring only; GitHub workflow and rollback apply not executed"
+    },
+    "historical_integrity": {
+      "raw_artifact_count": 164,
+      "mismatches": [],
+      "entry_report_count": 12,
+      "entry_reports_unchanged": true
+    }
+  },
+  "preserved_earlier_session": {
+    "report": "2026-10-15-nas0116-results.json",
+    "windows_full": {
+      "pass": 1391,
+      "skip": 2
+    },
+    "ubuntu_full": {
+      "pass": 1391,
+      "skip": 2
+    },
+    "browser": {
+      "startTime": "2026-10-15T09:20:39.677Z",
+      "duration": 64293.252,
+      "expected": 37,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "python_tests_per_platform": 25,
+    "note": "Not rerun as full suites in this reconciliation; scopes remain the earlier snapshots."
+  },
+  "security": {
+    "decision": "BLOCKED",
+    "application_gate": {
+      "blockers": [
+        "candidate requires a clean committed source tree",
+        "evidence does not match current source and dependency inputs",
+        "2 dependency vulnerability findings violate policy"
+      ],
+      "feature_id": "NAS-0116",
+      "findings": [
+        {
+          "ecosystem": "Go",
+          "fixed_version": "",
+          "id": "GO-2026-5932",
+          "target": {
+            "CGO_ENABLED": "0",
+            "GOARCH": "amd64",
+            "GOOS": "linux"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ]
+        },
+        {
+          "ecosystem": "Go",
+          "fixed_version": "",
+          "id": "GO-2026-5932",
+          "target": {
+            "CGO_ENABLED": "0",
+            "GOARCH": "arm64",
+            "GOOS": "linux"
+          },
+          "trace": [
+            {
+              "module": "golang.org/x/crypto",
+              "version": "v0.58.0"
+            }
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "signature_verified": false,
+      "status": "blocked"
+    },
+    "os_blocking_occurrences": 4236,
+    "os_unique_blocking_advisories": 537,
+    "runtime_exposure_report": ".tmp/reconcile-20261015/go-exposure/exposure.json",
+    "policy_waived": false,
+    "real_signing": "BLOCKED"
+  },
+  "roadmap": {
+    "counts": {
+      "Complete": 90,
+      "Partial": 21,
+      "Missing": 24
+    },
+    "current": "NAS-0116",
+    "current_status": "Partial",
+    "next": "NAS-0008",
+    "next_status": "Partial",
+    "milestones_closed": 0
+  },
+  "release_candidate_ready": false,
+  "failures_retained": [
+    "pg-before/test.log: three new runtime subtests fail",
+    "pg-after/test.log: ordering failure, two subtests pass",
+    "windows-checks-initial-error.txt: runner dependency missing; no checks ran; YAML moved to existing VM environment"
+  ],
+  "not_tested": [
+    "production activation/rollback",
+    "real signed artifact admission/tamper",
+    "snap contents/firmware",
+    "Pi hardware",
+    "broad vendor/telecom enforcement",
+    "HA/long soak",
+    "PostgreSQL TLS and service-wide runtime"
+  ]
+}

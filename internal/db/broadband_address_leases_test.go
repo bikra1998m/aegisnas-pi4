@@ -9,7 +9,7 @@ import (
 
 func TestBroadbandAddressLeaseEventLedger(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {
@@ -91,7 +91,7 @@ func TestBroadbandAddressLeaseEventLedger(t *testing.T) {
 
 func TestBroadbandAddressLeaseEventValidation(t *testing.T) {
 	previousDB := DB
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	require.NoError(t, Migrate())
 	t.Cleanup(func() {

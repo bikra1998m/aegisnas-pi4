@@ -15,7 +15,7 @@ func TestGetGuestRejectionAnalytics(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -40,22 +40,22 @@ func TestGetGuestRejectionAnalytics(t *testing.T) {
 		"guest-1", "rejected", "tenant-a", "Alice Guest", "alice@example.test", "1111111111", "LabCo",
 		"Sam Sponsor", "sam@example.test", "", "guest-basic", "Policy mismatch",
 		"hash-1", "sent", "not_requested",
-		"2026-05-25T10:00:00Z", "2026-05-25T10:20:00Z", "2026-05-25T10:10:00Z", "2026-05-25T10:20:00Z", "", "2026-05-26T10:00:00Z",
+		"2026-05-25T10:00:00Z", "2026-05-25T10:20:00Z", "2026-05-25T10:10:00Z", "2026-05-25T10:20:00Z", nil, "2026-05-26T10:00:00Z",
 
 		"guest-2", "rejected", "tenant-a", "Bob Visitor", "bob@example.test", "2222222222", "Visitors Inc",
 		"", "", "", "guest-standard", "Incomplete identity",
 		"hash-2", "pending", "not_requested",
-		"2026-05-25T11:00:00Z", "2026-05-25T11:12:00Z", "", "2026-05-25T11:12:00Z", "", "2026-05-26T11:00:00Z",
+		"2026-05-25T11:00:00Z", "2026-05-25T11:12:00Z", nil, "2026-05-25T11:12:00Z", nil, "2026-05-26T11:00:00Z",
 
 		"guest-3", "rejected", "tenant-b", "Carla Declined", "carla@example.test", "3333333333", "Visitors Inc",
 		"Jordan Sponsor", "jordan@example.test", "", "guest-standard", "",
 		"hash-3", "failed", "failed",
-		"2026-05-25T08:30:00Z", "2026-05-25T08:45:00Z", "", "2026-05-25T08:45:00Z", "", "2026-05-26T08:30:00Z",
+		"2026-05-25T08:30:00Z", "2026-05-25T08:45:00Z", nil, "2026-05-25T08:45:00Z", nil, "2026-05-26T08:30:00Z",
 
 		"guest-4", "pending", "tenant-a", "Dylan Waiting", "dylan@example.test", "4444444444", "Guests United",
 		"Pat Sponsor", "pat@example.test", "", "guest-vip", "",
 		"hash-4", "sent", "queued",
-		"2026-05-25T11:30:00Z", "2026-05-25T11:35:00Z", "", "", "", "2026-05-26T11:30:00Z",
+		"2026-05-25T11:30:00Z", "2026-05-25T11:35:00Z", nil, nil, nil, "2026-05-26T11:30:00Z",
 	)
 	require.NoError(t, err)
 

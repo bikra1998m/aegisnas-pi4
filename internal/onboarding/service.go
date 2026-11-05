@@ -505,12 +505,12 @@ func (s *Service) GetDeviceByMAC(mac string) (*Device, error) {
 		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(dhcp_fingerprint, ''),
 		COALESCE(lldp_chassis_id, ''), COALESCE(lldp_port_id, ''), COALESCE(cdp_device_id, ''), COALESCE(cdp_port_id, ''),
 		COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
-		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
+		(CASE WHEN managed THEN 1 ELSE 0 END), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
 		COALESCE(certificate_serial, ''),
-		COALESCE(certificate_subject, ''), COALESCE(certificate_valid_until, ''), COALESCE(last_ip, ''),
-		COALESCE(last_session_id, ''), COALESCE(first_seen, ''), COALESCE(last_seen, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(certificate_subject, ''), COALESCE(CAST(certificate_valid_until AS TEXT), ''), COALESCE(last_ip, ''),
+		COALESCE(last_session_id, ''), COALESCE(CAST(first_seen AS TEXT), ''), COALESCE(CAST(last_seen AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM device_inventory WHERE mac = ?`, normalizeMAC(mac))
 	return scanDevice(row)
 }
@@ -524,12 +524,12 @@ func (s *Service) ListDevices(limit int, tenantScopes ...string) ([]Device, erro
 		COALESCE(hostname, ''), COALESCE(dhcp_client_id, ''), COALESCE(dhcp_fingerprint, ''),
 		COALESCE(lldp_chassis_id, ''), COALESCE(lldp_port_id, ''), COALESCE(cdp_device_id, ''), COALESCE(cdp_port_id, ''),
 		COALESCE(mac_oui, ''), COALESCE(risk_score, 0), COALESCE(risk_reasons_json, '[]'),
-		COALESCE(managed, 0), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
+		(CASE WHEN managed THEN 1 ELSE 0 END), compliant, COALESCE(compliance_status, ''), COALESCE(remediation_state, ''),
 		COALESCE(mdm_provider, ''), COALESCE(mdm_device_id, ''),
 		COALESCE((SELECT id FROM device_certificates WHERE device_mac = device_inventory.mac AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1), ''),
 		COALESCE(certificate_serial, ''),
-		COALESCE(certificate_subject, ''), COALESCE(certificate_valid_until, ''), COALESCE(last_ip, ''),
-		COALESCE(last_session_id, ''), COALESCE(first_seen, ''), COALESCE(last_seen, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(certificate_subject, ''), COALESCE(CAST(certificate_valid_until AS TEXT), ''), COALESCE(last_ip, ''),
+		COALESCE(last_session_id, ''), COALESCE(CAST(first_seen AS TEXT), ''), COALESCE(CAST(last_seen AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM device_inventory`
 	args := []any{}
 	if scopes := normalizeTenants(tenantScopes); len(scopes) > 0 {
@@ -559,7 +559,7 @@ func (s *Service) ListDevices(limit int, tenantScopes ...string) ([]Device, erro
 
 func (s *Service) ListCertificates() ([]DeviceCertificate, error) {
 	rows, err := db.DB.Query(`SELECT id, device_mac, COALESCE(username, ''), common_name, serial_number, cert_path, key_path, ca_path,
-		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, ''), COALESCE(revoke_reason, '')
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(revoked_at AS TEXT), ''), COALESCE(revoke_reason, '')
 		FROM device_certificates ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -578,7 +578,7 @@ func (s *Service) ListCertificates() ([]DeviceCertificate, error) {
 
 func (s *Service) GetCertificate(certificateID string) (*DeviceCertificate, error) {
 	row := db.DB.QueryRow(`SELECT id, device_mac, COALESCE(username, ''), common_name, serial_number, cert_path, key_path, ca_path,
-		COALESCE(created_at, ''), COALESCE(expires_at, ''), COALESCE(revoked_at, ''), COALESCE(revoke_reason, '')
+		COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(revoked_at AS TEXT), ''), COALESCE(revoke_reason, '')
 		FROM device_certificates WHERE id = ?`, strings.TrimSpace(certificateID))
 	cert, err := scanCertificate(row)
 	if err != nil {
@@ -726,7 +726,7 @@ func (s *Service) BuildCertificateRevocationList() ([]byte, error) {
 }
 
 func (s *Service) revokedCertificateEntries() ([]x509.RevocationListEntry, error) {
-	rows, err := db.DB.Query(`SELECT serial_number, COALESCE(revoked_at, '') FROM device_certificates WHERE revoked_at IS NOT NULL AND revoked_at <> ''`)
+	rows, err := db.DB.Query(`SELECT serial_number, COALESCE(CAST(revoked_at AS TEXT), '') FROM device_certificates WHERE revoked_at IS NOT NULL AND CAST(revoked_at AS TEXT) <> ''`)
 	if err != nil {
 		return nil, err
 	}

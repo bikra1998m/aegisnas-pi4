@@ -17,7 +17,7 @@ func TestGetVoucherExpiryAnalytics(t *testing.T) {
 	})
 	require.NoError(t, tmpfile.Close())
 
-	require.NoError(t, Init(tmpfile.Name()))
+	require.NoError(t, initRuntimeTestDB(t, tmpfile.Name()))
 	t.Cleanup(func() {
 		_ = Close()
 	})
@@ -43,7 +43,7 @@ func TestGetVoucherExpiryAnalytics(t *testing.T) {
 		"VE-002", "guest-basic", 720, 5, 2, now.Add(48*time.Hour).Format(time.RFC3339), now.Add(-48*time.Hour).Format(time.RFC3339),
 		"VE-003", "guest-vip", 60, 2, 2, now.Add(72*time.Hour).Format(time.RFC3339), now.Add(-72*time.Hour).Format(time.RFC3339),
 		"VE-004", "guest-basic", 1440, 1, 0, now.Add(-6*time.Hour).Format(time.RFC3339), now.Add(-96*time.Hour).Format(time.RFC3339),
-		"VE-005", "guest-standard", 30, 3, 1, "", now.Add(-3*time.Hour).Format(time.RFC3339),
+		"VE-005", "guest-standard", 30, 3, 1, nil, now.Add(-3*time.Hour).Format(time.RFC3339),
 		"VE-006", "guest-basic", 1440, 3, 1, now.Add(20*24*time.Hour).Format(time.RFC3339), now.Add(-12*time.Hour).Format(time.RFC3339),
 	)
 	require.NoError(t, err)

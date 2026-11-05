@@ -1,0 +1,706 @@
+{
+  "created_at": "2026-11-05T08:09:55.230215+00:00",
+  "base_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "roadmap_counts": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "nas0116": "Partial",
+  "release_gate": "BLOCKED",
+  "go_all_package_coverage": {
+    "status": "PASS",
+    "scope": "All packages covered across completed first-run packages and full reruns of unfinished packages; not a single successful aggregate command",
+    "expected_packages": 52,
+    "completed_first_run": 41,
+    "completed_resumption": 11,
+    "tests": {
+      "pass": 1457,
+      "skip": 5
+    },
+    "skipped_tests": [
+      {
+        "package": "github.com/yourorg/aegisnas-pi4/internal/db",
+        "test": "TestPostgreSQLLiveMigrationsAndRollback"
+      },
+      {
+        "package": "github.com/yourorg/aegisnas-pi4/internal/radius",
+        "test": "TestPostgreSQLAccountingLiveFixture"
+      },
+      {
+        "package": "github.com/yourorg/aegisnas-pi4/internal/radius",
+        "test": "TestPostgreSQLModuleLiveFixture"
+      },
+      {
+        "package": "github.com/yourorg/aegisnas-pi4/internal/upgrade",
+        "test": "TestRecoveryLinuxTrustBoundary"
+      },
+      {
+        "package": "github.com/yourorg/aegisnas-pi4/internal/vendoridentity",
+        "test": "TestLiveIANAAssignment"
+      }
+    ]
+  },
+  "initial_scan_and_go_attempts": [
+    {
+      "name": "dependency-scan",
+      "argv": [
+        "C:\\Users\\BIKRAM MAITY\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "scripts/release_security.py",
+        "scan",
+        "--output",
+        "F:\\random_project\\Pookie\\aegisnas-pi4\\.tmp\\checkpoint-20261105\\security"
+      ],
+      "started_at": "2026-11-05T07:03:50.456970+00:00",
+      "pid": 17232,
+      "exit_code": 1,
+      "seconds": 889.5753686999997,
+      "status": "FAIL"
+    },
+    {
+      "name": "go-full",
+      "argv": [
+        "C:\\Users\\BIKRAM MAITY\\go\\pkg\\mod\\golang.org\\toolchain@v0.0.1-go1.26.10.windows-amd64\\bin\\go.exe",
+        "test",
+        "-json",
+        "-count=1",
+        "-timeout=20m",
+        "./..."
+      ],
+      "started_at": "2026-11-05T07:18:40.033281+00:00",
+      "pid": 9784,
+      "reason": "command deadline",
+      "exit_code": -1,
+      "seconds": 1800.3700941999996,
+      "status": "FAIL"
+    }
+  ],
+  "vet_builds_and_resumption": [
+    {
+      "name": "go-packages",
+      "argv": [
+        "list",
+        "./..."
+      ],
+      "started_at": "2026-11-05T07:51:47.665951+00:00",
+      "pid": 10912,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 23.954522300000463
+    },
+    {
+      "name": "go-remaining",
+      "argv": [
+        "test",
+        "-json",
+        "-count=1",
+        "-timeout=20m",
+        "github.com/yourorg/aegisnas-pi4/internal/radius",
+        "github.com/yourorg/aegisnas-pi4/internal/secrets",
+        "github.com/yourorg/aegisnas-pi4/internal/sessions",
+        "github.com/yourorg/aegisnas-pi4/internal/supplicantprofile",
+        "github.com/yourorg/aegisnas-pi4/internal/tacacs",
+        "github.com/yourorg/aegisnas-pi4/internal/telemetry",
+        "github.com/yourorg/aegisnas-pi4/internal/upgrade",
+        "github.com/yourorg/aegisnas-pi4/internal/vendoridentity",
+        "github.com/yourorg/aegisnas-pi4/internal/webauthn",
+        "github.com/yourorg/aegisnas-pi4/internal/wireless",
+        "github.com/yourorg/aegisnas-pi4/test/acceptance"
+      ],
+      "started_at": "2026-11-05T07:52:11.655470+00:00",
+      "pid": 10440,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 268.19526790000054
+    },
+    {
+      "name": "go-vet",
+      "argv": [
+        "vet",
+        "./..."
+      ],
+      "started_at": "2026-11-05T07:56:39.867003+00:00",
+      "pid": 8212,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 40.969581900000776
+    },
+    {
+      "name": "build-windows-amd64",
+      "argv": [
+        "build",
+        "-o",
+        "F:\\random_project\\Pookie\\aegisnas-pi4\\.tmp\\checkpoint-20261105\\build-windows-amd64/",
+        "./cmd/..."
+      ],
+      "started_at": "2026-11-05T07:57:20.837542+00:00",
+      "pid": 12744,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 23.870105900001363
+    },
+    {
+      "name": "build-linux-amd64",
+      "argv": [
+        "build",
+        "-o",
+        "F:\\random_project\\Pookie\\aegisnas-pi4\\.tmp\\checkpoint-20261105\\build-linux-amd64/",
+        "./cmd/..."
+      ],
+      "started_at": "2026-11-05T07:57:44.708518+00:00",
+      "pid": 12532,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 133.6970861000009
+    },
+    {
+      "name": "build-linux-arm64",
+      "argv": [
+        "build",
+        "-o",
+        "F:\\random_project\\Pookie\\aegisnas-pi4\\.tmp\\checkpoint-20261105\\build-linux-arm64/",
+        "./cmd/..."
+      ],
+      "started_at": "2026-11-05T07:59:58.406972+00:00",
+      "pid": 10200,
+      "exit_code": 0,
+      "status": "PASS",
+      "seconds": 134.49475439999878
+    }
+  ],
+  "binary_inventory": [
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-admin-api.exe",
+      "bytes": 54674944,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-admin.exe",
+      "bytes": 32132608,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-ai-lite.exe",
+      "bytes": 34160128,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-attribute-registry-gen.exe",
+      "bytes": 4093952,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-gateway.exe",
+      "bytes": 35192320,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-policy.exe",
+      "bytes": 33792512,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-portal.exe",
+      "bytes": 37006848,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-radius.exe",
+      "bytes": 36609536,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-session.exe",
+      "bytes": 35335680,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-windows-amd64/aegis-telemetry.exe",
+      "bytes": 35764736,
+      "target": "windows-amd64",
+      "machine": 34404
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-admin",
+      "bytes": 31517244,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-admin-api",
+      "bytes": 53840111,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-ai-lite",
+      "bytes": 33515891,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-attribute-registry-gen",
+      "bytes": 3965741,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-gateway",
+      "bytes": 34511907,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-policy",
+      "bytes": 33146331,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-portal",
+      "bytes": 36294264,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-radius",
+      "bytes": 35925247,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-session",
+      "bytes": 34665059,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-amd64/aegis-telemetry",
+      "bytes": 35086768,
+      "target": "linux-amd64",
+      "machine": 62
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-admin",
+      "bytes": 29870884,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-admin-api",
+      "bytes": 49902297,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-ai-lite",
+      "bytes": 31808363,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-attribute-registry-gen",
+      "bytes": 3819600,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-gateway",
+      "bytes": 32763115,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-policy",
+      "bytes": 31380259,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-portal",
+      "bytes": 34287632,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-radius",
+      "bytes": 33844623,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-session",
+      "bytes": 32754435,
+      "target": "linux-arm64",
+      "machine": 183
+    },
+    {
+      "path": ".tmp/checkpoint-20261105/build-linux-arm64/aegis-telemetry",
+      "bytes": 33190148,
+      "target": "linux-arm64",
+      "machine": 183
+    }
+  ],
+  "ui_postfix_first_attempt": [
+    {
+      "name": "typescript-build",
+      "exit_code": 0,
+      "seconds": 11.36087149999912
+    },
+    {
+      "name": "vite-build",
+      "exit_code": 0,
+      "seconds": 8.282400100000814
+    },
+    {
+      "name": "browser-tests",
+      "exit_code": 1,
+      "seconds": 138.2243767
+    }
+  ],
+  "browser_postfix_first_attempt": {
+    "startTime": "2026-11-05T08:02:49.952Z",
+    "duration": 135902.11299999998,
+    "expected": 36,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "browser_final": {
+    "startTime": "2026-11-05T08:08:01.025Z",
+    "duration": 63012.725999999995,
+    "expected": 37,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "browser_initial": {
+    "startTime": "2026-11-05T06:57:14.419Z",
+    "duration": 197899.94,
+    "expected": 34,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  },
+  "browser_focused_retry": {
+    "startTime": "2026-11-05T07:02:09.794Z",
+    "duration": 15156.489,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "browser_full_before_last_patch": {
+    "startTime": "2026-11-05T07:05:56.012Z",
+    "duration": 64177.041000000005,
+    "expected": 37,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "historical_windows_python": {
+    "execution_date": "2026-10-29",
+    "status": "PASS",
+    "passed": 91,
+    "skipped": 17,
+    "total": 108
+  },
+  "historical_ubuntu_python": {
+    "execution_date": "2026-10-29",
+    "status": "PASS",
+    "passed": 108,
+    "skipped": 0,
+    "total": 108
+  },
+  "go_scans": {
+    "go-vulnerabilities.json": {
+      "findings": 0,
+      "errors": 0,
+      "config": [
+        {
+          "protocol_version": "v1.0.0",
+          "scanner_name": "govulncheck",
+          "scanner_version": "v1.9.0",
+          "db": "https://vuln.go.dev",
+          "db_last_modified": "2026-11-02T22:01:43Z",
+          "go_version": "go1.26.10",
+          "scan_level": "package",
+          "scan_mode": "source"
+        }
+      ]
+    },
+    "go-vulnerabilities-arm64.json": {
+      "findings": 0,
+      "errors": 0,
+      "config": [
+        {
+          "protocol_version": "v1.0.0",
+          "scanner_name": "govulncheck",
+          "scanner_version": "v1.9.0",
+          "db": "https://vuln.go.dev",
+          "db_last_modified": "2026-11-02T22:01:43Z",
+          "go_version": "go1.26.10",
+          "scan_level": "package",
+          "scan_mode": "source"
+        }
+      ]
+    }
+  },
+  "initial_dependency_gate": {
+    "blockers": [
+      "npm audit: 1 high and 0 critical vulnerabilities",
+      "1 dependency vulnerability findings violate policy"
+    ],
+    "feature_id": "NAS-0116",
+    "findings": [
+      {
+        "ecosystem": "npm",
+        "id": "follow-redirects",
+        "severity": "high"
+      }
+    ],
+    "schema_version": 1,
+    "signature_verified": false,
+    "status": "blocked"
+  },
+  "npm": {
+    "components": 184,
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "commands": [
+      {
+        "name": "npm-inventory",
+        "argv": [
+          "npm",
+          "sbom",
+          "--sbom-format=cyclonedx",
+          "--package-lock-only"
+        ],
+        "time": "2026-11-05T07:24:53.729014+00:00",
+        "exit_code": 0,
+        "seconds": 79.00396209999963
+      },
+      {
+        "name": "npm-audit",
+        "argv": [
+          "npm",
+          "audit",
+          "--json"
+        ],
+        "time": "2026-11-05T07:26:12.733503+00:00",
+        "exit_code": 0,
+        "seconds": 18.05410269999993
+      }
+    ]
+  },
+  "live_initial": {
+    "scope": "Existing deployed lab services, not the uncommitted candidate",
+    "time": "2026-11-05T06:57:59.769505+00:00",
+    "checks": [
+      {
+        "name": "aegis-gateway",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-radius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-portal",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-session",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-policy",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "aegis-admin-api",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "freeradius",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "dnsmasq",
+        "passed": true,
+        "state": "active"
+      },
+      {
+        "name": "health-8080",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.216073611999974
+      },
+      {
+        "name": "health-8081",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.017670625000022255
+      },
+      {
+        "name": "health-8082",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.06219789699997591
+      },
+      {
+        "name": "health-8083",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.022081339999999727
+      },
+      {
+        "name": "health-8085",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.03021746899997879
+      },
+      {
+        "name": "health-8087",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.07168408199999021
+      },
+      {
+        "name": "unauthenticated-roles",
+        "passed": true,
+        "http_status": 401
+      },
+      {
+        "name": "authenticated-roles",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.049155708000000686
+      },
+      {
+        "name": "authenticated-database",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 0.0010124380000036126
+      },
+      {
+        "name": "authenticated-readiness",
+        "passed": false,
+        "error": "timed out"
+      },
+      {
+        "name": "authenticated-system-status",
+        "passed": false,
+        "error": "timed out"
+      },
+      {
+        "name": "freeradius-config",
+        "passed": true,
+        "exit_code": 0
+      },
+      {
+        "name": "radius-negative-pap",
+        "passed": true,
+        "exit_code": 1,
+        "response": "Access-Reject"
+      }
+    ],
+    "deployment_commit": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1"
+  },
+  "live_retry": {
+    "time": "2026-11-05T07:02:59.334889+00:00",
+    "checks": [
+      {
+        "name": "readiness",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 1.6138956749999807
+      },
+      {
+        "name": "system-status",
+        "passed": true,
+        "http_status": 200,
+        "seconds": 2.8684861849999947
+      }
+    ],
+    "readiness": {
+      "ready": false,
+      "status": "blocked",
+      "blocking_count": 5,
+      "warning_count": 4,
+      "degraded_count": 17,
+      "passing_count": 68
+    },
+    "blocking_checks": [
+      {
+        "key": "radius_outbound_dac_client",
+        "status": "blocked",
+        "label": "Outbound CoA And Disconnect Client"
+      },
+      {
+        "key": "radius_accounting_services",
+        "status": "blocked",
+        "label": "Multi-Service Accounting Correlation"
+      },
+      {
+        "key": "identity_source_failover",
+        "status": "blocked",
+        "label": "Identity Source HA And Deterministic Failover"
+      },
+      {
+        "key": "eap_machine_user_correlation",
+        "status": "blocked",
+        "label": "Machine And User Authentication Correlation"
+      },
+      {
+        "key": "secret_providers",
+        "status": "blocked",
+        "label": "Secret Providers"
+      }
+    ]
+  },
+  "service_continuity": {
+    "exit_code": 0,
+    "service_identities_unchanged": true,
+    "services": 8,
+    "time": "2026-11-05T08:03:20.171707+00:00"
+  },
+  "os_identity": {
+    "machine": "x86_64",
+    "kernel": "6.8.0-138-generic",
+    "os_release": "PRETTY_NAME=\"Ubuntu 22.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.5 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\n",
+    "input_sha256": {
+      "/etc/os-release": "594d5ddd35aedb47f00d9c34d140017907a5b9f93c975aba125fc924daac5c07",
+      "/etc/lsb-release": "6dc8ba4242e0e699e3360b84e38ccecfc4dcedaa4701c8ebee3836decd815654",
+      "/var/lib/dpkg/status": "d5fd36b173f0499839e6509b9f8936f9a9c3bd0f2ba546f650ac5e3b8bb4d0f3"
+    }
+  },
+  "fresh_os_scan": "NOT TESTED",
+  "fresh_local_postgresql_fixture": "SKIPPED; no isolated database environment provided to local suite",
+  "hosted_ci": "NOT TESTED at checkpoint preparation; must inspect actual GitHub runs after push",
+  "trusted_signature": "BLOCKED; eligible reviewed main dispatch and prerequisite evidence not available in this development branch",
+  "production_activation": "BLOCKED; not attempted",
+  "preserved_preexisting_report_files": 144
+}

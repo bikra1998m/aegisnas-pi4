@@ -23,7 +23,7 @@ func TestHandleGetDiagnosticsReport(t *testing.T) {
 	observedAt := time.Date(2026, 5, 20, 9, 0, 0, 0, time.UTC)
 
 	require.NoError(t, db.RecordNetworkApplyHistory("apply", "success", "apply ok", "backup-1", "", "tester", map[string]any{"validated": true}))
-	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, user, action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.DB.Exec(`INSERT INTO audit_logs (timestamp, "user", action, details, result, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
 		observedAt, "ops-admin", "download_support_bundle", "bundle-1", "downloaded", "192.168.50.10")
 	require.NoError(t, err)
 	_, err = db.DB.Exec(`INSERT INTO guest_registrations (

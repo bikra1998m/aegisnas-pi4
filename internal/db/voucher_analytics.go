@@ -79,7 +79,7 @@ func GetVoucherAnalytics(query VoucherAnalyticsQuery) (VoucherAnalyticsSummary, 
 		bucketDuration = 24 * time.Hour
 	}
 
-	rows, err := DB.Query(`SELECT role, duration_minutes, usage_limit, used_count, COALESCE(expires_at, ''), created_at FROM vouchers ORDER BY created_at DESC`)
+	rows, err := DB.Query(`SELECT role, duration_minutes, usage_limit, used_count, COALESCE(CAST(expires_at AS TEXT), ''), created_at FROM vouchers ORDER BY created_at DESC`)
 	if err != nil {
 		return VoucherAnalyticsSummary{}, err
 	}

@@ -1,0 +1,178 @@
+name: Release candidate security
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'codex/roadmap-*']
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CGO_ENABLED: '0'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/admin-ui/package-lock.json
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Install pinned evidence tools and locked UI dependencies
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.12.0
+          go mod download all
+          npm ci --prefix web/admin-ui
+      - name: Generate inventories and enforce vulnerability policy
+        run: python3 scripts/release_security.py scan --output build/security --require-clean
+      - name: Test candidate
+        run: |
+          go test -count=1 -p=2 -timeout=30m ./...
+          npm run build --prefix web/admin-ui
+          cd web/admin-ui
+          npx playwright install --with-deps chromium
+          npx playwright test --workers=2
+      - name: Build Linux AMD64 and Raspberry Pi ARM64 candidates
+        run: bash scripts/build-release-candidate.sh
+      - name: Verify authenticated SQLite recovery with the built CLI
+        run: |
+          go build -o build/recovery-bin/aegis-admin ./cmd/aegis-admin
+          python3 scripts/test_recovery_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/recovery-cli
+      - name: Preserve security evidence on failures as well as success
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: supply-chain-evidence
+          path: |
+            build/security/
+            build/recovery-cli/*.stdout
+            build/recovery-cli/*.stderr
+            build/recovery-cli/result.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-candidate
+          path: |
+            build/candidate/*.tar.gz
+            build/candidate/sbom.cdx.json
+            build/candidate/SHA256SUMS
+          if-no-files-found: error
+
+  # No signing permissions on PRs. This job creates a reviewable candidate,
+  # never publishes a release or installs it on an appliance.
+  attest:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: evidence
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: unsigned-candidate
+          path: build/candidate/
+      - uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: build/candidate/aegisnas-linux-*.tar.gz
+      - uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
+        with:
+          subject-path: build/candidate/aegisnas-linux-*.tar.gz
+          sbom-path: build/candidate/sbom.cdx.json
+      - name: Admit both signed candidates under runner-owned policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REPO: ${{ github.repository }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, sys
+          sys.path.insert(0, 'scripts')
+          from admit_release import admit
+          from admit_release import load_policy
+          from release_sequence import initialize
+          from reverify_release import reverify
+          from release_security import write_json
+          candidates = pathlib.Path('build/candidate')
+          expected = {f'aegisnas-linux-{arch}.tar.gz' for arch in ('amd64', 'arm64')}
+          if {p.name for p in candidates.glob('*.tar.gz')} != expected:
+              raise SystemExit('candidate set must contain exactly Linux AMD64 and ARM64')
+          policies = pathlib.Path('build/admission-policies')
+          policies.mkdir(exist_ok=False)
+          verification_reports = pathlib.Path('build/reverification')
+          verification_reports.mkdir(exist_ok=False)
+          for arch in ('amd64', 'arm64'):
+              policy = policies / f'{arch}.json'
+              policy.write_text(json.dumps({'schema_version': 1,
+                  'repository': os.environ['EXPECTED_REPO'], 'platform': f'linux-{arch}',
+                  'minimum_sequence': int(os.environ['GITHUB_RUN_NUMBER']),
+                  'allowed_commits': [os.environ['EXPECTED_COMMIT']]}))
+              policy.chmod(0o600)
+              # Runner-local test state only. Appliance admissions must reuse
+              # their persistent administrative state across workflow runs.
+              state = policies / f'{arch}-sequence'
+              initialize(state, load_policy(policy))
+              admit(candidates / f'aegisnas-linux-{arch}.tar.gz', policy,
+                    os.environ['EXPECTED_COMMIT'], pathlib.Path(f'build/admitted/{arch}'), state)
+              report = reverify(candidates / f'aegisnas-linux-{arch}.tar.gz', policy,
+                  os.environ['EXPECTED_COMMIT'], pathlib.Path(f'build/admitted/{arch}'), state)
+              write_json(verification_reports / f'{arch}.json', report)
+          PY
+      - name: Reject tampered signed artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REPO: ${{ github.repository }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, shutil, subprocess, tempfile
+          for artifact in pathlib.Path('build/candidate').glob('aegisnas-linux-*.tar.gz'):
+              with tempfile.TemporaryDirectory() as directory:
+                  altered = pathlib.Path(directory) / artifact.name
+                  shutil.copyfile(artifact, altered)
+                  with altered.open('r+b') as stream:
+                      value = stream.read(1)
+                      stream.seek(0)
+                      stream.write(bytes([value[0] ^ 1]))
+                  result = subprocess.run(['python3', 'scripts/release_security.py', 'verify', str(altered),
+                      '--repo', os.environ['EXPECTED_REPO'], '--commit', os.environ['EXPECTED_COMMIT']])
+                  if result.returncode == 0:
+                      raise SystemExit('tampered candidate was accepted')
+          PY
+      - name: Preserve admission and reverification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: admission-verification-evidence
+          path: |
+            build/admitted/*/admission.json
+            build/reverification/*.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-candidate
+          path: |
+            build/candidate/*.tar.gz
+            build/candidate/sbom.cdx.json
+            build/candidate/SHA256SUMS
+            build/admitted/*/admission.json
+            build/reverification/*.json
+          if-no-files-found: error

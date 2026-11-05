@@ -1,0 +1,94 @@
+name: PostgreSQL runtime compatibility
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'codex/roadmap-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['14', '18']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: aegis_test
+          POSTGRES_PASSWORD: isolated-ci-fixture
+          POSTGRES_DB: aegis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aegis_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      CGO_ENABLED: '0'
+      GOFLAGS: '-p=2'
+      AEGIS_TEST_POSTGRES_DSN: postgres://aegis_test:isolated-ci-fixture@127.0.0.1:5432/aegis_test?sslmode=disable
+      AEGIS_TEST_RUNTIME_POSTGRES_DSN: postgres://aegis_test:isolated-ci-fixture@127.0.0.1:5432/aegis_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - name: Run shared runtime and migration assertions on PostgreSQL
+        run: |
+          set -o pipefail
+          mkdir -p build/postgres
+          # SQLite-specific migration fixtures run in the ordinary CI suite.
+          go test ./internal/db -count=1 -json -timeout=25m -skip '^TestMigrate|^TestSeed|^TestVendorIdentity' | tee build/postgres/results.jsonl
+      - name: Preserve passing and failing results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: postgres-runtime-${{ matrix.postgres }}
+          path: build/postgres/
+          if-no-files-found: warn
+
+  radius-accounting:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      CGO_ENABLED: '0'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - name: Install disposable runner fixture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-14 freeradius freeradius-postgresql freeradius-utils openssl
+          sudo cp /etc/freeradius/3.0/policy.d/accounting "$RUNNER_TEMP/accounting-policy"
+          sudo chmod 644 "$RUNNER_TEMP/accounting-policy"
+      - name: Exercise generated SQL with real accounting and authentication packets
+        run: |
+          go test -c ./internal/radius -o "$RUNNER_TEMP/radius.test"
+          python3 scripts/test_freeradius_postgres.py \
+            --root "$RUNNER_TEMP/radius-accounting" \
+            --pg-root / --module-root /usr/lib/freeradius \
+            --generator-test-binary "$RUNNER_TEMP/radius.test" \
+            --accounting --accounting-policy "$RUNNER_TEMP/accounting-policy"
+      - name: Preserve fixture results without database files or private keys
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: radius-postgresql-accounting
+          path: |
+            ${{ runner.temp }}/radius-accounting/*.log
+            ${{ runner.temp }}/radius-accounting/result.json
+          if-no-files-found: warn

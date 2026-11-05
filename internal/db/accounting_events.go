@@ -210,6 +210,10 @@ func IngestAccountingEvent(ctx context.Context, event AccountingEventRecord) (Ac
 }
 
 func ApplyAccountingEventByID(ctx context.Context, eventID string) (AccountingEventApplyResult, error) {
+	return applyAccountingEventByID(ctx, eventID, false)
+}
+
+func applyAccountingEventByID(ctx context.Context, eventID string, fromRadacctSnapshot bool) (AccountingEventApplyResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -222,7 +226,7 @@ func ApplyAccountingEventByID(ctx context.Context, eventID string) (AccountingEv
 		result.Duplicates = int(event.DuplicateCount)
 		return result, nil
 	}
-	rowResult, err := applyAccountingEventRecord(ctx, event)
+	rowResult, err := applyAccountingEventRecord(ctx, event, fromRadacctSnapshot)
 	if err != nil {
 		result.ErrorCount = 1
 		result.LastError = err.Error()
@@ -360,8 +364,8 @@ func GetAccountingEventSummary(staleAfter time.Duration) (AccountingEventSummary
 		COALESCE(SUM(duplicate_count), 0),
 		COALESCE(SUM(CASE WHEN ordering_status IN ('reordered', 'late_start') THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN ordering_status = 'late_stop' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(arrival_time), ''),
-		COALESCE(MAX(COALESCE(applied_at, '')), ''),
+		COALESCE(CAST(MAX(arrival_time) AS TEXT), ''),
+		COALESCE(MAX(COALESCE(CAST(applied_at AS TEXT), '')), ''),
 		COALESCE((SELECT last_error FROM radius_accounting_events WHERE apply_status = 'error' ORDER BY updated_at DESC, id DESC LIMIT 1), '')
 		FROM radius_accounting_events`).Scan(&summary.TotalEvents, &summary.PendingEvents, &summary.AppliedEvents,
 		&summary.ErrorEvents, &summary.IgnoredEvents, &summary.DuplicateEvents, &summary.ReorderedEvents,
@@ -496,7 +500,7 @@ type accountingApplyRowResult struct {
 func applyAccountingEvents(ctx context.Context, events []AccountingEventRecord) (AccountingEventApplyResult, error) {
 	result := AccountingEventApplyResult{Scanned: len(events)}
 	for _, event := range events {
-		rowResult, err := applyAccountingEventRecord(ctx, event)
+		rowResult, err := applyAccountingEventRecord(ctx, event, false)
 		if err != nil {
 			result.ErrorCount++
 			result.LastError = err.Error()
@@ -520,7 +524,7 @@ func applyAccountingEvents(ctx context.Context, events []AccountingEventRecord) 
 	return result, nil
 }
 
-func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord) (accountingApplyRowResult, error) {
+func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord, fromRadacctSnapshot bool) (accountingApplyRowResult, error) {
 	event = normalizeAccountingEventRecord(event)
 	if event.ID == 0 {
 		stored, err := GetAccountingEventByEventID(event.EventID)
@@ -602,11 +606,16 @@ func applyAccountingEventRecord(ctx context.Context, event AccountingEventRecord
 	if _, err := ProjectAccountingChargingRecord(ctx, event); err != nil {
 		return accountingApplyRowResult{}, err
 	}
-	radacct := freeRADIUSRecordFromAccountingEvent(event, after)
-	radacct.AegisReconcileStatus = "reconciled"
-	radacct.AegisReconciledAt = formatAccountingTime(time.Now().UTC())
-	if _, err := UpsertFreeRADIUSAccountingRecord(ctx, radacct); err != nil {
-		return accountingApplyRowResult{}, err
+	// A snapshot can retain a provider source label. Mirroring an older polled event
+	// back into radacct can overwrite a newer packet arriving during apply.
+	// The SQL reconciler acknowledges only the revision it originally read.
+	if !fromRadacctSnapshot && event.Source != "freeradius-sql" {
+		radacct := freeRADIUSRecordFromAccountingEvent(event, after)
+		radacct.AegisReconcileStatus = "reconciled"
+		radacct.AegisReconciledAt = formatAccountingTime(time.Now().UTC())
+		if _, err := UpsertFreeRADIUSAccountingRecord(ctx, radacct); err != nil {
+			return accountingApplyRowResult{}, err
+		}
 	}
 	if err := markAccountingEventApplied(event.ID, "applied", orderingStatus, formatAccountingTime(time.Now().UTC()), ""); err != nil {
 		return accountingApplyRowResult{}, err
@@ -636,7 +645,7 @@ func classifyAccountingEventOrdering(event AccountingEventRecord) string {
 		}
 	}
 	var latest string
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(event_time), '') FROM radius_accounting_events
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(MAX(event_time) AS TEXT), '') FROM radius_accounting_events
 		WHERE session_key = ? AND apply_status = 'applied' AND id <> ?`, event.SessionKey, event.ID).Scan(&latest)
 	latestTime := parseAccountingTime(latest)
 	if !latestTime.IsZero() && eventTime.Before(latestTime) {
@@ -695,7 +704,7 @@ func accountingCounterResetCountForSession(sessionKey string) int64 {
 	var count int64
 	_ = DB.QueryRow(`SELECT COALESCE(COUNT(*), 0)
 		FROM radius_accounting_events
-		WHERE session_key = ? AND counter_reset_detected = 1`, strings.TrimSpace(sessionKey)).Scan(&count)
+		WHERE session_key = ? AND counter_reset_detected = TRUE`, strings.TrimSpace(sessionKey)).Scan(&count)
 	return count
 }
 
@@ -995,8 +1004,8 @@ func accountingEventSelectSQL() string {
 		COALESCE(acct_input_octets_64, '0'), COALESCE(acct_output_octets_64, '0'),
 		COALESCE(acct_session_time, 0), COALESCE(acct_terminate_cause, ''), source,
 		fingerprint, COALESCE(payload_json, '{}'), apply_status, ordering_status,
-		COALESCE(counter_status, 'ok'), COALESCE(counter_reset_detected, 0),
-		COALESCE(counter_rollover_detected, 0), COALESCE(counter_error, ''),
+		COALESCE(counter_status, 'ok'), (CASE WHEN counter_reset_detected THEN 1 ELSE 0 END),
+		(CASE WHEN counter_rollover_detected THEN 1 ELSE 0 END), COALESCE(counter_error, ''),
 		COALESCE(ip_assignment_status, 'ok'), COALESCE(ip_assignment_error, ''),
 		COALESCE(parent_session_key, ''), COALESCE(service_key, ''),
 		COALESCE(service_category, ''), COALESCE(service_leg_id, ''),

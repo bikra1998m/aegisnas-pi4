@@ -127,7 +127,7 @@ func RecordActiveDirectoryEvent(record ActiveDirectoryEvent, details any, retent
 		record.LatencyMS,
 		activeDirectoryNullString(record.Role),
 		string(groupsJSON),
-		boolToSQLite(record.CacheUsed),
+		record.CacheUsed,
 		detailsJSON)
 	if err != nil {
 		return fmt.Errorf("insert Active Directory event: %w", err)
@@ -145,11 +145,11 @@ func ListActiveDirectoryEvents(source, decision string, limit int) ([]ActiveDire
 	if limit > 5000 {
 		limit = 5000
 	}
-	query := `SELECT id, COALESCE(observed_at, ''), COALESCE(domain, ''), COALESCE(realm, ''),
+	query := `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(domain, ''), COALESCE(realm, ''),
 		COALESCE(source_name, ''), COALESCE(username_hash, ''), COALESCE(principal_hash, ''),
 		COALESCE(auth_method, ''), COALESCE(decision, ''), COALESCE(reason, ''),
 		COALESCE(latency_ms, 0), COALESCE(role, ''), COALESCE(groups_json, '[]'),
-		COALESCE(cache_used, 0), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		(CASE WHEN cache_used THEN 1 ELSE 0 END), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM active_directory_events WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(source) != "" {
@@ -197,8 +197,8 @@ func GetActiveDirectoryEventSummary() (ActiveDirectoryEventSummary, error) {
 		COALESCE(SUM(CASE WHEN decision = 'not_found' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'failed' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'skipped' THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN cache_used = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(SUM(CASE WHEN cache_used = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM active_directory_events`).Scan(&summary.TotalRecords, &summary.AcceptedCount, &summary.RejectedCount,
 		&summary.NotFoundCount, &summary.FailureCount, &summary.SkippedCount, &summary.CacheHitCount, &summary.LastObservedAt); err != nil {
 		return ActiveDirectoryEventSummary{}, fmt.Errorf("get Active Directory event summary: %w", err)
@@ -269,7 +269,7 @@ func GetActiveDirectoryGroupCache(sourceName, username string, now time.Time) (A
 	var groupsJSON string
 	err := DB.QueryRow(`SELECT COALESCE(source_name, ''), COALESCE(username_hash, ''), COALESCE(principal_hash, ''),
 		COALESCE(domain, ''), COALESCE(realm, ''), COALESCE(role, ''), COALESCE(groups_json, '[]'),
-		COALESCE(last_success_at, ''), COALESCE(expires_at, '')
+		COALESCE(CAST(last_success_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), '')
 		FROM active_directory_group_cache WHERE source_name = ? AND username_hash = ? AND datetime(expires_at) > datetime(?)`,
 		sourceName, usernameHash, now.UTC().Format(time.RFC3339)).
 		Scan(&entry.SourceName, &entry.UsernameHash, &entry.PrincipalHash, &entry.Domain, &entry.Realm, &entry.Role,
@@ -296,8 +296,8 @@ func GetActiveDirectoryGroupCacheSummary(now time.Time) (ActiveDirectoryGroupCac
 	var summary ActiveDirectoryGroupCacheSummary
 	if err := DB.QueryRow(`SELECT COUNT(*),
 		COALESCE(SUM(CASE WHEN datetime(expires_at) <= datetime(?) THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(last_success_at), ''),
-		COALESCE(MIN(CASE WHEN datetime(expires_at) > datetime(?) THEN expires_at ELSE NULL END), '')
+		COALESCE(CAST(MAX(last_success_at) AS TEXT), ''),
+		COALESCE(CAST(MIN(CASE WHEN datetime(expires_at) > datetime(?) THEN expires_at ELSE NULL END) AS TEXT), '')
 		FROM active_directory_group_cache`, now.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339)).
 		Scan(&summary.TotalEntries, &summary.ExpiredEntries, &summary.LastSuccessAt, &summary.NextExpiresAt); err != nil {
 		return ActiveDirectoryGroupCacheSummary{}, fmt.Errorf("get Active Directory group cache summary: %w", err)
@@ -345,9 +345,9 @@ func ListActiveDirectoryHealthChecks(component string, limit int) ([]ActiveDirec
 	if limit > 5000 {
 		limit = 5000
 	}
-	query := `SELECT id, COALESCE(checked_at, ''), COALESCE(domain, ''), COALESCE(realm, ''),
+	query := `SELECT id, COALESCE(CAST(checked_at AS TEXT), ''), COALESCE(domain, ''), COALESCE(realm, ''),
 		COALESCE(component, ''), COALESCE(status, ''), COALESCE(message, ''),
-		COALESCE(latency_ms, 0), COALESCE(details_json, '{}'), COALESCE(created_at, '')
+		COALESCE(latency_ms, 0), COALESCE(details_json, '{}'), COALESCE(CAST(created_at AS TEXT), '')
 		FROM active_directory_health_checks WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(component) != "" {
@@ -384,7 +384,7 @@ func GetActiveDirectoryHealthSummary() (ActiveDirectoryHealthSummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(checked_at), '')
+		COALESCE(CAST(MAX(checked_at) AS TEXT), '')
 		FROM active_directory_health_checks`).Scan(&summary.TotalRecords, &summary.OKCount, &summary.DegradedCount, &summary.BlockedCount, &summary.LastCheckedAt); err != nil {
 		return ActiveDirectoryHealthSummary{}, fmt.Errorf("get Active Directory health summary: %w", err)
 	}

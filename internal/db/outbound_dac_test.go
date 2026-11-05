@@ -10,7 +10,7 @@ import (
 )
 
 func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
@@ -128,7 +128,7 @@ func TestOutboundDACRequestLifecycleRedactsSensitiveHistory(t *testing.T) {
 }
 
 func TestOutboundDACRetentionPrunesOldRequestsAndAttempts(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
@@ -178,7 +178,7 @@ func TestOutboundDACRetentionPrunesOldRequestsAndAttempts(t *testing.T) {
 }
 
 func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
@@ -290,7 +290,7 @@ func TestOutboundDACQueueLifecycleDedupeClaimCompleteAndCancel(t *testing.T) {
 }
 
 func TestOutboundDACQueueExpireAndManualRetry(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())
@@ -333,7 +333,7 @@ func TestOutboundDACQueueExpireAndManualRetry(t *testing.T) {
 }
 
 func TestOutboundDACHandoffLeaseEventAndSummary(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	DB.SetMaxOpenConns(1)
 	t.Cleanup(func() { Close() })
 	require.NoError(t, Migrate())

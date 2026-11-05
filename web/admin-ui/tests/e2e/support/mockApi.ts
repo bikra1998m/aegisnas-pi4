@@ -9373,9 +9373,9 @@ export async function installMockApi(page: Page, options: MockOptions = {}) {
           },
           checks: [
             {
-              id: "tenant-default",
+              key: "tenant-default",
               status: "passed",
-              message: "Default tenant scope is isolated.",
+              detail: "Default tenant scope is isolated.",
             },
           ],
         },

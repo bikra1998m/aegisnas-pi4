@@ -184,6 +184,8 @@ func GetSessionHistoryStats(query SessionHistoryQuery) (SessionHistoryStats, err
 	); err != nil {
 		return SessionHistoryStats{}, fmt.Errorf("get session history stats: %w", err)
 	}
+	stats.LastStartedAt = normalizeAccountingTimeString(stats.LastStartedAt)
+	stats.LastEndedAt = normalizeAccountingTimeString(stats.LastEndedAt)
 	return stats, nil
 }
 

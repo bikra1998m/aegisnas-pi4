@@ -213,7 +213,7 @@ func GetWirelessSecurityLifecycleSummary() (WirelessSecurityLifecycleSummary, er
 			COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
-			COALESCE(MAX(created_at), '')
+			COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM wireless_security_lifecycle_events`).Scan(
 		&summary.TotalEvents,
 		&summary.PreviewEvents,

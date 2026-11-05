@@ -14,7 +14,7 @@ func TestSaveAndGetConfigRevision(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	err = Init(tmpfile.Name())
+	err = initRuntimeTestDB(t, tmpfile.Name())
 	require.NoError(t, err)
 	defer Close()
 

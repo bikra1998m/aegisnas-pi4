@@ -149,7 +149,7 @@ func UpsertMFATOTPSecret(username, ciphertext, nonce, algorithm string, digits, 
 			updated_at = excluded.updated_at,
 			last_verified_at = NULL`,
 		usernameHash, strings.TrimSpace(ciphertext), strings.TrimSpace(nonce), strings.TrimSpace(algorithm),
-		digits, periodSeconds, strings.TrimSpace(issuer), boolToSQLite(enabled), updatedAt)
+		digits, periodSeconds, strings.TrimSpace(issuer), enabled, updatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert MFA TOTP secret: %w", err)
 	}
@@ -167,8 +167,8 @@ func GetMFATOTPSecret(username string) (MFATOTPSecret, bool, error) {
 	var item MFATOTPSecret
 	var enabled int
 	err := DB.QueryRow(`SELECT id, username_hash, secret_ciphertext, secret_nonce, algorithm, digits,
-		period_seconds, issuer, enabled, COALESCE(created_at, ''), COALESCE(updated_at, ''),
-		COALESCE(last_verified_at, '')
+		period_seconds, issuer, enabled, COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''),
+		COALESCE(CAST(last_verified_at AS TEXT), '')
 		FROM mfa_totp_secrets WHERE username_hash = ?`, usernameHash).
 		Scan(&item.ID, &item.UsernameHash, &item.SecretCiphertext, &item.SecretNonce, &item.Algorithm,
 			&item.Digits, &item.PeriodSeconds, &item.Issuer, &enabled, &item.CreatedAt, &item.UpdatedAt, &item.LastVerifiedAt)
@@ -357,8 +357,8 @@ func GetMFAChallengeByStateHash(stateHash string, now time.Time) (MFAChallenge, 
 	err := DB.QueryRow(`SELECT id, state_hash, username_hash, COALESCE(source, ''), COALESCE(role, ''),
 		COALESCE(identity_source, ''), COALESCE(auth_method, ''), COALESCE(challenge_type, ''),
 		COALESCE(status, ''), COALESCE(attempt_count, 0), COALESCE(max_attempts, 0), COALESCE(prompt, ''),
-		COALESCE(expires_at, ''), COALESCE(created_at, ''), COALESCE(updated_at, ''),
-		COALESCE(verified_at, ''), COALESCE(failure_reason, ''), COALESCE(details_json, '{}')
+		COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), ''),
+		COALESCE(CAST(verified_at AS TEXT), ''), COALESCE(failure_reason, ''), COALESCE(details_json, '{}')
 		FROM mfa_challenges WHERE state_hash = ?`, stateHash).
 		Scan(&item.ID, &item.StateHash, &item.UsernameHash, &item.Source, &item.Role, &item.IdentitySource,
 			&item.AuthMethod, &item.ChallengeType, &item.Status, &item.AttemptCount, &item.MaxAttempts,
@@ -371,7 +371,7 @@ func GetMFAChallengeByStateHash(stateHash string, now time.Time) (MFAChallenge, 
 		return MFAChallenge{}, false, fmt.Errorf("get MFA challenge: %w", err)
 	}
 	if item.Status == "pending" && item.ExpiresAt != "" {
-		if expiresAt, err := time.Parse(time.RFC3339, item.ExpiresAt); err == nil && !expiresAt.After(now.UTC()) {
+		if expiresAt := parseAccountingTime(item.ExpiresAt); expiresAt.IsZero() || !expiresAt.After(now.UTC()) {
 			_ = UpdateMFAChallengeStatus(item.ID, "expired", item.AttemptCount, "challenge expired", now)
 			item.Status = "expired"
 			item.FailureReason = "challenge expired"
@@ -449,10 +449,10 @@ func ListMFAEvents(decision, method string, limit int) ([]MFAEvent, error) {
 	if limit > 5000 {
 		limit = 5000
 	}
-	query := `SELECT id, COALESCE(observed_at, ''), COALESCE(username_hash, ''), COALESCE(source, ''),
+	query := `SELECT id, COALESCE(CAST(observed_at AS TEXT), ''), COALESCE(username_hash, ''), COALESCE(source, ''),
 		COALESCE(method, ''), COALESCE(decision, ''), COALESCE(reason, ''), COALESCE(challenge_id, ''),
 		COALESCE(role, ''), COALESCE(identity_source, ''), COALESCE(auth_method, ''), COALESCE(details_json, '{}'),
-		COALESCE(created_at, '')
+		COALESCE(CAST(created_at AS TEXT), '')
 		FROM mfa_events WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(decision) != "" {
@@ -500,7 +500,7 @@ func GetMFAEventSummary() (MFAEventSummary, error) {
 		COALESCE(SUM(CASE WHEN decision = 'monitor_allowed' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN decision = 'enrolled' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN method = 'recovery' AND decision = 'accepted' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(observed_at), '')
+		COALESCE(CAST(MAX(observed_at) AS TEXT), '')
 		FROM mfa_events`).Scan(&summary.TotalRecords, &summary.ChallengeIssuedCount, &summary.AcceptedCount,
 		&summary.DeniedCount, &summary.MonitorAllowedCount, &summary.EnrollmentCount, &summary.RecoveryUsedCount,
 		&summary.LastObservedAt); err != nil {
@@ -522,8 +522,8 @@ func GetMFACredentialSummary(now time.Time) (MFACredentialSummary, error) {
 		now = time.Now().UTC()
 	}
 	var summary MFACredentialSummary
-	if err := DB.QueryRow(`SELECT COUNT(*), COALESCE(SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), ''), COALESCE(MAX(last_verified_at), '')
+	if err := DB.QueryRow(`SELECT COUNT(*), COALESCE(SUM(CASE WHEN enabled = TRUE THEN 1 ELSE 0 END), 0),
+		COALESCE(CAST(MAX(created_at) AS TEXT), ''), COALESCE(CAST(MAX(last_verified_at) AS TEXT), '')
 		FROM mfa_totp_secrets`).Scan(&summary.EnrolledUsers, &summary.EnabledUsers, &summary.LastEnrollmentAt, &summary.LastVerifiedAt); err != nil {
 		return summary, fmt.Errorf("get MFA credential summary: %w", err)
 	}

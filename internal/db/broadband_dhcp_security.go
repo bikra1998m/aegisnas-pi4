@@ -259,8 +259,8 @@ func ListBroadbandDHCPSecurityBindings(limit int, status string) ([]BroadbandDHC
 	status = strings.ToLower(strings.TrimSpace(status))
 	query := `SELECT id, binding_key, port_name, interface, vlan, role, trusted, COALESCE(circuit_id, ''), COALESCE(remote_id, ''),
 		COALESCE(subscriber_product, ''), COALESCE(tenant, ''), COALESCE(relay_agent, ''), COALESCE(source_guard_policy, ''),
-		status, compiled_options_json, COALESCE(source_event_id, ''), plan_fingerprint, COALESCE(installed_at, ''),
-		COALESCE(withdrawn_at, ''), last_seen_at, created_at, updated_at
+		status, compiled_options_json, COALESCE(source_event_id, ''), plan_fingerprint, COALESCE(CAST(installed_at AS TEXT), ''),
+		COALESCE(CAST(withdrawn_at AS TEXT), ''), last_seen_at, created_at, updated_at
 		FROM broadband_dhcp_security_bindings`
 	args := []any{}
 	if status != "" {
@@ -302,7 +302,7 @@ func GetBroadbandDHCPSecuritySummary() (BroadbandDHCPSecuritySummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), '')
+		COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM broadband_dhcp_security_events`).Scan(&summary.TotalEvents, &summary.PreviewEvents, &summary.ApplyEvents,
 		&summary.PreviewedCount, &summary.AppliedCount, &summary.BlockedCount, &summary.DegradedCount,
 		&summary.SkippedCount, &summary.FailedCount, &summary.LastEventAt)

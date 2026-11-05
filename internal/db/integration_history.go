@@ -116,7 +116,7 @@ func GetIntegrationHistoryStats() (IntegrationHistoryStats, error) {
 		COALESCE(SUM(CASE WHEN component = 'posture_checks' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN component = 'posture_checks' AND status = 'ok' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN component = 'posture_checks' AND status <> 'ok' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(created_at), '')
+		COALESCE(CAST(MAX(created_at) AS TEXT), '')
 		FROM integration_history`).Scan(
 		&stats.TotalRecords,
 		&stats.ControllerEventCount,

@@ -151,9 +151,9 @@ func ListPolicySetVersions(limit int) ([]PolicySetVersion, error) {
 		COALESCE(v.parent_version_id, 0), COALESCE(v.rollback_of_version_id, 0), v.content_json,
 		v.content_sha256, v.policy_sha256, v.rule_count, v.child_set_count, v.max_depth,
 		v.approval_required, v.min_approvals, COALESCE(v.created_by, ''), v.created_at,
-		COALESCE(v.submitted_by, ''), COALESCE(v.submitted_at, ''), COALESCE(v.activated_by, ''),
-		COALESCE(v.activated_at, ''), COALESCE(v.superseded_at, ''), COALESCE(v.rejected_by, ''),
-		COALESCE(v.rejected_at, ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
+		COALESCE(v.submitted_by, ''), COALESCE(CAST(v.submitted_at AS TEXT), ''), COALESCE(v.activated_by, ''),
+		COALESCE(CAST(v.activated_at AS TEXT), ''), COALESCE(CAST(v.superseded_at AS TEXT), ''), COALESCE(v.rejected_by, ''),
+		COALESCE(CAST(v.rejected_at AS TEXT), ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
 		(SELECT COUNT(*) FROM policy_set_approvals a WHERE a.version_id = v.id)
 		FROM policy_set_versions v ORDER BY COALESCE(v.tenant, ''), v.set_key, v.version DESC LIMIT ?`, limit)
 	if err != nil {
@@ -196,9 +196,9 @@ func ListPolicySetVersionsForTenants(limit int, tenants []string) ([]PolicySetVe
 		COALESCE(v.parent_version_id, 0), COALESCE(v.rollback_of_version_id, 0), v.content_json,
 		v.content_sha256, v.policy_sha256, v.rule_count, v.child_set_count, v.max_depth,
 		v.approval_required, v.min_approvals, COALESCE(v.created_by, ''), v.created_at,
-		COALESCE(v.submitted_by, ''), COALESCE(v.submitted_at, ''), COALESCE(v.activated_by, ''),
-		COALESCE(v.activated_at, ''), COALESCE(v.superseded_at, ''), COALESCE(v.rejected_by, ''),
-		COALESCE(v.rejected_at, ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
+		COALESCE(v.submitted_by, ''), COALESCE(CAST(v.submitted_at AS TEXT), ''), COALESCE(v.activated_by, ''),
+		COALESCE(CAST(v.activated_at AS TEXT), ''), COALESCE(CAST(v.superseded_at AS TEXT), ''), COALESCE(v.rejected_by, ''),
+		COALESCE(CAST(v.rejected_at AS TEXT), ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
 		(SELECT COUNT(*) FROM policy_set_approvals a WHERE a.version_id = v.id)
 		FROM policy_set_versions v
 		WHERE COALESCE(v.tenant, '') IN (`+strings.Join(placeholders, ",")+`)
@@ -615,9 +615,9 @@ func getPolicySetVersionQuery(q interface {
 		COALESCE(v.parent_version_id, 0), COALESCE(v.rollback_of_version_id, 0), v.content_json,
 		v.content_sha256, v.policy_sha256, v.rule_count, v.child_set_count, v.max_depth,
 		v.approval_required, v.min_approvals, COALESCE(v.created_by, ''), v.created_at,
-		COALESCE(v.submitted_by, ''), COALESCE(v.submitted_at, ''), COALESCE(v.activated_by, ''),
-		COALESCE(v.activated_at, ''), COALESCE(v.superseded_at, ''), COALESCE(v.rejected_by, ''),
-		COALESCE(v.rejected_at, ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
+		COALESCE(v.submitted_by, ''), COALESCE(CAST(v.submitted_at AS TEXT), ''), COALESCE(v.activated_by, ''),
+		COALESCE(CAST(v.activated_at AS TEXT), ''), COALESCE(CAST(v.superseded_at AS TEXT), ''), COALESCE(v.rejected_by, ''),
+		COALESCE(CAST(v.rejected_at AS TEXT), ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
 		(SELECT COUNT(*) FROM policy_set_approvals a WHERE a.version_id = v.id)
 		FROM policy_set_versions v WHERE v.id = ?`, id)
 	item, err := scanPolicySetVersion(row)
@@ -643,9 +643,9 @@ func getPolicySetVersionByStatusTenantQuery(q interface {
 		COALESCE(v.parent_version_id, 0), COALESCE(v.rollback_of_version_id, 0), v.content_json,
 		v.content_sha256, v.policy_sha256, v.rule_count, v.child_set_count, v.max_depth,
 		v.approval_required, v.min_approvals, COALESCE(v.created_by, ''), v.created_at,
-		COALESCE(v.submitted_by, ''), COALESCE(v.submitted_at, ''), COALESCE(v.activated_by, ''),
-		COALESCE(v.activated_at, ''), COALESCE(v.superseded_at, ''), COALESCE(v.rejected_by, ''),
-		COALESCE(v.rejected_at, ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
+		COALESCE(v.submitted_by, ''), COALESCE(CAST(v.submitted_at AS TEXT), ''), COALESCE(v.activated_by, ''),
+		COALESCE(CAST(v.activated_at AS TEXT), ''), COALESCE(CAST(v.superseded_at AS TEXT), ''), COALESCE(v.rejected_by, ''),
+		COALESCE(CAST(v.rejected_at AS TEXT), ''), COALESCE(v.rejection_reason, ''), COALESCE(v.activation_note, ''),
 		(SELECT COUNT(*) FROM policy_set_approvals a WHERE a.version_id = v.id)
 		FROM policy_set_versions v WHERE v.set_key = ? AND COALESCE(v.tenant, '') = ? AND v.status = ? ORDER BY v.version DESC LIMIT 1`, normalizePolicySetKey(setKey), NormalizeTenantKey(tenant), status)
 	item, err := scanPolicySetVersion(row)

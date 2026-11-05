@@ -14,6 +14,8 @@ import (
 )
 
 type FreeRADIUSAccountingRecord struct {
+	AegisIngestRevision         int64  `json:"aegis_ingest_revision"`
+	AegisPacketSource           string `json:"aegis_packet_source,omitempty"`
 	RadAcctID                   int    `json:"radacctid"`
 	AcctSessionID               string `json:"acctsessionid"`
 	AcctUniqueID                string `json:"acctuniqueid"`
@@ -165,6 +167,7 @@ func UpsertFreeRADIUSAccountingRecord(ctx context.Context, rec FreeRADIUSAccount
 		aegis_last_correlation_event_id, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(acctuniqueid) DO UPDATE SET
+		aegis_ingest_revision = radacct.aegis_ingest_revision + 1,
 		acctsessionid = excluded.acctsessionid,
 		username = excluded.username,
 		realm = excluded.realm,
@@ -331,21 +334,30 @@ func ReconcileFreeRADIUSAccounting(limit int) (FreeRADIUSAccountingReconcileResu
 		if err != nil {
 			result.ErrorCount++
 			result.LastError = err.Error()
-			_ = markFreeRADIUSAccountingReconciled(record.RadAcctID, "", "error", err.Error(), "")
+			_ = markFreeRADIUSAccountingReconciled(record, "", "error", err.Error(), "")
 			continue
 		}
-		rowResult, err := ApplyAccountingEventByID(context.Background(), ingested.Event.EventID)
+		rowResult, err := applyAccountingEventByID(context.Background(), ingested.Event.EventID, true)
 		if err != nil {
 			result.ErrorCount++
 			result.LastError = err.Error()
-			_ = markFreeRADIUSAccountingReconciled(record.RadAcctID, "", "error", err.Error(), "")
+			_ = markFreeRADIUSAccountingReconciled(record, "", "error", err.Error(), "")
 			continue
 		}
 		result.Reconciled++
 		result.CreatedSessions += rowResult.CreatedSessions
 		result.UpdatedSessions += rowResult.UpdatedSessions
 		result.ClosedSessions += rowResult.ClosedSessions
-		if err := markFreeRADIUSAccountingReconciled(record.RadAcctID, ingested.Event.SessionKey, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
+		applied, err := GetAccountingEventByEventID(ingested.Event.EventID)
+		if err == nil {
+			err = projectFreeRADIUSAccountingMetadata(record, applied)
+		}
+		if err != nil {
+			result.ErrorCount++
+			result.LastError = err.Error()
+			continue
+		}
+		if err := markFreeRADIUSAccountingReconciled(record, ingested.Event.SessionKey, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
 			result.ErrorCount++
 			result.LastError = err.Error()
 			continue
@@ -368,16 +380,16 @@ func GetFreeRADIUSAccountingSummary(staleAfter time.Duration) (FreeRADIUSAccount
 	var summary FreeRADIUSAccountingSummary
 	err := DB.QueryRow(`SELECT
 		COUNT(*),
-		COALESCE(SUM(CASE WHEN acctstoptime IS NULL OR acctstoptime = '' THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN acctstoptime IS NOT NULL AND acctstoptime <> '' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN acctstoptime IS NULL OR CAST(acctstoptime AS TEXT) = '' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN acctstoptime IS NOT NULL AND CAST(acctstoptime AS TEXT) <> '' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_reconcile_status = 'reconciled' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_reconcile_status = 'pending' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_reconcile_status = 'error' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_reconcile_status = 'ignored' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_counter_reset_count > 0 THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN aegis_counter_status IN ('overflow', 'error') THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(COALESCE(acctupdatetime, acctstoptime, acctstarttime, created_at)), ''),
-		COALESCE(MAX(COALESCE(aegis_reconciled_at, '')), '')
+		COALESCE(CAST(MAX(COALESCE(acctupdatetime, acctstoptime, acctstarttime, created_at)) AS TEXT), ''),
+		COALESCE(MAX(COALESCE(CAST(aegis_reconciled_at AS TEXT), '')), '')
 		FROM radacct`).Scan(&summary.RadAcctRows, &summary.OpenSessions, &summary.ClosedSessions, &summary.ReconciledRows,
 		&summary.PendingRows, &summary.ErrorRows, &summary.IgnoredRows, &summary.CounterResetRows,
 		&summary.CounterErrorRows, &summary.LastAccountingAt, &summary.LastReconciledAt)
@@ -387,9 +399,9 @@ func GetFreeRADIUSAccountingSummary(staleAfter time.Duration) (FreeRADIUSAccount
 		}
 		return FreeRADIUSAccountingSummary{}, fmt.Errorf("summarize radacct: %w", err)
 	}
-	_ = DB.QueryRow(`SELECT COUNT(*), COALESCE(MAX(authdate), '') FROM radpostauth`).Scan(&summary.PostAuthRows, &summary.LastPostAuthAt)
+	_ = DB.QueryRow(`SELECT COUNT(*), COALESCE(CAST(MAX(authdate) AS TEXT), '') FROM radpostauth`).Scan(&summary.PostAuthRows, &summary.LastPostAuthAt)
 	_ = DB.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&summary.SessionRows)
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(created_at), ''), COALESCE((SELECT status FROM radius_sql_accounting_reconcile_events ORDER BY created_at DESC, id DESC LIMIT 1), ''), COALESCE((SELECT last_error FROM radius_sql_accounting_reconcile_events ORDER BY created_at DESC, id DESC LIMIT 1), '') FROM radius_sql_accounting_reconcile_events`).Scan(&summary.LastEventAt, &summary.LastEventStatus, &summary.LastEventError)
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(MAX(created_at) AS TEXT), ''), COALESCE((SELECT status FROM radius_sql_accounting_reconcile_events ORDER BY created_at DESC, id DESC LIMIT 1), ''), COALESCE((SELECT last_error FROM radius_sql_accounting_reconcile_events ORDER BY created_at DESC, id DESC LIMIT 1), '') FROM radius_sql_accounting_reconcile_events`).Scan(&summary.LastEventAt, &summary.LastEventStatus, &summary.LastEventError)
 	if staleAfter > 0 {
 		summary.StalePendingRows = countStaleFreeRADIUSAccountingRows(staleAfter)
 	}
@@ -503,7 +515,7 @@ func applyFreeRADIUSAccountingRecord(record FreeRADIUSAccountingRecord) (freeRAD
 	if _, err := ProjectAccountingChargingRecord(context.Background(), FreeRADIUSAccountingEventFromRecord(record)); err != nil {
 		return freeRADIUSAccountingApplyResult{}, err
 	}
-	if err := markFreeRADIUSAccountingReconciled(record.RadAcctID, sessionID, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
+	if err := markFreeRADIUSAccountingReconciled(record, sessionID, "reconciled", "", formatAccountingTime(time.Now().UTC())); err != nil {
 		return freeRADIUSAccountingApplyResult{}, err
 	}
 	out := freeRADIUSAccountingApplyResult{updated: 1}
@@ -517,7 +529,26 @@ func applyFreeRADIUSAccountingRecord(record FreeRADIUSAccountingRecord) (freeRAD
 	return out, nil
 }
 
-func markFreeRADIUSAccountingReconciled(radAcctID int, sessionID, status, message, reconciledAt string) error {
+// Project only derived metadata, and only onto the snapshot actually applied.
+// Packet counters and timestamps belong to the SQL writer. Replaying an older
+// event must neither overwrite a newer packet nor acknowledge it as reconciled.
+func projectFreeRADIUSAccountingMetadata(record FreeRADIUSAccountingRecord, event AccountingEventRecord) error {
+	_, err := DB.Exec(`UPDATE radacct SET
+		aegis_counter_status = ?, aegis_counter_error = ?, aegis_counter_reset_count = ?, aegis_last_counter_event_id = ?,
+		aegis_route_status = ?, aegis_route_error = ?, aegis_last_route_event_id = ?,
+		aegis_parent_session_id = ?, aegis_service_key = ?, aegis_service_category = ?, aegis_service_leg_id = ?,
+		aegis_bearer_id = ?, aegis_call_id = ?, aegis_roaming_id = ?, aegis_correlation_id = ?,
+		aegis_correlation_status = ?, aegis_correlation_error = ?, aegis_last_correlation_event_id = ?
+		WHERE radacctid = ? AND aegis_ingest_revision = ?`,
+		event.CounterStatus, nullIfEmpty(event.CounterError), accountingCounterResetCountForSession(event.SessionKey), event.EventID,
+		event.IPAssignmentStatus, nullIfEmpty(event.IPAssignmentError), event.EventID,
+		nullIfEmpty(event.ParentSessionKey), nullIfEmpty(event.ServiceKey), nullIfEmpty(event.ServiceCategory), nullIfEmpty(event.ServiceLegID),
+		nullIfEmpty(event.BearerID), nullIfEmpty(event.CallID), nullIfEmpty(event.RoamingID), nullIfEmpty(event.CorrelationID),
+		event.CorrelationStatus, nullIfEmpty(event.CorrelationError), event.EventID, record.RadAcctID, record.AegisIngestRevision)
+	return err
+}
+
+func markFreeRADIUSAccountingReconciled(record FreeRADIUSAccountingRecord, sessionID, status, message, reconciledAt string) error {
 	if status == "" {
 		status = "reconciled"
 	}
@@ -528,10 +559,10 @@ func markFreeRADIUSAccountingReconciled(radAcctID int, sessionID, status, messag
 		SET aegis_session_id = COALESCE(NULLIF(?, ''), aegis_session_id),
 			aegis_reconcile_status = ?,
 			aegis_reconcile_error = ?,
-			aegis_reconciled_at = COALESCE(NULLIF(?, ''), aegis_reconciled_at),
+			aegis_reconciled_at = COALESCE(?, aegis_reconciled_at),
 			updated_at = ?
-		WHERE radacctid = ?`,
-		strings.TrimSpace(sessionID), status, nullIfEmpty(message), reconciledAt, formatAccountingTime(time.Now().UTC()), radAcctID)
+		WHERE radacctid = ? AND aegis_ingest_revision = ?`,
+		strings.TrimSpace(sessionID), status, nullIfEmpty(message), nullIfEmpty(reconciledAt), formatAccountingTime(time.Now().UTC()), record.RadAcctID, record.AegisIngestRevision)
 	return err
 }
 
@@ -579,7 +610,7 @@ func freeRADIUSAccountingSelectSQL() string {
 		COALESCE(aegis_correlation_status, 'active'), COALESCE(aegis_correlation_error, ''),
 		COALESCE(aegis_last_correlation_event_id, ''),
 		COALESCE(CAST(created_at AS TEXT), ''),
-		COALESCE(CAST(updated_at AS TEXT), '') FROM radacct`
+		COALESCE(CAST(updated_at AS TEXT), ''), aegis_ingest_revision, aegis_packet_source FROM radacct`
 }
 
 func scanFreeRADIUSAccountingRows(rows *sql.Rows) ([]FreeRADIUSAccountingRecord, error) {
@@ -603,7 +634,7 @@ func scanFreeRADIUSAccountingRows(rows *sql.Rows) ([]FreeRADIUSAccountingRecord,
 			&record.AegisServiceLegID, &record.AegisBearerID, &record.AegisCallID, &record.AegisRoamingID,
 			&record.AegisCorrelationID, &record.AegisCorrelationStatus, &record.AegisCorrelationError,
 			&record.AegisLastCorrelationEventID,
-			&record.CreatedAt, &record.UpdatedAt); err != nil {
+			&record.CreatedAt, &record.UpdatedAt, &record.AegisIngestRevision, &record.AegisPacketSource); err != nil {
 			return nil, fmt.Errorf("scan radacct: %w", err)
 		}
 		if inputOctets > 0 {
@@ -832,6 +863,7 @@ func parseAccountingTime(value string) time.Time {
 		time.RFC3339Nano,
 		time.RFC3339,
 		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999-07",
 		"2006-01-02 15:04:05.999999999",
 		"2006-01-02 15:04:05",
 		"2006-01-02T15:04:05",

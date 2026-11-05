@@ -1,28 +1,42 @@
-# Custom Ubuntu Core Image for AegisNAS Pi4
+# Ubuntu Core image reference assets
 
-This directory contains assets to build a custom Ubuntu Core 24 image preloaded with all AegisNAS services as snaps. The resulting image can be flashed to a microSD card and booted on a Raspberry Pi 4.
+Status: **BLOCKED for production image creation and certification**. The model
+and helper scripts are reference assets. They do not establish that a bootable,
+signed, secure AegisNAS Raspberry Pi image has been built or tested.
 
-## Prerequisites
+The checked-in `model.json` contains placeholder brand/authority and essential
+snap IDs, and empty AegisNAS snap IDs. These require real registered identities,
+published snap assertions, an appropriately registered signing key and a
+current complete model assertion. A signed-grade model requires asserted
+snaps; editing IDs or locally hashing a file is not signature verification.
+See Canonical's [model assertion reference](https://documentation.ubuntu.com/core/reference/assertions/model/)
+and [custom snap image guidance](https://documentation.ubuntu.com/core/how-to-guides/image-creation/add-custom-snaps/).
 
-- Ubuntu 24.04 LTS or newer (development machine)
-- `snapcraft` installed and logged in (`snap install snapcraft --classic; snapcraft login`)
-- `ubuntu-image` snap installed (`snap install ubuntu-image --classic`)
-- Your developer ID registered in the Snap Store
-- The AegisNAS snaps must be built and available (either locally or in the store)
+The current RADIUS recipe uses classic confinement and expects host FreeRADIUS.
+Canonical documents that [classic snaps cannot run on Ubuntu Core](https://snapcraft.io/docs./reference/administration/reviewing-classic-confinement-snaps/).
+Do not treat changing the confinement string as a fix: implement the required
+runtime packaging, interfaces, configuration/data ownership and service control,
+then run real confinement and packet tests. The other service recipes also need
+shared storage/interface and runtime dependency validation.
 
-## Workflow Overview
+Before an image can be considered for release:
 
-1. **Prepare model assertion** – Edit `model.json` with your developer ID and snap IDs.
-2. **Sign the model** – Run `./sign-model.sh` to create `model.signed`.
-3. **Build the image** – Run `./build-image.sh` to generate a flashable `.img` file.
-4. **Flash to SD card** – Use `dd` or `balenaEtcher` to write the image to a microSD card.
-5. **First boot** – Insert SD card into Raspberry Pi 4 and power on.
+1. Resolve packaging and confinement gaps; build every actual snap in an isolated
+   supported build environment and test it.
+2. Provision the real Store identities/model assertions and review signing
+   permissions. `sign-model.sh` alone is not a trusted release-security workflow.
+3. Attach exact snap, kernel, gadget, base, firmware and boot inventories; scan
+   nested packages and map firmware advisories to deployed hardware versions.
+4. Bind those artifacts and a passing security policy to the exact signed image,
+   with verified provenance and downgrade protection.
+5. Test boot, enrollment, updates, failed updates and coordinated recovery on
+   Raspberry Pi hardware. An AMD64 Ubuntu VM cannot provide this certification.
 
-## Development vs Production Signing
+`build-image.sh` invokes `ubuntu-image`; it has no integrated NAS-0116 admission
+or production activation gate. Do not use its success message as release
+acceptance or assume a specific image filename without examining actual output.
+Neither helper is invoked by the read-only inventory tool.
 
-### Development Workflow (Unsigned / Dangerous Model)
-
-During development, you can build an image with an unsigned model (using `--dangerous` flag with ubuntu-image). This is useful for local testing without store involvement.
-
-```bash
-ubuntu-image snap model.json --dangerous
+See [snap packaging](../snaps/README.md),
+[artifact inventory](../docs/appliance-artifact-inventory.md) and
+[release security](../docs/supply-chain-release-security.md).

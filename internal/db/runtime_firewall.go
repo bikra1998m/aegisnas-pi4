@@ -141,7 +141,7 @@ func RecordRuntimeFirewallSnapshot(input RuntimeFirewallSnapshotInput) (string, 
 	defer tx.Rollback()
 
 	if input.Active {
-		if _, err := tx.Exec(`UPDATE runtime_firewall_snapshots SET active = 0 WHERE active = 1`); err != nil {
+		if _, err := tx.Exec(`UPDATE runtime_firewall_snapshots SET active = FALSE WHERE active = TRUE`); err != nil {
 			return "", fmt.Errorf("clear active runtime firewall snapshot: %w", err)
 		}
 	}
@@ -343,7 +343,7 @@ func GetActiveRuntimeFirewallSnapshot() (RuntimeFirewallSnapshot, bool, error) {
 			COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(applied_at AS TEXT), ''),
 			COALESCE(CAST(rolled_back_at AS TEXT), '')
 		FROM runtime_firewall_snapshots
-		WHERE active = 1
+		WHERE active = TRUE
 		ORDER BY datetime(created_at) DESC, id DESC
 		LIMIT 1`)
 	if err != nil {

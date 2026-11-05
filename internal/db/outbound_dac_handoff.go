@@ -237,16 +237,16 @@ func GetOutboundDACHandoffSummary() (OutboundDACHandoffSummary, error) {
 	now := formatSpoolTime(time.Now().UTC())
 	err := DB.QueryRow(`SELECT
 		COUNT(*),
-		COALESCE(SUM(CASE WHEN status = 'active' AND (lease_expires_at IS NULL OR lease_expires_at = '' OR datetime(lease_expires_at) > datetime(?)) THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN status = 'active' AND (lease_expires_at IS NULL OR CAST(lease_expires_at AS TEXT) = '' OR datetime(lease_expires_at) > datetime(?)) THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'standby' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'disabled' THEN 1 ELSE 0 END), 0),
-		COALESCE(SUM(CASE WHEN status = 'expired' OR (lease_expires_at IS NOT NULL AND lease_expires_at <> '' AND datetime(lease_expires_at) <= datetime(?)) THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN status = 'expired' OR (lease_expires_at IS NOT NULL AND CAST(lease_expires_at AS TEXT) <> '' AND datetime(lease_expires_at) <= datetime(?)) THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN can_send THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN can_queue THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN can_replay THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(last_heartbeat_at), '')
+		COALESCE(CAST(MAX(last_heartbeat_at) AS TEXT), '')
 		FROM radius_dac_handoff_leases`, now, now).Scan(
 		&summary.TotalLeases, &summary.ActiveLeases, &summary.StandbyLeases, &summary.BlockedLeases,
 		&summary.DegradedLeases, &summary.DisabledLeases, &summary.ExpiredLeases, &summary.SendCapableLeases,
@@ -257,8 +257,8 @@ func GetOutboundDACHandoffSummary() (OutboundDACHandoffSummary, error) {
 		}
 		return summary, fmt.Errorf("get outbound DAC handoff summary: %w", err)
 	}
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(observed_at), '') FROM radius_dac_handoff_events`).Scan(&summary.LastEventAt)
-	_ = DB.QueryRow(`SELECT COALESCE(MAX(observed_at), '') FROM radius_dac_handoff_events WHERE status = 'blocked'`).Scan(&summary.LastBlockedAt)
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(MAX(observed_at) AS TEXT), '') FROM radius_dac_handoff_events`).Scan(&summary.LastEventAt)
+	_ = DB.QueryRow(`SELECT COALESCE(CAST(MAX(observed_at) AS TEXT), '') FROM radius_dac_handoff_events WHERE status = 'blocked'`).Scan(&summary.LastBlockedAt)
 	var fencingToken string
 	_ = DB.QueryRow(`SELECT COALESCE(fencing_token, '') FROM radius_dac_handoff_leases
 		WHERE fencing_token IS NOT NULL AND fencing_token <> ''
@@ -277,7 +277,7 @@ func pruneOutboundDACHandoffEvents(retentionLimit int) error {
 		WHERE id IN (
 			SELECT id FROM radius_dac_handoff_events
 			ORDER BY datetime(observed_at) DESC, id DESC
-			LIMIT -1 OFFSET ?
+			LIMIT 9223372036854775807 OFFSET ?
 		)`, retentionLimit)
 	return err
 }
@@ -343,7 +343,7 @@ func normalizeOutboundDACHandoffStatus(status string) string {
 func outboundDACHandoffLeaseSelectSQL() string {
 	return `SELECT id, lease_id, node_id, COALESCE(instance_id, ''), COALESCE(ha_role, 'standalone'),
 		status, can_send, can_queue, can_replay, term, COALESCE(fencing_token, ''),
-		COALESCE(lease_expires_at, ''), last_heartbeat_at, COALESCE(message, ''),
+		COALESCE(CAST(lease_expires_at AS TEXT), ''), last_heartbeat_at, COALESCE(message, ''),
 		COALESCE(details_json, '{}'), created_at, updated_at
 		FROM radius_dac_handoff_leases`
 }

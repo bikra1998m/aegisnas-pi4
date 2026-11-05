@@ -1,5 +1,7 @@
 # AegisNAS Pi4
 
+Current validation: [October 23 persistent release admission and VM checks](docs/reports/2026-10-23-admission-sequence-readiness.md), with [earlier October 23 regression/security evidence](docs/reports/2026-10-23-continuation-readiness.md) and [preserved October 22 evidence](docs/reports/2026-10-22-production-readiness.md). NAS-0008 and NAS-0116 remain Partial; production release is blocked.
+
 [![CI](https://github.com/bikra1998m/aegisnas-pi4/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bikra1998m/aegisnas-pi4/actions/workflows/ci.yml)
 
 AI-assisted NAS / AAA gateway for Raspberry Pi 4 class hardware and Ubuntu Core 24.
@@ -22,7 +24,9 @@ The repository builds as a production-minded MVP: Go services, SQLite local stat
 
 ## Production Readiness
 
-The codebase is ready for lab, pilot, and staged production deployment after site-specific secrets, TLS certificates, AP/RADIUS client secrets, and deployment-specific network values are installed.
+The codebase supports lab evaluation. Enterprise roadmap completion and production certification remain incomplete; installing site-specific secrets and certificates alone does not establish readiness. See the [continuation audit and executed test report](docs/reports/2026-10-15-continuation.md) and [supply-chain release gates](docs/supply-chain-release-security.md) for current evidence and blockers.
+
+The latest [historical reconciliation and release-readiness assessment](docs/reports/2026-10-15-reconciliation-readiness.md) separates preserved full-suite evidence from new PostgreSQL/runtime and release-verification checks. NAS-0116 and NAS-0008 remain Partial; release gates remain blocked.
 
 See [Production Readiness Update](docs/production-readiness-update.md), [Ubuntu Appliance Deployment](docs/ubuntu-appliance-deployment.md), [Ubuntu VM Deployment And Full Flow Test Runbook](docs/ubuntu-vm-runbook.md), [VMware Workstation 17 Player Full Product Runbook](docs/vmware-workstation-17-player-full-test.md), [Hardware Sizing And Deployment Matrix](docs/hardware-sizing-and-deployment-matrix.md), [Deployment Profiles](docs/deployment-profiles.md), [Full AI Engine](docs/full-ai-engine.md), [Wireless Access And UI Guide](docs/wireless-access-ui-guide.md), [External AAA Product Mode](docs/external-aaa-product-mode.md), [AAA Product Implementation Notes](docs/aaa-product-implementation-notes.md), [Operations](docs/operations.md), [Security](docs/security.md), and [Backup/Restore](docs/backup-restore.md).
 

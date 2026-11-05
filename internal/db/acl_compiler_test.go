@@ -8,7 +8,7 @@ import (
 )
 
 func TestACLCompilerEventHistorySummary(t *testing.T) {
-	require.NoError(t, Init(":memory:"))
+	require.NoError(t, initRuntimeTestDB(t, ":memory:"))
 	require.NoError(t, Migrate())
 	defer Close()
 

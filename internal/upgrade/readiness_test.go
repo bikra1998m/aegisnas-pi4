@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -9,6 +10,42 @@ import (
 	"github.com/yourorg/aegisnas-pi4/internal/config"
 	"github.com/yourorg/aegisnas-pi4/internal/db"
 )
+
+func TestReadinessDoesNotRehearseSQLiteForPostgreSQL(t *testing.T) {
+	cfg, path := prepareUpgradeTestConfig(t)
+	cfg.Database.Backend = "postgres"
+	before, err := os.ReadFile(cfg.Database.Path)
+	require.NoError(t, err)
+	report, err := AssessReadiness(cfg, path)
+	require.NoError(t, err)
+	require.False(t, report.Rehearsal.Ran)
+	require.False(t, report.Rehearsal.Succeeded)
+	require.Contains(t, report.Rehearsal.Error, "PostgreSQL")
+	after, err := os.ReadFile(cfg.Database.Path)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}
+
+func TestRehearsalIncludesCommittedWALState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wal.db")
+	handle, err := db.Open(path)
+	require.NoError(t, err)
+	defer handle.Close()
+	handle.SetMaxOpenConns(1)
+	_, err = handle.Exec("PRAGMA journal_mode=WAL")
+	require.NoError(t, err)
+	_, err = handle.Exec("PRAGMA wal_autocheckpoint=0")
+	require.NoError(t, err)
+	require.NoError(t, db.MigrateHandle(handle))
+	info, err := os.Stat(path + "-wal")
+	require.NoError(t, err)
+	require.Greater(t, info.Size(), int64(0))
+	result, err := rehearseMigration(path)
+	require.NoError(t, err)
+	require.True(t, result.Succeeded)
+	require.Equal(t, db.LatestSchemaVersion(), result.StartedSchemaVersion,
+		"a raw main-file copy loses the committed schema in the WAL")
+}
 
 func TestAssessReadiness(t *testing.T) {
 	cfg, configPath := prepareUpgradeTestConfig(t)

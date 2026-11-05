@@ -79,12 +79,12 @@ func userFromRequest(r *http.Request) string {
 }
 
 func auditTx(tx *sql.Tx, r *http.Request, action, details, result string) {
-	_, _ = tx.Exec(`INSERT INTO audit_logs (user, action, details, result, ip_address)
+	_, _ = tx.Exec(`INSERT INTO audit_logs ("user", action, details, result, ip_address)
 		VALUES (?, ?, ?, ?, ?)`, userFromRequest(r), action, details, result, r.RemoteAddr)
 }
 
 func audit(r *http.Request, action, details, result string) {
-	_, _ = db.DB.Exec(`INSERT INTO audit_logs (user, action, details, result, ip_address)
+	_, _ = db.DB.Exec(`INSERT INTO audit_logs ("user", action, details, result, ip_address)
 		VALUES (?, ?, ?, ?, ?)`, userFromRequest(r), action, details, result, r.RemoteAddr)
 }
 
@@ -606,7 +606,7 @@ func validateACLPolicyReference(tx *sql.Tx, name string) error {
 		return nil
 	}
 	var count int
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM acl_policies WHERE name = ? AND enabled = 1`, name).Scan(&count); err != nil {
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM acl_policies WHERE name = ? AND enabled = TRUE`, name).Scan(&count); err != nil {
 		return err
 	}
 	if count == 0 {
@@ -654,7 +654,7 @@ func validateACLPolicyMutation(tx *sql.Tx, resourceID, newName string, enabled b
 
 func pendingChanges(tx *sql.Tx) ([]stagedChange, error) {
 	rows, err := tx.Query(`SELECT id, resource_type, COALESCE(resource_id, ''), operation, COALESCE(data, '{}')
-		FROM config_staging WHERE applied = 0 ORDER BY created_at`)
+		FROM config_staging WHERE applied = FALSE ORDER BY created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +752,7 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 // ---------- Voucher Handlers ----------
 
 func HandleListVouchers(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.DB.Query(`SELECT id, code, role, duration_minutes, usage_limit, used_count, COALESCE(expires_at, '') FROM vouchers ORDER BY created_at DESC`)
+	rows, err := db.DB.Query(`SELECT id, code, role, duration_minutes, usage_limit, used_count, COALESCE(CAST(expires_at AS TEXT), '') FROM vouchers ORDER BY created_at DESC`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1075,7 +1075,7 @@ func HandleListRadiusClients(w http.ResponseWriter, r *http.Request) {
 		COALESCE(radsec_certificate_cn, ''), COALESCE(radsec_certificate_issuer, ''), COALESCE(radsec_radius_v11, ''),
 		COALESCE(description, ''), enabled, COALESCE(dynamic_source, 'static'), COALESCE(enrollment_id, ''),
 		COALESCE(vendor, ''), COALESCE(model, ''), COALESCE(firmware_version, ''), COALESCE(serial_number, ''),
-		COALESCE(lifecycle_status, 'approved'), COALESCE(last_seen_at, ''), COALESCE(owner_tenant, ''), COALESCE(template_name, '')
+		COALESCE(lifecycle_status, 'approved'), COALESCE(CAST(last_seen_at AS TEXT), ''), COALESCE(owner_tenant, ''), COALESCE(template_name, '')
 		FROM radius_clients ORDER BY shortname`)
 	if isMissingRadiusClientSecretRefForAPI(err) {
 		rows, err = db.DB.Query(`SELECT id, shortname, ipaddr, secret != '', '', COALESCE(nas_type, ''), COALESCE(transport, 'udp'),
@@ -1162,7 +1162,7 @@ func HandleDeleteRadiusClient(w http.ResponseWriter, r *http.Request) {
 
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, username, COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(auth_method, ''), COALESCE(vlan, 0),
-		start_time, COALESCE(last_activity, ''), COALESCE(end_time, ''), bytes_in, bytes_out
+		start_time, COALESCE(CAST(last_activity AS TEXT), ''), COALESCE(CAST(end_time AS TEXT), ''), bytes_in, bytes_out
 		FROM sessions`
 	args := []any{}
 	clauses := []string{}
@@ -1247,7 +1247,7 @@ func HandleTerminateSession(w http.ResponseWriter, r *http.Request) {
 func HandleListAlerts(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, severity, source, message, COALESCE(details, ''), acknowledged, created_at FROM alerts`
 	if r.URL.Query().Get("acknowledged") == "false" {
-		query += ` WHERE acknowledged = 0`
+		query += ` WHERE acknowledged = FALSE`
 	}
 	query += ` ORDER BY created_at DESC LIMIT 100`
 	rows, err := db.DB.Query(query)
@@ -1272,7 +1272,7 @@ func HandleListAlerts(w http.ResponseWriter, r *http.Request) {
 
 func HandleAcknowledgeAlert(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	if _, err := db.DB.Exec(`UPDATE alerts SET acknowledged = 1 WHERE id = ?`, id); err != nil {
+	if _, err := db.DB.Exec(`UPDATE alerts SET acknowledged = TRUE WHERE id = ?`, id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1430,7 +1430,7 @@ func HandleListAIRecommendations(w http.ResponseWriter, r *http.Request) {
 
 func HandleAcknowledgeAIRecommendation(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	if _, err := db.DB.Exec(`UPDATE ai_recommendations SET acknowledged = 1 WHERE id = ?`, id); err != nil {
+	if _, err := db.DB.Exec(`UPDATE ai_recommendations SET acknowledged = TRUE WHERE id = ?`, id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1478,7 +1478,7 @@ func HandleRunAIAnalysis(w http.ResponseWriter, r *http.Request) {
 
 func HandleListStagedChanges(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`SELECT id, resource_type, COALESCE(resource_id, ''), operation, COALESCE(data, '{}'), created_by, created_at
-		FROM config_staging WHERE applied = 0 ORDER BY created_at`)
+		FROM config_staging WHERE applied = FALSE ORDER BY created_at`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1546,7 +1546,7 @@ func HandleApplyChanges(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("apply failed on %s %s: %v", change.ResourceType, change.Operation, err), http.StatusInternalServerError)
 			return
 		}
-		if _, err := tx.Exec(`UPDATE config_staging SET applied = 1, applied_at = datetime('now') WHERE id = ?`, change.ID); err != nil {
+		if _, err := tx.Exec(`UPDATE config_staging SET applied = TRUE, applied_at = datetime('now') WHERE id = ?`, change.ID); err != nil {
 			http.Error(w, fmt.Sprintf("mark staged change applied: %v", err), http.StatusInternalServerError)
 			return
 		}

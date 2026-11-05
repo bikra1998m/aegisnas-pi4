@@ -14,7 +14,7 @@ import (
 func TestAccountingChargingProjectionRatingExportAndIntegrity(t *testing.T) {
 	setupAccountingChargingDB(t)
 	ctx := context.Background()
-	now := time.Now().UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
 	start := AccountingEventRecord{
 		AcctUniqueID:     "charge-unique-1",
 		AcctSessionID:    "charge-session-1",
@@ -161,6 +161,6 @@ func setupAccountingChargingDB(t *testing.T) {
 		_ = Close()
 		_ = os.Remove(dbPath)
 	})
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	require.NoError(t, Migrate())
 }

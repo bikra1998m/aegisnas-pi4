@@ -210,7 +210,7 @@ func ClaimRadiusAccountingSpool(batchSize int, ownerNode string, now time.Time, 
 		WHERE status IN (?, ?)
 		  AND datetime(next_attempt_at) <= datetime(?)
 		  AND datetime(expires_at) > datetime(?)
-		  AND (locked_until IS NULL OR locked_until = '' OR datetime(locked_until) <= datetime(?))
+		  AND (locked_until IS NULL OR CAST(locked_until AS TEXT) = '' OR datetime(locked_until) <= datetime(?))
 		ORDER BY datetime(next_attempt_at), id
 		LIMIT ?`, RadiusAccountingSpoolStatusQueued, RadiusAccountingSpoolStatusRetrying, formatSpoolTime(now), formatSpoolTime(now), formatSpoolTime(now), batchSize)
 	if err != nil {
@@ -287,7 +287,7 @@ func CompleteRadiusAccountingSpoolAttempt(record RadiusAccountingSpoolRecord, up
 		return fmt.Errorf("invalid accounting spool attempt result %q", update.Result)
 	}
 	attemptNumber := record.AttemptCount + 1
-	nextAttempt := ""
+	var nextAttempt any
 	if !update.NextAttemptAt.IsZero() {
 		nextAttempt = formatSpoolTime(update.NextAttemptAt)
 	}
@@ -312,7 +312,7 @@ func CompleteRadiusAccountingSpoolAttempt(record RadiusAccountingSpoolRecord, up
 	}
 	if _, err := tx.Exec(`UPDATE radius_accounting_spool
 		SET status = ?, attempt_count = ?, last_error = ?, last_response_code = ?, last_attempt_at = ?,
-		    next_attempt_at = ?, locked_until = NULL, sent_at = COALESCE(?, sent_at), updated_at = ?
+		    next_attempt_at = COALESCE(?, next_attempt_at), locked_until = NULL, sent_at = COALESCE(?, sent_at), updated_at = ?
 		WHERE id = ?`,
 		update.Status, attemptNumber, strings.TrimSpace(update.Error), strings.TrimSpace(update.ResponseCode),
 		formatSpoolTime(update.AttemptedAt), nextAttempt, sentAt, formatSpoolTime(update.AttemptedAt), record.ID); err != nil {
@@ -383,7 +383,7 @@ func ListRadiusAccountingSpoolAttempts(recordID string, limit int) ([]RadiusAcco
 	args := []any{}
 	query := `SELECT id, spool_id, COALESCE(record_id, ''), COALESCE(attempt_number, 0), COALESCE(result, ''),
 		COALESCE(error, ''), COALESCE(response_code, ''), COALESCE(route, ''), COALESCE(realm, ''),
-		COALESCE(server_name, ''), COALESCE(latency_ms, 0), COALESCE(attempted_at, ''), COALESCE(next_attempt_at, '')
+		COALESCE(server_name, ''), COALESCE(latency_ms, 0), COALESCE(CAST(attempted_at AS TEXT), ''), COALESCE(CAST(next_attempt_at AS TEXT), '')
 		FROM radius_accounting_spool_attempts`
 	if recordID != "" {
 		query += ` WHERE record_id = ?`
@@ -424,11 +424,11 @@ func GetRadiusAccountingSpoolSummary(maxQueueRecords int) (RadiusAccountingSpool
 		COALESCE(SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status IN ('queued', 'retrying') AND datetime(next_attempt_at) <= datetime(?) THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(attempt_count), 0),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END), ''),
-		COALESCE(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END), ''),
-		COALESCE(MAX(sent_at), ''),
-		COALESCE(MAX(CASE WHEN status = 'poison' THEN updated_at END), ''),
-		COALESCE(MAX(last_attempt_at), '')
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN created_at END) AS TEXT), ''),
+		COALESCE(CAST(MIN(CASE WHEN status IN ('queued', 'retrying') THEN next_attempt_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(sent_at) AS TEXT), ''),
+		COALESCE(CAST(MAX(CASE WHEN status = 'poison' THEN updated_at END) AS TEXT), ''),
+		COALESCE(CAST(MAX(last_attempt_at) AS TEXT), '')
 		FROM radius_accounting_spool`, now).Scan(
 		&summary.TotalRecords, &summary.QueuedCount, &summary.RetryingCount, &summary.SentCount,
 		&summary.PoisonCount, &summary.ExpiredCount, &summary.DueCount, &summary.AttemptCount,
@@ -483,9 +483,9 @@ func radiusAccountingSpoolSelectSQL() string {
 	return `SELECT id, COALESCE(record_id, ''), COALESCE(status, ''), COALESCE(route, ''), COALESCE(realm, ''),
 		COALESCE(server_name, ''), COALESCE(username, ''), COALESCE(session_id, ''), COALESCE(acct_status_type, ''),
 		COALESCE(payload_json, ''), COALESCE(payload_sha256, ''), COALESCE(attempt_count, 0), COALESCE(max_attempts, 0),
-		COALESCE(last_error, ''), COALESCE(last_response_code, ''), COALESCE(last_attempt_at, ''),
-		COALESCE(next_attempt_at, ''), COALESCE(expires_at, ''), COALESCE(owner_node, ''),
-		COALESCE(locked_until, ''), COALESCE(sent_at, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		COALESCE(last_error, ''), COALESCE(last_response_code, ''), COALESCE(CAST(last_attempt_at AS TEXT), ''),
+		COALESCE(CAST(next_attempt_at AS TEXT), ''), COALESCE(CAST(expires_at AS TEXT), ''), COALESCE(owner_node, ''),
+		COALESCE(CAST(locked_until AS TEXT), ''), COALESCE(CAST(sent_at AS TEXT), ''), COALESCE(CAST(created_at AS TEXT), ''), COALESCE(CAST(updated_at AS TEXT), '')
 		FROM radius_accounting_spool`
 }
 

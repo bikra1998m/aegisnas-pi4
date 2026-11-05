@@ -23,6 +23,7 @@ import AIRecommendations from './pages/AIRecommendations';
 import GuestRegistrations from './pages/GuestRegistrations';
 import Devices from './pages/Devices';
 import AdminPrincipals from './pages/AdminPrincipals';
+import ReleaseSecurity from './pages/ReleaseSecurity';
 
 const PrivateRoute: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/portal-profiles" element={<PortalProfiles />} />
         <Route path="/users" element={<Users />} />
         <Route path="/admin-principals" element={<AdminPrincipals />} />
+        <Route path="/release-security" element={<ReleaseSecurity />} />
         <Route path="/devices" element={<Devices />} />
         <Route path="/guest-registrations" element={<GuestRegistrations />} />
         <Route path="/vouchers" element={<Vouchers />} />

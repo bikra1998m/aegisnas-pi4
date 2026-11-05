@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-27T08:11:49.022741+00:00",
+  "head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "nas0116": "Partial",
+  "release_gate": "BLOCKED",
+  "windows_python": {
+    "status": "PASS",
+    "total": 105,
+    "passed": 88,
+    "skipped": 17,
+    "failed": 0,
+    "seconds": 20.472
+  },
+  "ubuntu_python": {
+    "status": "PASS",
+    "total": 105,
+    "passed": 105,
+    "skipped": 0,
+    "failed": 0,
+    "seconds": 2.123
+  },
+  "yaml": {
+    "yaml_files": 10,
+    "yaml_status": "PASS",
+    "gh_available": false
+  },
+  "live_first": {
+    "status": "FAIL",
+    "passed": 19,
+    "failed": 2,
+    "total": 21
+  },
+  "live_failed_route_retry": {
+    "status": "PASS",
+    "passed": 2,
+    "failed": 0,
+    "total": 2
+  },
+  "service_continuity": {
+    "status": "PASS",
+    "unchanged_service_identities": 8
+  },
+  "production_readiness": {
+    "ready": false,
+    "blocking_count": 5,
+    "warning_count": 4,
+    "degraded_count": 17,
+    "passing_count": 68
+  },
+  "actual_signature_verification": "BLOCKED: gh unavailable on tested PATHs; no real signed candidate verified",
+  "positive_signature_test_boundary": "MOCKED; synthetic scanner fixtures, not certification",
+  "go_ui_pg_builds_and_regressions": "NOT TESTED this turn; source inputs unchanged",
+  "fresh_dependency_os_scans": "NOT TESTED; retained evidence is historical, not a current candidate admission",
+  "primary_go_advisory": {
+    "checked_at": "2026-10-27T07:49:05.516339+00:00",
+    "source": "https://vuln.go.dev/ID/GO-2026-5932.json",
+    "advisory": "GO-2026-5932",
+    "modified": "2026-07-07T22:15:29Z",
+    "affected_module": "golang.org/x/crypto",
+    "range_introduced": "0",
+    "fixed_events": [],
+    "result": "BLOCKED under unchanged all-findings policy",
+    "module_latest_lookup": "NOT VERIFIED: web tool could not access Go proxy @latest endpoint"
+  },
+  "roadmap": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "implementation_files": 12,
+  "previous_reports_preserved": 130,
+  "new_commit": false,
+  "push": false,
+  "attempts": [
+    {
+      "name": "Linux admission permission repro",
+      "status": "FAIL",
+      "tests": 1,
+      "failed_subtests": 4,
+      "evidence": "repro.stderr",
+      "resolution": "Explicit directory/receipt modes before publication; final Linux suite passes."
+    },
+    {
+      "name": "First Linux complete suite",
+      "status": "FAIL",
+      "passed": 102,
+      "failed": 1,
+      "total": 103,
+      "evidence": "ubuntu-full.stderr",
+      "resolution": "Extra-file fixture inherited group-write permissions, so an earlier permission rejection preceded its expected checksum error. Fixture now sets 0644/0755; enforcement not relaxed."
+    },
+    {
+      "name": "Boolean schema repro",
+      "status": "FAIL",
+      "passed": 20,
+      "failed": 2,
+      "skipped": 4,
+      "total": 26,
+      "evidence": "schema-repro.stderr",
+      "resolution": "Policy and release schema versions now require an integer, rejecting JSON true."
+    },
+    {
+      "name": "Initial deployed smoke",
+      "status": "FAIL",
+      "passed": 19,
+      "failed": 2,
+      "total": 21,
+      "evidence": "deployed-probes.stdout",
+      "resolution": "Both failed routes passed a separate retry with the same 20-second timeout; initial failures retained."
+    }
+  ]
+}

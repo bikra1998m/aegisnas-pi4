@@ -458,8 +458,8 @@ func GetOutboundDACSummary(retentionLimit int) (OutboundDACSummary, error) {
 		COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END), 0),
 		COALESCE(SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END), 0),
-		COALESCE(MAX(requested_at), ''),
-		COALESCE(MAX(completed_at), '')
+		COALESCE(CAST(MAX(requested_at) AS TEXT), ''),
+		COALESCE(CAST(MAX(completed_at) AS TEXT), '')
 		FROM radius_outbound_dac_requests`).
 		Scan(&summary.TotalRequests, &summary.ACKCount, &summary.NAKCount, &summary.ErrorCount,
 			&summary.BlockedCount, &summary.SentCount, &summary.LastRequestAt, &summary.LastCompletedAt)
@@ -491,7 +491,7 @@ func LookupOutboundDACTargetHint(sessionID string) (OutboundDACTargetHint, error
 		COALESCE(mac, ''), COALESCE(ip, ''), COALESCE(nas_identifier, '')
 		FROM sessions
 		WHERE id = ? OR radius_session_id = ?
-		ORDER BY CASE WHEN end_time IS NULL OR end_time = '' THEN 0 ELSE 1 END, start_time DESC
+		ORDER BY CASE WHEN end_time IS NULL OR CAST(end_time AS TEXT) = '' THEN 0 ELSE 1 END, start_time DESC
 		LIMIT 1`, sessionID, sessionID).
 		Scan(&hint.SessionID, &hint.AcctSessionID, &hint.Username, &hint.CallingStationID, &hint.FramedIPAddress, &hint.NASIdentifier)
 	if err != nil {
@@ -696,7 +696,7 @@ func outboundDACSelectSQL() string {
 		COALESCE(calling_station_hash, ''), COALESCE(framed_ip_address, ''), attributes_json,
 		request_code, COALESCE(response_code, 0), COALESCE(error_cause, 0), COALESCE(error_cause_name, ''),
 		COALESCE(reply_message, ''), correlation_id, COALESCE(requested_by, ''), requested_at,
-		COALESCE(sent_at, ''), COALESCE(completed_at, ''), latency_ms, COALESCE(failure_reason, ''),
+		COALESCE(CAST(sent_at AS TEXT), ''), COALESCE(CAST(completed_at AS TEXT), ''), latency_ms, COALESCE(failure_reason, ''),
 		message_authenticator, request_fingerprint, COALESCE(response_fingerprint, ''), created_at, updated_at
 		FROM radius_outbound_dac_requests`
 }
@@ -747,7 +747,7 @@ func pruneOutboundDACRequests(retentionLimit int) error {
 		WHERE request_id IN (
 			SELECT request_id FROM radius_outbound_dac_requests
 			ORDER BY requested_at DESC, id DESC
-			LIMIT -1 OFFSET ?
+			LIMIT 9223372036854775807 OFFSET ?
 		)`, retentionLimit)
 	if err != nil {
 		return err
@@ -756,7 +756,7 @@ func pruneOutboundDACRequests(retentionLimit int) error {
 		WHERE id IN (
 			SELECT id FROM radius_outbound_dac_requests
 			ORDER BY requested_at DESC, id DESC
-			LIMIT -1 OFFSET ?
+			LIMIT 9223372036854775807 OFFSET ?
 		)`, retentionLimit)
 	return err
 }

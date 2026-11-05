@@ -16,7 +16,7 @@ func TestRadiusAccountingSpoolLifecycle(t *testing.T) {
 	require.NoError(t, tmpfile.Close())
 	defer os.Remove(dbPath)
 
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	defer Close()
 	require.NoError(t, Migrate())
 
@@ -100,7 +100,7 @@ func TestRadiusAccountingSpoolCapacityAndExpiry(t *testing.T) {
 	require.NoError(t, tmpfile.Close())
 	defer os.Remove(dbPath)
 
-	require.NoError(t, Init(dbPath))
+	require.NoError(t, initRuntimeTestDB(t, dbPath))
 	defer Close()
 	require.NoError(t, Migrate())
 
