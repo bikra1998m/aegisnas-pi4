@@ -48,12 +48,20 @@ jobs:
           mkdir -p build/postgres
           # SQLite-specific migration fixtures run in the ordinary CI suite.
           go test ./internal/db -count=1 -json -timeout=25m -skip '^TestMigrate|^TestSeed|^TestVendorIdentity' | tee build/postgres/results.jsonl
+      - name: Rehearse actual SQLite to PostgreSQL conversion CLI
+        run: |
+          go build -o build/conversion-bin/aegis-admin ./cmd/aegis-admin
+          python3 scripts/test_database_conversion_cli.py --admin-bin build/conversion-bin/aegis-admin --output build/database-conversion
       - name: Preserve passing and failing results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: postgres-runtime-${{ matrix.postgres }}
-          path: build/postgres/
+          path: |
+            build/postgres/
+            build/database-conversion/*.stdout
+            build/database-conversion/*.stderr
+            build/database-conversion/result.json
           if-no-files-found: warn
 
   radius-accounting:

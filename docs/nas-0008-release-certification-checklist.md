@@ -1,14 +1,14 @@
 # NAS-0008 Release Certification Checklist
 
-Engineering status: **Partial (reopened 2026-10-15; updated 2026-10-23)**.
+Engineering status: **Partial (reopened 2026-10-15; updated 2026-11-05)**.
 
 November 5 legacy recovery update: the generic CLI `backup` and `restore` now
 reject PostgreSQL before opening a connection or creating output. SQLite backups
 include committed WAL data, with bounded archive validation and staged offline
 replacement. Actual Windows/Ubuntu fixture evidence is in the
 [recovery report](reports/2026-11-05-recovery-cli-readiness.md).
-This does not implement SQLite-to-PostgreSQL conversion or PostgreSQL production
-backup orchestration; the unchecked acceptance criteria below remain open.
+The subsequent isolated conversion rehearsal is now implemented as described below.
+PostgreSQL production backup orchestration and the remaining acceptance criteria stay open.
 
 October 26 recovery clarification: SQLite snapshot/download and local upgrade
 rehearsal paths now explicitly reject PostgreSQL or report it as unsupported.
@@ -51,7 +51,8 @@ reported. An isolated fixture PASS is not production acceptance.
 - [x] Run real PostgreSQL migrations with TLS `verify-full` in the isolated Ubuntu fixture, including wrong-root/hostname rejection (25 TLS/restore checks PASS). Production PKI remains pending.
 - [x] Propagate DSN TLS policy into the generated FreeRADIUS libpq URI. Isolated Ubuntu FreeRADIUS 3.0.26/PostgreSQL 14 validation passed 22 checks, including real SCRAM/TLS SQL-backed RADIUS requests, wrong-root/hostname rejection and database outage/reconnect. The matching module package was extracted privately; the installed deployment was unchanged.
 - [ ] Install and certify the SQL module in production. Generated PostgreSQL accounting/post-auth queries and packet-to-session reconciliation are now implemented; their current evidence and remaining limits are in the accounting report. The earlier 22-check diagnostic fixture alone did not cover these writes.
-- [ ] Run old-version SQLite to new-version PostgreSQL migration rehearsal.
+- [x] Implement and execute populated schema-1-to-103 and current-schema SQLite-to-PostgreSQL rehearsals in new private schemas on PostgreSQL 14.24 and 18.6. Verify all 181 table digests/counts, constraints, rollback and sequence high-water marks; see [conversion guide](sqlite-postgresql-conversion.md) and [executed report](reports/2026-11-05-conversion-readiness.md).
+- [ ] Certify conversions using authentic supported-release database artifacts and complete production final synchronization, activation and rollback. The synthetic old-schema fixture does not establish all historical release compatibility.
 - [x] Rehearse PostgreSQL logical dump/restore in an isolated Ubuntu database: 181 table counts, schema 102 and audit fixture preserved. Production backup orchestration, encryption and retention remain pending.
 - [ ] Validate managed PostgreSQL backup snapshots where used by the customer.
 - [ ] Run active/standby appliance drills with PostgreSQL as shared data plane.

@@ -1,0 +1,160 @@
+{
+  "prepared_at": "2026-11-05T11:35:10.538992+00:00",
+  "root_head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "development_parent": "d90a7bb8a30cee3e715cb1277fa3aeb5d2ee77b1",
+  "prior_reports_preserved": 169,
+  "windows_conversion": {
+    "counts": {
+      "pass": 25
+    },
+    "failures": []
+  },
+  "ubuntu_conversion": {
+    "counts": {
+      "pass": 25
+    },
+    "failures": []
+  },
+  "windows_admin": {
+    "counts": {
+      "pass": 36
+    },
+    "failures": []
+  },
+  "windows_cli": {
+    "counts": {
+      "PASS": 16,
+      "FAIL": 0
+    },
+    "seconds": 16.50198239999736,
+    "tables": 181,
+    "rows": 109
+  },
+  "ubuntu_cli": {
+    "counts": {
+      "PASS": 16,
+      "FAIL": 0
+    },
+    "seconds": 51.53052575700167,
+    "tables": 181,
+    "rows": 109
+  },
+  "local_commands": [
+    {
+      "name": "gofmt",
+      "exit_code": 0,
+      "seconds": 0.8811187999999675
+    },
+    {
+      "name": "pg-version",
+      "exit_code": 0,
+      "seconds": 0.019458300001133466
+    },
+    {
+      "name": "pg-init",
+      "exit_code": 0,
+      "seconds": 4.66959130000032
+    },
+    {
+      "name": "pg-start",
+      "exit_code": 0,
+      "seconds": 0.2800162999992608
+    },
+    {
+      "name": "conversion-tests",
+      "exit_code": 0,
+      "seconds": 133.82276160000038
+    },
+    {
+      "name": "admin-tests",
+      "exit_code": 0,
+      "seconds": 22.7982196999983
+    },
+    {
+      "name": "vet",
+      "exit_code": 0,
+      "seconds": 22.606596499997977
+    },
+    {
+      "name": "admin-build",
+      "exit_code": 0,
+      "seconds": 2.943188099998224
+    },
+    {
+      "name": "linux-test-build",
+      "exit_code": 0,
+      "seconds": 12.677761800001463
+    },
+    {
+      "name": "linux-admin-build",
+      "exit_code": 0,
+      "seconds": 6.616042400000879
+    },
+    {
+      "name": "pg-stop",
+      "exit_code": 0,
+      "seconds": 1.3295089000021107
+    }
+  ],
+  "vm_commands": [
+    {
+      "name": "version",
+      "exit_code": 0,
+      "seconds": 0.01679096600128105
+    },
+    {
+      "name": "init",
+      "exit_code": 0,
+      "seconds": 11.45688882200011
+    },
+    {
+      "name": "start",
+      "exit_code": 0,
+      "seconds": 0.3682051870000578
+    },
+    {
+      "name": "durability",
+      "exit_code": 0,
+      "seconds": 0.2918571560003329
+    },
+    {
+      "name": "conversion-tests",
+      "exit_code": 0,
+      "seconds": 132.29475226000068
+    },
+    {
+      "name": "cli",
+      "exit_code": 0,
+      "seconds": 51.878313319999506
+    },
+    {
+      "name": "stop",
+      "exit_code": 0,
+      "seconds": 0.5250774289997935
+    }
+  ],
+  "continuity": {
+    "status": "PASS",
+    "services_unchanged": 8
+  },
+  "initial_ubuntu_attempt": {
+    "counts": {
+      "pass": 23,
+      "fail": 2
+    },
+    "failures": [
+      "TestSQLitePostgreSQLConversionLive/OldVersionRowsConstraintsSequences",
+      "TestSQLitePostgreSQLConversionLive"
+    ]
+  },
+  "initial_ubuntu_cli": "NOT TESTED because preceding fixture failed",
+  "hosted_current_source": "NOT TESTED at preparation; tracked after publication",
+  "release_gate": "BLOCKED",
+  "nas0008": "Partial",
+  "nas0116": "Partial",
+  "roadmap": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  }
+}

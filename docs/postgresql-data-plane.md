@@ -50,6 +50,11 @@ lab use with `database.allow_inline_postgresql_dsn: true`.
 
 ## Runtime Behavior
 
+For an isolated existing-data rehearsal, use
+[SQLite-to-PostgreSQL conversion](sqlite-postgresql-conversion.md). The CLI snapshots
+and upgrades a copy, imports into a new private schema, and verifies data and IDs.
+It does not switch the active data plane or complete production deployment acceptance.
+
 The runtime opens SQLite with the existing `modernc.org/sqlite` driver and
 PostgreSQL with the internal `aegis-pgx` wrapper around pgx. The wrapper keeps
 existing application SQL compatible by translating:

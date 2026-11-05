@@ -1,5 +1,15 @@
 # Enterprise NAS/AAA Master Implementation Roadmap
 
+November 5 NAS-0008 conversion continuation: a new CLI performs an isolated
+SQLite-to-PostgreSQL rehearsal with a read-only WAL-consistent snapshot, migration
+of the copy, a new private target schema, transactional import, per-table digest
+verification and sequence high-water preservation. Precision loss requires an
+explicit option and is counted. This does not activate services or close production
+certification. NAS-0008 and NAS-0116 remain Partial; the classification stays
+90 Complete / 21 Partial / 24 Missing. See the
+[conversion guide](sqlite-postgresql-conversion.md) and
+[execution report](reports/2026-11-05-conversion-readiness.md).
+
 November 5 recovery continuation: legacy CLI backups now use consistent SQLite
 snapshots including committed WAL data. Bounded archive validation, exact manifest
 coverage, PostgreSQL guards, offline sidecar checks and staged replacement with
