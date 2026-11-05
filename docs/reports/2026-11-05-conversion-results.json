@@ -148,7 +148,11 @@
     ]
   },
   "initial_ubuntu_cli": "NOT TESTED because preceding fixture failed",
-  "hosted_current_source": "NOT TESTED at preparation; tracked after publication",
+  "hosted_current_source": {
+    "status": "PASS",
+    "commit": "3a93e7027b1a8cc820a0f820dac56aa874323d9a",
+    "details": "2026-11-05-conversion-github-results.json"
+  },
   "release_gate": "BLOCKED",
   "nas0008": "Partial",
   "nas0116": "Partial",

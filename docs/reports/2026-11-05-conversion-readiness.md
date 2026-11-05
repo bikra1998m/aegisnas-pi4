@@ -2,6 +2,11 @@
 
 **Isolated conversion rehearsal: PASS. NAS-0008: Partial. Production release: BLOCKED.**
 
+Final update: all three hosted workflows passed on source `3a93e7027b1a8cc820a0f820dac56aa874323d9a`.
+See the [final GitHub validation](2026-11-05-conversion-github-final.md) for current
+full-suite counts, PostgreSQL 14/18 CLI results and release-security evidence.
+The preparation observations below retain their original scope.
+
 The next independent NAS-0008 software gap now has a working CLI and real database
 evidence. `rehearse-sqlite-to-postgres` snapshots the source read-only, migrates the
 copy, creates a new private PostgreSQL schema, imports transactionally, and verifies
