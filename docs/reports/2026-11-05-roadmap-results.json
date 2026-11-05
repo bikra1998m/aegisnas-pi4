@@ -697,10 +697,38 @@
       "/var/lib/dpkg/status": "d5fd36b173f0499839e6509b9f8936f9a9c3bd0f2ba546f650ac5e3b8bb4d0f3"
     }
   },
-  "fresh_os_scan": "NOT TESTED",
+  "fresh_os_scan": {
+    "status": "blocked",
+    "scope": "Fresh advisory scan of unchanged VM dpkg/OS snapshot; excludes snap/container contents, firmware and executable drift. No package remediation applied.",
+    "components": 1733,
+    "occurrences": 78224,
+    "unique_ids": 8287,
+    "blocking_occurrences": 9685,
+    "blocking_unique_ids": 1019,
+    "blocking_packages": 23,
+    "blocking_severities": {
+      "HIGH": 9257,
+      "CRITICAL": 428
+    },
+    "database": {
+      "Version": 2,
+      "NextUpdate": "2026-11-06T07:00:54.926777259Z",
+      "UpdatedAt": "2026-11-05T07:00:54.926777429Z",
+      "DownloadedAt": "2026-11-05T08:18:16.988815629Z"
+    },
+    "inputs_unchanged": true,
+    "created_at": "2026-11-05T08:22:34.515036+00:00",
+    "postprocessing": "PASS after explicit UTF-8 decoding; initial Windows default-codepage error retained. Scans were not rerun."
+  },
   "fresh_local_postgresql_fixture": "SKIPPED; no isolated database environment provided to local suite",
-  "hosted_ci": "NOT TESTED at checkpoint preparation; must inspect actual GitHub runs after push",
+  "hosted_ci": "PASS; see 2026-11-05-roadmap-github-results.json",
   "trusted_signature": "BLOCKED; eligible reviewed main dispatch and prerequisite evidence not available in this development branch",
   "production_activation": "BLOCKED; not attempted",
-  "preserved_preexisting_report_files": 144
+  "preserved_preexisting_report_files": 144,
+  "service_continuity_postscan": {
+    "exit_code": 0,
+    "service_identities_unchanged": true,
+    "services": 8,
+    "time": "2026-11-05T08:23:00.807628+00:00"
+  }
 }

@@ -199,14 +199,6 @@
     "bytes": 2548,
     "sha256": "c4a2d7c7d57cbe4228cbe14edd5f2d2c8e4de81e8fd6f41eca186dfce01fb3f4"
   },
-  ".tmp/checkpoint-20261105/reviewed-source-hashes.json": {
-    "bytes": 160138,
-    "sha256": "4b5aa69291c145111c59723272d06b6d0ec752c2f81a08109881b5776d8f3178"
-  },
-  ".tmp/checkpoint-20261105/source-review.json": {
-    "bytes": 667,
-    "sha256": "9a68e9473bbf2bf25066536a193bbcffd6ca3b088b790e819b97ed6b2c612ae8"
-  },
   ".tmp/checkpoint-20261105/validation.json": {
     "bytes": 922,
     "sha256": "c9bce67a272931ac2821e46848e41f25584d89045cdd9fd9c0ba711e3fdecce0"

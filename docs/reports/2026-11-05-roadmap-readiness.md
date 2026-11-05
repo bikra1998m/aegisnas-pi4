@@ -2,6 +2,13 @@
 
 **Release: BLOCKED. NAS-0116: Partial. Roadmap: 90 Complete / 21 Partial / 24 Missing.**
 
+Final publication update: all three hosted workflows passed on source commit
+`0578d45158454b707d0f41ab669741c47343ad84`. The fresh OS gate blocks 9,685 high/critical
+occurrences across 23 installed packages (1,019 distinct blocking IDs).
+See the [final GitHub/security assessment](2026-11-05-roadmap-github-security-final.md)
+for current results; the checkpoint-preparation observations below are retained
+with their original scope. The system is not production-release ready.
+
 The current dependency fixes and local regression checks pass. This is a tested
 development checkpoint, not completion of all roadmaps or a production release.
 It is prepared for the authorized GitHub development branch

@@ -1,0 +1,201 @@
+{
+  "tested_commit": "0578d45158454b707d0f41ab669741c47343ad84",
+  "branch": "codex/roadmap-checkpoint-20261105",
+  "time": "2026-11-05T08:38:13.869780+00:00",
+  "workflows": [
+    {
+      "id": 41992480751,
+      "name": "CI",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/41992480751",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "frontend",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:49Z",
+          "completed_at": "2026-11-05T08:12:50Z"
+        },
+        {
+          "name": "build",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:49Z",
+          "completed_at": "2026-11-05T08:33:03Z"
+        }
+      ]
+    },
+    {
+      "id": 41992473426,
+      "name": "PostgreSQL runtime compatibility",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/41992473426",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "radius-accounting",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:45Z",
+          "completed_at": "2026-11-05T08:12:41Z"
+        },
+        {
+          "name": "runtime (18)",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:45Z",
+          "completed_at": "2026-11-05T08:14:17Z"
+        },
+        {
+          "name": "runtime (14)",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:45Z",
+          "completed_at": "2026-11-05T08:16:32Z"
+        }
+      ]
+    },
+    {
+      "id": 41992473698,
+      "name": "Release candidate security",
+      "url": "https://github.com/bikra1998m/aegisnas-pi4/actions/runs/41992473698",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "evidence",
+          "conclusion": "success",
+          "started_at": "2026-11-05T08:10:45Z",
+          "completed_at": "2026-11-05T08:17:37Z"
+        },
+        {
+          "name": "attest",
+          "conclusion": "skipped",
+          "started_at": "2026-11-05T08:17:38Z",
+          "completed_at": "2026-11-05T08:17:37Z"
+        }
+      ]
+    }
+  ],
+  "ubuntu_go": {
+    "counts": {
+      "pass": 1458,
+      "skip": 4
+    },
+    "skipped_tests": [
+      "TestPostgreSQLLiveMigrationsAndRollback",
+      "TestPostgreSQLAccountingLiveFixture",
+      "TestPostgreSQLModuleLiveFixture",
+      "TestLiveIANAAssignment"
+    ],
+    "packages": {
+      "pass": 40,
+      "skip": 12
+    }
+  },
+  "ubuntu_python": {
+    "passed": 108,
+    "skipped": 0
+  },
+  "browser": {
+    "startTime": "2026-11-05T08:11:34.015Z",
+    "duration": 73075.22,
+    "expected": 37,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "postgresql": {
+    "14": {
+      "counts": {
+        "pass": 156
+      },
+      "skipped_tests": [],
+      "packages": {
+        "pass": 1
+      }
+    },
+    "18": {
+      "counts": {
+        "pass": 156
+      },
+      "skipped_tests": [],
+      "packages": {
+        "pass": 1
+      }
+    }
+  },
+  "radius_accounting": {
+    "status": "PASS",
+    "passed": 117
+  },
+  "recovery_cli": {
+    "status": "PASS",
+    "counts": {
+      "PASS": 24
+    }
+  },
+  "dependency_gate": {
+    "blockers": [],
+    "feature_id": "NAS-0116",
+    "findings": [],
+    "schema_version": 1,
+    "signature_verified": false,
+    "status": "passed"
+  },
+  "candidate_source": {
+    "commit": "0578d45158454b707d0f41ab669741c47343ad84",
+    "dirty": false,
+    "inputs": {
+      "go.mod": "1b8dad4ee5ec7bea56315b2617639020756d0c30eba3d2d13485376bb4f7fa8e",
+      "go.sum": "f74e747c85e85c5c460750afd797347444ba7695d8952ce5069295709471ca21",
+      "go.work": "6800401e5205e828a415215ca8645074a9fc1e7bb31e6dbcc563d3fa5244c04d",
+      "go.work.sum": "062423b9681aeca2493afd2efdd975bfd327ab014b858093e17e3b5d0df53b4c",
+      "web/admin-ui/package-lock.json": "dc6df278e221575ae5c860c3b3acccd392cd973204ff65df36a09b8a542f547b",
+      "web/admin-ui/package.json": "b51096166fd9ba36db02522d8b589244688d3d1a6ff6e024dadc6da3a49e5632"
+    },
+    "tree_sha256": "ebcbbf1ef1043bfe7ad9b3c0986af7a4695222fce225e5b44d185fe50d27b37e"
+  },
+  "unsigned_artifact_hash_checks": [],
+  "candidate_download": {
+    "started_at": "2026-11-05T08:27:37.877319+00:00",
+    "timeout_seconds": 600,
+    "scope": "Download unsigned-candidate artifact only into a fresh directory; earlier failed downloads preserved",
+    "exit_code": -1,
+    "seconds": 600.0313452999999,
+    "error": "600-second transfer deadline exceeded"
+  },
+  "trusted_signing": "SKIPPED by manual-main restriction; no successful signature claimed",
+  "fresh_os": {
+    "status": "blocked",
+    "scope": "Fresh advisory scan of unchanged VM dpkg/OS snapshot; excludes snap/container contents, firmware and executable drift. No package remediation applied.",
+    "components": 1733,
+    "occurrences": 78224,
+    "unique_ids": 8287,
+    "blocking_occurrences": 9685,
+    "blocking_unique_ids": 1019,
+    "blocking_packages": 23,
+    "blocking_severities": {
+      "HIGH": 9257,
+      "CRITICAL": 428
+    },
+    "database": {
+      "Version": 2,
+      "NextUpdate": "2026-11-06T07:00:54.926777259Z",
+      "UpdatedAt": "2026-11-05T07:00:54.926777429Z",
+      "DownloadedAt": "2026-11-05T08:18:16.988815629Z"
+    },
+    "inputs_unchanged": true,
+    "created_at": "2026-11-05T08:22:34.515036+00:00",
+    "postprocessing": "PASS after explicit UTF-8 decoding; initial Windows default-codepage error retained. Scans were not rerun."
+  },
+  "vm_postscan": {
+    "exit_code": 0,
+    "service_identities_unchanged": true,
+    "services": 8,
+    "time": "2026-11-05T08:23:00.807628+00:00"
+  },
+  "overall_release_gate": "BLOCKED",
+  "nas0116": "Partial",
+  "roadmap_counts": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  }
+}

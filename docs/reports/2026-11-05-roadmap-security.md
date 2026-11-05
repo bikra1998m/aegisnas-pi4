@@ -1,5 +1,9 @@
 # NAS-0116 dependency, OS and admission assessment - 2026-11-05
 
+Checkpoint-preparation observations below are retained. See the
+[final hosted and fresh OS results](2026-11-05-roadmap-github-security-final.md)
+for the subsequent executed checks and current release decision.
+
 **Overall release gate: BLOCKED. NAS-0116: Partial.**
 
 The [official Go advisory](https://vuln.go.dev/ID/GO-2026-5932.json), modified

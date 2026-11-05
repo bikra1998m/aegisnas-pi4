@@ -1,5 +1,9 @@
 # PostgreSQL and deployed Ubuntu validation - 2026-11-05
 
+Checkpoint-preparation observations below are retained. See the
+[final hosted and fresh OS results](2026-11-05-roadmap-github-security-final.md)
+for the subsequent executed checks and current release decision.
+
 Fresh deployed checks: **19 PASS / two FAIL out of 21**. The failures were
 20-second authenticated readiness/system-status GET timeouts. Separate retries
 with the same deadlines passed 2/2 in 1.614s and 2.868s. HTTP success did not imply

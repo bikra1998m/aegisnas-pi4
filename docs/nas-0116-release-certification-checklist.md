@@ -12,10 +12,10 @@ as well as external evidence; none of the unchecked items is completed by plan.
 - [x] Route both expected signed CI candidates through policy-bound admission before uploading them; retain receipts. Workflow execution remains unchecked below.
 - [x] Add non-waiving comparison of scanner findings with shipped command imports for both Linux targets.
 - [ ] Execute a passing end-to-end trusted workflow on an actual candidate.
-- [ ] Remediate all blocking dependency findings or approve a governed policy change.
+- [x] Remediate all blocking dependency findings or approve a governed policy change.
   November 5: Go AMD64/ARM64 package scans are clear after the official crypto
   module split, and npm audit is clear after the follow-redirects patch. A fresh
-  complete committed-source workflow remains required; no policy waiver is used.
+  complete committed-source dependency gate now passes on `0578d45158454b707d0f41ab669741c47343ad84`; no policy waiver is used.
 - [ ] Verify a real signed candidate and reject a tampered copy.
 - [x] Add verified candidate staging with signature admission, payload integrity and downgrade tests.
 - [x] Add full staged-payload re-verification against the original signed archive, current policy and existing sequence reservation; fix group-writable publication permissions and reject later unsafe changes. See [re-verification](release-reverification.md). Local positive signature checks remain mocks; the trusted hosted execution item is still open.
@@ -31,4 +31,4 @@ as well as external evidence; none of the unchecked items is completed by plan.
 - [ ] Complete builder/security review, release permission review and recovery drills.
 
 See [supply-chain-release-security.md](supply-chain-release-security.md).
-Current evidence and blockers: [October 27 re-verification continuation](reports/2026-10-27-reverification-readiness.md).
+Current evidence and blockers: [November 5 hosted and OS validation](reports/2026-11-05-roadmap-github-security-final.md).

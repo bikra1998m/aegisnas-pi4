@@ -1,5 +1,9 @@
 # Windows and Ubuntu regression evidence - 2026-11-05
 
+Checkpoint-preparation observations below are retained. See the
+[final hosted and fresh OS results](2026-11-05-roadmap-github-security-final.md)
+for the subsequent executed checks and current release decision.
+
 | Execution and scope | Status and result |
 |---|---|
 | Windows Go, current dependency | PASS all-package coverage: 52/52 packages; 1,457 test/subtest passes, five SKIPPED. |
