@@ -2,6 +2,14 @@
 
 Engineering status: **Partial (reopened 2026-10-15; updated 2026-10-23)**.
 
+November 5 legacy recovery update: the generic CLI `backup` and `restore` now
+reject PostgreSQL before opening a connection or creating output. SQLite backups
+include committed WAL data, with bounded archive validation and staged offline
+replacement. Actual Windows/Ubuntu fixture evidence is in the
+[recovery report](reports/2026-11-05-recovery-cli-readiness.md).
+This does not implement SQLite-to-PostgreSQL conversion or PostgreSQL production
+backup orchestration; the unchecked acceptance criteria below remain open.
+
 October 26 recovery clarification: SQLite snapshot/download and local upgrade
 rehearsal paths now explicitly reject PostgreSQL or report it as unsupported.
 The earlier HTTP smoke successes did not certify PostgreSQL backup. Encrypted

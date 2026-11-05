@@ -1,0 +1,695 @@
+{
+  "scope": "Selected raw logs and structured results; excludes private fixture state, archives, configs and keys. Earlier evidence remains separately retained.",
+  "records": [
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/gofmt.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/gofmt.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/linux-test-build.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/linux-test-build.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/python-syntax.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/python-syntax.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/results.json",
+      "bytes": 495,
+      "sha256": "8ab1853d3753bb86875c802ccad54012a2f58fdf7dcc931bb9f4334c5cde594b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/create-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/create-snapshot.stdout",
+      "bytes": 360,
+      "sha256": "f89e3c14d5a9614e3700a06ecb24502d922f5b6ce48c70db047ae9b7c8bd4782"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/extract-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/extract-snapshot.stdout",
+      "bytes": 1845,
+      "sha256": "38389c421b1f1dbd5974a378b8227feb770db11d947671d5870ffc48106709bd"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/migrate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/migrate.stdout",
+      "bytes": 43,
+      "sha256": "23b6bab5d8350d4781adbd62591db9767c0e1a10401e0c67d8333014fd8204bb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-extraction-overwrite.stderr",
+      "bytes": 1050,
+      "sha256": "b899b8634f4287e418e38e5e45d004cc09eee37f84e59c2b37d53bae605c83cb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-extraction-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-overwrite.stderr",
+      "bytes": 560,
+      "sha256": "5397d27a54bb6a282de85b0aa2c29b6993c8afb5f796456d08853473995138ab"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-tampered.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-tampered.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-context.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-context.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-digest.stderr",
+      "bytes": 754,
+      "sha256": "86cba86fc3b2975c4ec617b2a0c738f4600463a259cd658fce2c8215a86e5826"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-digest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-key.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/reject-wrong-key.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/result.json",
+      "bytes": 3597,
+      "sha256": "d4c25ede7a9cfabf43bb80090e5e8edf11f39f6a73ceec6ea10a9a44b9f12cae"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/staged/config/system-settings.json",
+      "bytes": 141776,
+      "sha256": "d4a24b53cca5084c6a4d65cd3b3312aa7e13e47646662a474ae958f730f072b7"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/staged/manifest.json",
+      "bytes": 539,
+      "sha256": "6a1bdcb5adf7aabbc535fa31ebd947c02e5a9deaa7e9bc8759f22fdfacffaa11"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/sealed-recovery/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/windows-sealed-recovery.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/windows-sealed-recovery.stdout",
+      "bytes": 3597,
+      "sha256": "d4c25ede7a9cfabf43bb80090e5e8edf11f39f6a73ceec6ea10a9a44b9f12cae"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/windows-tests.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/final-local/windows-tests.stdout",
+      "bytes": 33289,
+      "sha256": "d54ebe97d51e9ea643a2c0f99baf67ca68a9d2c51280ccde48b44a34ee3156e2"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/gofmt.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/gofmt.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-linux-amd64.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-linux-amd64.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-linux-arm64.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-linux-arm64.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-windows-amd64.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/build-windows-amd64.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/cli-vet.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/cli-vet.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/gofmt.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/gofmt.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/validation.json",
+      "bytes": 1058,
+      "sha256": "150433ee58274fe29ccccc98802312a3bc27200d2e6e5684d3d38317b7b157d4"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/windows-cli-tests.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pass2/windows-cli-tests.stdout",
+      "bytes": 32387,
+      "sha256": "114fd2dfa125a55db1531c4c085085a1374516054c421681bc501e04e69c0c02"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pre-fix-go.jsonl",
+      "bytes": 25560,
+      "sha256": "4cbbfb998f258a595fba58bee4bb71521e9c252ceeed567341350bab26bfd458"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/pre-fix-go.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/commands.json",
+      "bytes": 593,
+      "sha256": "61682ae46ed4fdc15b93d7c9e14cb99d77bbfebda81a455c04edaf82f70e4645"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/backup-default-selected-config.stderr",
+      "bytes": 84,
+      "sha256": "de41110f936dfea51c3fa0eec0fb8180183d4054eb9010c283ee79b7cdbadfa8"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/backup-default-selected-config.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-backup-overwrite.stderr",
+      "bytes": 401,
+      "sha256": "fb6a1ff2cbd523654f9498514097236641a865f489a63fd2405e6773f445dfc5"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-backup-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-database-path-change.stderr",
+      "bytes": 353,
+      "sha256": "c004183777e8e8a777a2f311d65fd5cc576a4ae6e9c03be9595a296837f41f42"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-database-path-change.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-incomplete-manifest.stderr",
+      "bytes": 369,
+      "sha256": "03a086d12086621244aea960b64e26f8b346f5ff65768c0f4877764d7c199f51"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-incomplete-manifest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-invalid-database.stderr",
+      "bytes": 349,
+      "sha256": "f1217c8865047f56bbb9d63b79d67237e09e22e4fe1adf0da1ce6cf01ae03061"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-invalid-database.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-live-wal-restore.stderr",
+      "bytes": 429,
+      "sha256": "e102952a9a45b038bb719137796de878d1db606b1083840ab40e0fa538622b5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-live-wal-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-postgres-backup.stderr",
+      "bytes": 403,
+      "sha256": "9c6f3681cae3c7a077dfd96a3a596af18068360c5cb0ae2ca5ce375a96d8ccc5"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-postgres-backup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-postgres-restore.stderr",
+      "bytes": 405,
+      "sha256": "04ba5cd537d6b7ddbb44277545d2a230c4241dba2943e0e79532af44b72ba58d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-postgres-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-user-declined-restore.stderr",
+      "bytes": 331,
+      "sha256": "207f69570e445187379e2f5c60d2771872e66de8da9ab21b62881cc3bac38dad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/reject-user-declined-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/restore-offline-fixture.stderr",
+      "bytes": 218,
+      "sha256": "913e876ad6ab7dee88614abbcbdbd276032e070e97f1222bbfbb2048a1b1f443"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/restore-offline-fixture.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/result.json",
+      "bytes": 4336,
+      "sha256": "de95a965c113515f925fa794c4bab1d87901318ee6804bb4feba910d5e41707e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/legacy/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/remote-hashes.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/remote-hashes.stdout",
+      "bytes": 426,
+      "sha256": "5d470853cdb0e710d342c11e50dc648ef8f1d34a5cb1267269e4062f42c74d11"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/create-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/create-snapshot.stdout",
+      "bytes": 360,
+      "sha256": "e10f755682aa708de21a1b50824d1fe3e286c1280def23db64eb1c52953f8c78"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/extract-snapshot.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/extract-snapshot.stdout",
+      "bytes": 1502,
+      "sha256": "e797a8182b1c995fa5c77f8193785be7704f443b4a2a66d7d0deeef4a4417415"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/migrate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/migrate.stdout",
+      "bytes": 43,
+      "sha256": "23b6bab5d8350d4781adbd62591db9767c0e1a10401e0c67d8333014fd8204bb"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-extraction-overwrite.stderr",
+      "bytes": 888,
+      "sha256": "3e3ca0164c34dec0ff3a708987e57435768edc51b8a154dfcbdcbabd42794398"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-extraction-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-overwrite.stderr",
+      "bytes": 560,
+      "sha256": "5397d27a54bb6a282de85b0aa2c29b6993c8afb5f796456d08853473995138ab"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-tampered.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-tampered.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-context.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-context.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-digest.stderr",
+      "bytes": 754,
+      "sha256": "86cba86fc3b2975c4ec617b2a0c738f4600463a259cd658fce2c8215a86e5826"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-digest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-key.stderr",
+      "bytes": 712,
+      "sha256": "5ca769a324c20254b8c23219bbec99af1b3aceb72e349977625290d9491c3ecc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/reject-wrong-key.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/result.json",
+      "bytes": 3404,
+      "sha256": "759ceb35b76515251544fe8b9d3c7412ebd25f4a68c0709cd13bb8cc19d1e8dc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/sealed/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/services-after.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/services-after.stdout",
+      "bytes": 2087,
+      "sha256": "275754ab8945fd1019aefb99f1ea1d997fdf89fc23f76153467d969e67332550"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/services-before.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/services-before.stdout",
+      "bytes": 2087,
+      "sha256": "9e5d422d45e8490907610d46b1be27a988b7b68f8fb610ba67c78d28e476b114"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/summary.json",
+      "bytes": 276,
+      "sha256": "53af5444c62fff69814b460f294d809b4dff91079cf40b8bef989dde4e29121d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-cli-unit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-cli-unit.stdout",
+      "bytes": 4899,
+      "sha256": "46b7d0ef98e6e67319e545843c23cef11f4cf0714c93e339b44513150fb4243f"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-legacy.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-legacy.stdout",
+      "bytes": 4336,
+      "sha256": "de95a965c113515f925fa794c4bab1d87901318ee6804bb4feba910d5e41707e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-sealed.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/ubuntu-sealed.stdout",
+      "bytes": 3404,
+      "sha256": "759ceb35b76515251544fe8b9d3c7412ebd25f4a68c0709cd13bb8cc19d1e8dc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/ubuntu-live/uploaded-inputs.json",
+      "bytes": 471,
+      "sha256": "8343d032451c7ae7cdbcad7d1a2adbf35c54122f4e15f075472069d749e7f270"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/validation.json",
+      "bytes": 348,
+      "sha256": "87628b20b07fc184e12d82ab937d2de27cf42f95875fd5e094fbb6b493aa034c"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-cli-tests.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-cli-tests.stdout",
+      "bytes": 32687,
+      "sha256": "d64310c8052de67222ebd535753fa612960434467f30c8e3a93717e0550e65b9"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/backup-default-selected-config.stderr",
+      "bytes": 110,
+      "sha256": "462d33391b10800f55779f06f7bfe6848b2ff10b67b1c3c9a75910fc5736fb19"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/backup-default-selected-config.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-backup-overwrite.stderr",
+      "bytes": 463,
+      "sha256": "c7113e573807c5e0a4c445280cd2f7977cb3221fc2b20f47e74c3bb07b244e83"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-backup-overwrite.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-database-path-change.stderr",
+      "bytes": 353,
+      "sha256": "c004183777e8e8a777a2f311d65fd5cc576a4ae6e9c03be9595a296837f41f42"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-database-path-change.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-incomplete-manifest.stderr",
+      "bytes": 369,
+      "sha256": "03a086d12086621244aea960b64e26f8b346f5ff65768c0f4877764d7c199f51"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-incomplete-manifest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-invalid-database.stderr",
+      "bytes": 349,
+      "sha256": "f1217c8865047f56bbb9d63b79d67237e09e22e4fe1adf0da1ce6cf01ae03061"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-invalid-database.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-live-wal-restore.stderr",
+      "bytes": 429,
+      "sha256": "e102952a9a45b038bb719137796de878d1db606b1083840ab40e0fa538622b5b"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-live-wal-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-postgres-backup.stderr",
+      "bytes": 403,
+      "sha256": "9c6f3681cae3c7a077dfd96a3a596af18068360c5cb0ae2ca5ce375a96d8ccc5"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-postgres-backup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-postgres-restore.stderr",
+      "bytes": 405,
+      "sha256": "04ba5cd537d6b7ddbb44277545d2a230c4241dba2943e0e79532af44b72ba58d"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-postgres-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-user-declined-restore.stderr",
+      "bytes": 331,
+      "sha256": "207f69570e445187379e2f5c60d2771872e66de8da9ab21b62881cc3bac38dad"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/reject-user-declined-restore.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/restore-offline-fixture.stderr",
+      "bytes": 218,
+      "sha256": "913e876ad6ab7dee88614abbcbdbd276032e070e97f1222bbfbb2048a1b1f443"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/restore-offline-fixture.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/result.json",
+      "bytes": 4579,
+      "sha256": "171ac21b0e2bbd238ef7b4623ed4b84dbc1b3b9bb9a5baa0c185e005a7ea81bc"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/validate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live/validate.stdout",
+      "bytes": 24,
+      "sha256": "5970107f973f809227a732b9e0fe537ad1c511761785b6547b8f92ede490e64e"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tmp/recovery-cli-20261105/windows-live.stdout",
+      "bytes": 9160,
+      "sha256": "c2a8e1aeca5fa16d745340a18e20919481a2a6671c17bd1ec688b696d3e235f7"
+    }
+  ]
+}

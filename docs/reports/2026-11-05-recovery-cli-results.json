@@ -1,0 +1,158 @@
+{
+  "prepared_at": "2026-11-05T09:24:42.738647+00:00",
+  "baseline_root_head": "7004511cfbea5f30d53db9b6ac768e059d7cfaf1",
+  "baseline_development_head": "9880861098fbdc172c21075724b09aa88310e2e7",
+  "prior_reports_preserved": 159,
+  "release_decision": "BLOCKED",
+  "milestones": {
+    "Complete": 90,
+    "Partial": 21,
+    "Missing": 24
+  },
+  "nas_0116": "Partial",
+  "next_independent_track": "NAS-0008",
+  "windows_cli_unit": {
+    "pass": 36
+  },
+  "ubuntu_cli_unit": {
+    "PASS": 36,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "fixtures": {
+    "windows_legacy": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 36,
+        "FAIL": 0,
+        "SKIPPED": 1
+      },
+      "seconds": 13.888780499999484
+    },
+    "windows_sealed": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 23,
+        "FAIL": 0,
+        "SKIPPED": 1
+      },
+      "seconds": 18.39275020000059
+    },
+    "ubuntu_legacy": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 37,
+        "FAIL": 0,
+        "SKIPPED": 0
+      },
+      "seconds": 10.545060042000841
+    },
+    "ubuntu_sealed": {
+      "status": "PASS",
+      "counts": {
+        "PASS": 24,
+        "FAIL": 0,
+        "SKIPPED": 0
+      },
+      "seconds": 2.140984228999514
+    }
+  },
+  "local_commands": [
+    {
+      "name": "gofmt",
+      "exit_code": 0,
+      "seconds": 0.13618050000150106
+    },
+    {
+      "name": "windows-tests",
+      "exit_code": 0,
+      "seconds": 12.451174699999683
+    },
+    {
+      "name": "linux-test-build",
+      "exit_code": 0,
+      "seconds": 53.597970999999234
+    },
+    {
+      "name": "python-syntax",
+      "exit_code": 0,
+      "seconds": 6.003273500000432
+    },
+    {
+      "name": "windows-sealed-recovery",
+      "exit_code": 0,
+      "seconds": 21.338987900000575
+    }
+  ],
+  "build_vet_commands": [
+    {
+      "name": "gofmt",
+      "started_at": "2026-11-05T09:05:47.757083+00:00",
+      "exit_code": 0,
+      "seconds": 0.042416800000864896,
+      "status": "PASS"
+    },
+    {
+      "name": "windows-cli-tests",
+      "started_at": "2026-11-05T09:05:47.800157+00:00",
+      "exit_code": 0,
+      "seconds": 11.410764399999607,
+      "status": "PASS"
+    },
+    {
+      "name": "cli-vet",
+      "started_at": "2026-11-05T09:05:59.211315+00:00",
+      "exit_code": 0,
+      "seconds": 10.223655300000246,
+      "status": "PASS"
+    },
+    {
+      "name": "build-windows-amd64",
+      "started_at": "2026-11-05T09:06:09.435362+00:00",
+      "exit_code": 0,
+      "seconds": 3.3272471000000223,
+      "status": "PASS"
+    },
+    {
+      "name": "build-linux-amd64",
+      "started_at": "2026-11-05T09:06:12.763018+00:00",
+      "exit_code": 0,
+      "seconds": 36.7455073000001,
+      "status": "PASS"
+    },
+    {
+      "name": "build-linux-arm64",
+      "started_at": "2026-11-05T09:06:49.509293+00:00",
+      "exit_code": 0,
+      "seconds": 37.11601569999948,
+      "status": "PASS"
+    }
+  ],
+  "vm_continuity": {
+    "status": "PASS",
+    "service_identities_unchanged": true,
+    "services": 8,
+    "legacy": {
+      "PASS": 37,
+      "FAIL": 0,
+      "SKIPPED": 0
+    },
+    "sealed": {
+      "PASS": 24,
+      "FAIL": 0,
+      "SKIPPED": 0
+    },
+    "time": "2026-11-05T09:20:32.656985+00:00"
+  },
+  "hosted_current_commit": "NOT TESTED at preparation; see subsequent hosted publication report",
+  "previous_os_gate": {
+    "source": "2026-11-05-roadmap-github-security-final.md",
+    "status": "BLOCKED",
+    "blocking_occurrences": 9685,
+    "high": 9257,
+    "critical": 428,
+    "blocking_ids": 1019,
+    "installed_packages": 23,
+    "reachability": "NOT TESTED"
+  }
+}

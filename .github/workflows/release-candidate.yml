@@ -51,6 +51,7 @@ jobs:
         run: |
           go build -o build/recovery-bin/aegis-admin ./cmd/aegis-admin
           python3 scripts/test_recovery_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/recovery-cli
+          python3 scripts/test_legacy_backup_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/legacy-backup-cli
       - name: Preserve security evidence on failures as well as success
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -61,6 +62,9 @@ jobs:
             build/recovery-cli/*.stdout
             build/recovery-cli/*.stderr
             build/recovery-cli/result.json
+            build/legacy-backup-cli/*.stdout
+            build/legacy-backup-cli/*.stderr
+            build/legacy-backup-cli/result.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -1,8 +1,8 @@
 # Backup and Restore Procedures
 
-Backups have two layers:
+Backups have several scopes:
 
-- Full appliance archive from the CLI: database, config file, and checksum manifest.
+- Local SQLite archive from the CLI: database, config file, and checksum manifest; this is not a full appliance image.
 - Config JSON from the admin UI: users, vouchers, roles, bandwidth profiles, portal profiles, policies, identity sources, and RADIUS clients.
 - Upgrade rollback package: version-aware config and SQLite snapshot used specifically for upgrade rollback decisions and rehearsals.
 
@@ -15,12 +15,29 @@ aegis-admin backup /backups/aegisnas-$(date +%Y%m%d-%H%M%S).tar.gz --config /etc
 The archive includes:
 
 - `data.db`
-- `config.yaml` when the configured file exists
+- `config.yaml` from the configuration actually selected by the CLI, including `./config.yaml`; an unreadable selected file fails the backup
 - `manifest.json` with SHA-256 checksums
+
+The CLI uses SQLite `VACUUM INTO` to capture a consistent database snapshot,
+including committed WAL transactions, without copying a possibly stale main
+database file. See the [SQLite snapshot documentation](https://www.sqlite.org/lang_vacuum.html).
+This does not make the separate config file and database one coordinated snapshot.
+The destination must be new: an existing archive is never overwritten. Archives
+are created with mode `0600` on Linux. Compressed and expanded payloads are each
+limited to 512 MiB; configuration is limited to 4 MiB and the manifest to 64 KiB.
+Larger databases require a separately reviewed recovery procedure. A failed write
+may leave a partial output; retain its failure log and choose a new output path.
+
+Both commands reject PostgreSQL before opening a database or creating an archive.
+Use the separately validated PostgreSQL logical/managed recovery procedure for
+that data plane. These tar archives are unencrypted and their checksums are not
+authentication. Only restore trusted local archives. See
+[authenticated recovery staging](authenticated-recovery-staging.md) for the
+separate encrypted staging path and its remaining activation limitations.
 
 ## CLI Restore
 
-1. Stop AegisNAS services.
+1. Stop every SQLite client, including AegisNAS services and external readers or writers. Complete checkpoint/recovery through SQLite first; do not delete WAL, SHM or journal files manually.
 2. Copy the archive to the appliance.
 3. Run restore:
 
@@ -28,7 +45,29 @@ The archive includes:
 aegis-admin restore /backups/aegisnas-20260417-120000.tar.gz --config /etc/aegisnas/config.yaml
 ```
 
-The restore flow extracts to a temporary directory, verifies `manifest.json`, runs SQLite `PRAGMA integrity_check`, asks for confirmation, and then replaces the current database and config file.
+The restore flow validates a bounded archive in a private temporary directory,
+requires exact manifest coverage, checks SQLite integrity and validates the
+recovered config before asking for `yes`. Unknown or duplicate entries, links,
+special files, malformed manifests, corrupt gzip trailers and trailing streams
+are rejected. The recovered config must keep the current SQLite database path.
+Destination directories must already exist, with no symlink components. Config
+and database destinations must be distinct files.
+
+Restore refuses existing `-wal`, `-shm` or `-journal` sidecars. Their absence does
+not prove that clients have stopped; the operator must enforce that requirement.
+All replacement files and private `.aegis-restore-before-*` safety copies are
+prepared beside their destinations before replacement begins. Ordinary in-process
+replacement failures trigger compensation for files already replaced. Successful
+restores retain safety copies for the operator's retention policy. Review the
+config and ownership/access permissions before restarting services; files are
+created by the invoking account with Linux mode `0600`. Windows ACLs are not
+certified by these permission tests.
+
+This is an offline, operator-controlled procedure, not a power-loss-safe atomic
+database/config transaction or authenticated production activation. Cross-service
+quiescing, coordinated activation and other legacy restore entry points remain
+open in NAS-0116. Executed Windows/Ubuntu evidence is in the
+[November 5 recovery report](reports/2026-11-05-recovery-cli-readiness.md).
 
 ## Admin UI Config Backup
 

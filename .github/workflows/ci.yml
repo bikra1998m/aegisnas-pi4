@@ -43,6 +43,8 @@ jobs:
         run: |
           go build -o build/recovery-bin/aegis-admin ./cmd/aegis-admin
           python3 scripts/test_recovery_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/recovery-cli
+      - name: Legacy backup and offline restore fixture (isolated SQLite)
+        run: python3 scripts/test_legacy_backup_cli.py --admin-bin build/recovery-bin/aegis-admin --output build/legacy-backup-cli
       - run: make test-vendor-identity
       - run: make test-attribute-registry
       - run: make test-dictionary-release-profiles
@@ -66,6 +68,9 @@ jobs:
             build/recovery-cli/*.stdout
             build/recovery-cli/*.stderr
             build/recovery-cli/result.json
+            build/legacy-backup-cli/*.stdout
+            build/legacy-backup-cli/*.stderr
+            build/legacy-backup-cli/result.json
           if-no-files-found: warn
 
   frontend:

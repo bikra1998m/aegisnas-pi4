@@ -22,6 +22,11 @@ as well as external evidence; none of the unchecked items is completed by plan.
 - [x] Persist verified sequence/artifact reservations before staging publication; reject downgrade and sequence reuse across invocations, serialize admissions, and test process-exit/I/O-failure recovery on Windows and Ubuntu. Windows does not certify Linux directory durability or permissions.
 - [x] Implement a separate encrypted SQLite recovery snapshot and authenticated staging path, with strict archive bounds and no unsigned fallback. See [scope and limitations](authenticated-recovery-staging.md).
 - [ ] Integrate admission and authenticated recovery with production activation and every database/config restore entry point; validate coordinated rollback and power-loss behavior.
+  November 5 legacy CLI repairs add WAL-consistent SQLite backups, strict bounded
+  archive/manifest validation, PostgreSQL rejection, offline sidecar guards and
+  staged replacement with ordinary I/O-failure compensation. Actual Windows and
+  Ubuntu fixture results are recorded in the [recovery report](reports/2026-11-05-recovery-cli-readiness.md).
+  Checksums still do not authenticate these archives; this acceptance item stays open.
 - [x] Add pinned OS/rootfs and OCI-archive inventories and vulnerability gate commands.
 - [x] Add bounded read-only inventories of snap blobs, firmware and boot files, with independent-digest comparison and fail-closed coverage status. See [artifact inventory](appliance-artifact-inventory.md).
 - [ ] Complete nested snap package inventories/scans, firmware advisory mapping and artifact-to-image binding, then execute signed full-image workflows. File hashes alone do not close this gate.

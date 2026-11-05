@@ -1,5 +1,14 @@
 # Enterprise NAS/AAA Master Implementation Roadmap
 
+November 5 recovery continuation: legacy CLI backups now use consistent SQLite
+snapshots including committed WAL data. Bounded archive validation, exact manifest
+coverage, PostgreSQL guards, offline sidecar checks and staged replacement with
+ordinary I/O-failure compensation have executed Windows/Ubuntu evidence. These
+checksum archives remain unauthenticated; coordinated activation, power-loss
+durability and the other restore entry points remain open. NAS-0116 and NAS-0008
+remain Partial, with the same 90 Complete / 21 Partial / 24 Missing classification.
+See the [recovery continuation](reports/2026-11-05-recovery-cli-readiness.md).
+
 November 5 continuation: the updated upstream advisory now permits remediation
 of the parent Go crypto module through its official OpenPGP module split.
 The selected upstream commit clears both Linux Go scans, and the newly reported
